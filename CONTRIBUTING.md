@@ -18,17 +18,18 @@ Four people, seven days, one repository. These rules exist to keep integration c
 
 ---
 
-## 2. Branching
+## 2. Branching & Worktrees
 
-```
-main      ← tagged releases only
-develop   ← integration branch, always green
-feat/<role>-<module>       e.g. feat/r1-nyaya-path-integral
-fix/<short>                docs/<short>                adr/<number>-<slug>
-```
+**VARUNA v2 uses a strict Role-Based Branching and Worktree Strategy.**
 
-Branch from `develop`. One module or one vertical slice per branch. Rebase on `develop`
-before opening a PR.
+See [BRANCHING_STRATEGY.md](docs/BRANCHING_STRATEGY.md) for full details.
+
+### Summary
+- **`main`**: Production-ready. Do not commit directly.
+- **`develop`**: Shared integration branch.
+- **Role Branches (`varuna/lead`, `varuna/backend`, etc.)**: Development occurs exclusively in these isolated branches, which are checked out in adjacent worktrees (e.g., `../VARUNA-lead`).
+
+Never merge role branches directly into each other. All integration happens through `develop`.
 
 ---
 
