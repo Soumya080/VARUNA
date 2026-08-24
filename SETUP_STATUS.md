@@ -65,17 +65,16 @@ All of these are empty packages awaiting their owner:
 
 ```
 packages/varuna_domain          varuna_data_guard      varuna_source_adapters
-packages/varuna_netra           varuna_prativartan     varuna_nyaya
-packages/varuna_chhaya          varuna_pravaah         varuna_abhiyan
-packages/varuna_missions        varuna_alerts          varuna_praman
-packages/varuna_smriti
+packages/varuna_netra           varuna_chhaya          varuna_pravaah
+packages/varuna_abhiyan         varuna_missions        varuna_alerts
+packages/varuna_praman          varuna_smriti
 apps/api                        apps/worker            apps/web
 db/migrations                   infra/{nginx,monitoring,scripts}
 tests/{unit,integration,scientific,robustness,e2e}
 experiments/{convergence,weathering,forcing_bias,ais_robustness,multimodality,data_guard,baselines}
 ```
 
-**Nothing in the scientific pipeline is implemented.** NETRA, PRATIVARTAN, NYAYA,
+**Partial scientific pipeline implementation complete.** PRATIVARTAN and NYAYA are implemented (M2). NETRA, 
 CHHAYA, PRAVAAH, ABHIYAN, PRAMAN, SMRITI are all directories.
 
 ---
