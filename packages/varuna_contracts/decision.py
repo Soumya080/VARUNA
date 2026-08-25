@@ -15,7 +15,11 @@ Two things v1 got wrong and this module fixes:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import timezone, datetime
+import enum
+if not hasattr(enum, "StrEnum"):
+    class _StrEnum(str, enum.Enum): pass
+    enum.StrEnum = _StrEnum
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -120,7 +124,7 @@ class AttributionResultV2(_Base):
     n_candidates_scored: int = Field(..., ge=0)
 
     envelope: EvidenceEnvelope
-    computed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    computed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @model_validator(mode="after")
     def _normalised(self) -> AttributionResultV2:
@@ -161,7 +165,7 @@ class ValidityGateResult(_Base):
 
     source_trust: TrustState = TrustState.TRUSTED
     envelope: EvidenceEnvelope
-    evaluated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    evaluated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @model_validator(mode="after")
     def _consistent(self) -> ValidityGateResult:

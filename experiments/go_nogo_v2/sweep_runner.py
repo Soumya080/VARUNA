@@ -10,6 +10,7 @@ for attr in dir(real_datetime):
     setattr(fake_dt, attr, getattr(real_datetime, attr))
     
 setattr(fake_dt, "UTC", real_datetime.timezone.utc)
+# pyrefly: ignore [unsupported-operation]
 sys.modules['datetime'] = fake_dt
 
 import enum as real_enum

@@ -20,6 +20,8 @@ import time
 
 from tests.fixtures.case_0001 import generate_case_0001
 from varuna_domain.case_workflow import CaseWorkflow
+from varuna_domain.repositories import InMemoryCaseRepository, InMemoryArtifactRepository, InMemoryEventStore
+from varuna_infra.inmemory_store import InMemoryObjectStore
 
 
 def main():
@@ -31,7 +33,12 @@ def main():
     print()
 
     fixture = generate_case_0001()
-    workflow = CaseWorkflow()
+
+    cases = InMemoryCaseRepository()
+    artifacts = InMemoryArtifactRepository()
+    events = InMemoryEventStore()
+    store = InMemoryObjectStore()
+    workflow = CaseWorkflow(cases, artifacts, events, store)
 
     t0 = time.time()
     result = workflow.run_full(

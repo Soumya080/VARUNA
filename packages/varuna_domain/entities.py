@@ -21,7 +21,6 @@ class CaseStatus(str, Enum):
 class ScientificStatus(str, Enum):
     EXPERIMENTAL = "experimental"
     UNVALIDATED = "unvalidated"
-    VALIDATED = "validated"
 
 
 class Artifact:
@@ -32,19 +31,24 @@ class Artifact:
         self.data = data
         self.produced_by = produced_by
         self.case_id = case_id
+        self.storage_key: Optional[str] = None
+        self.content_hash: Optional[str] = None
         self.created_at = datetime.now(timezone.utc)
 
 
 class DomainEvent:
     def __init__(self, event_type: str, case_id: str, actor: str,
                  correlation_id: str, payload: Optional[Dict] = None):
+        import uuid
+        self.event_id = uuid.uuid4().hex[:12]
         self.event_type = event_type
         self.case_id = case_id
         self.actor = actor
         self.correlation_id = correlation_id
         self.payload = payload or {}
         self.timestamp = datetime.now(timezone.utc)
-        self.idempotency_key = f"{event_type}:{case_id}:{self.timestamp.isoformat()}"
+        self.idempotency_key = f"{event_type}:{case_id}:{self.event_id}"
+        self.sequence: Optional[int] = None
 
 
 class Case:
@@ -54,6 +58,7 @@ class Case:
         self.scientific_status = ScientificStatus.EXPERIMENTAL
         self.artifacts: Dict[str, Artifact] = {}
         self.events: List[DomainEvent] = []
+        self.metadata: Dict[str, Any] = {}
         self.created_at = datetime.now(timezone.utc)
         self.updated_at = self.created_at
         self.error: Optional[str] = None

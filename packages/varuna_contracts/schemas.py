@@ -12,7 +12,7 @@ Conventions:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -49,7 +49,7 @@ __all__ = [
 
 
 def _utcnow() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class _Base(BaseModel):
@@ -187,7 +187,7 @@ class SlickDetection(_Base):
     def _tz_aware(cls, v: datetime) -> datetime:
         if v.tzinfo is None:
             raise ValueError("observation_time must be timezone-aware UTC")
-        return v.astimezone(UTC)
+        return v.astimezone(timezone.utc)
 
 
 # ───────────────────────── AIS (M6) ─────────────────────────

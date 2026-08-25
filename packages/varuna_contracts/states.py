@@ -9,7 +9,7 @@ make illegal combinations expressible — so `check_case_invariants` can catch t
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -99,7 +99,7 @@ class CaseStateVector(_Base):
     response: ResponseState = ResponseState.NO_ACTION
     evidence: EvidenceState = EvidenceState.NONE
     lifecycle: CaseLifecycle = CaseLifecycle.OPEN
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 def check_case_invariants(s: CaseStateVector) -> list[str]:
@@ -199,6 +199,6 @@ class MissionRecord(_Base):
             raise ValueError(f"illegal mission transition {self.state.value} -> {dst.value}")
         if dst is MissionState.ASSIGNED and not self.human_approved_by:
             raise ValueError("ASSIGNED requires human_approved_by (authorization gate)")
-        ts = at or datetime.now(UTC)
+        ts = at or datetime.now(timezone.utc)
         self.state_history = [*self.state_history, (dst.value, ts)]
         self.state = dst

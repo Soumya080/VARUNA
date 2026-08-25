@@ -24,7 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -45,7 +45,7 @@ __all__ = [
 
 
 def _utcnow() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class _Base(BaseModel):

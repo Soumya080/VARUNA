@@ -18,11 +18,11 @@ NETRA (SAR detection) → PRATIVARTAN (backward ensemble) → PhiField (3D histo
 ## Package Layout (`packages/`)
 | Package | Status | Purpose |
 |---|---|---|
-| `varuna_contracts` | **LOCKED, VERIFIED** (22 tests) | All Pydantic schemas, envelopes, states |
+| `varuna_contracts` | **VERIFIED** | All Pydantic schemas, envelopes, states |
 | `varuna_geospatial` | **VERIFIED** | haversine, bbox, point-to-segment |
-| `varuna_prativartan` | **IMPLEMENTED (M2)** | Backward advection ensemble + PhiField construction |
-| `varuna_nyaya` | **IMPLEMENTED (M2)** | Path integral, prior, latent, posterior, validity gate |
-| `varuna_domain` | SCAFFOLDED | Domain services |
+| `varuna_prativartan` | **VERIFIED** | Backward advection ensemble + PhiField construction |
+| `varuna_nyaya` | **VERIFIED** | Path integral, prior, latent, posterior, validity gate |
+| `varuna_domain` | **IMPLEMENTED** | Domain services |
 | `varuna_netra` | SCAFFOLDED | SAR oil-spill detection (needs torch) |
 | Others | SCAFFOLDED | chhaya, pravaah, abhiyan, missions, alerts, praman, smriti |
 

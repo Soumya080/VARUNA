@@ -107,3 +107,7 @@ demo: ## Run in DEMO_MODE (frozen artifacts, zero external calls)
 .PHONY: verify-offline
 verify-offline: ## Assert DEMO_MODE makes no external network calls
 	$(PY) -m pytest tests/e2e -q -k offline
+
+.PHONY: demo-m35
+demo-m35: ## Run the M3.5 offline demo script
+	$(PY) scripts/demo_m35.py

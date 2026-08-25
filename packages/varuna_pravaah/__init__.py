@@ -1,2 +1,2 @@
 """VARUNA GRID — PRAVAAH Event Spine."""
-from varuna_pravaah.event_spine import EventSpine, Event
+from varuna_pravaah.event_spine import EventSpine

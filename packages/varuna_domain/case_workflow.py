@@ -12,24 +12,28 @@ from typing import List, Optional
 from datetime import datetime, timezone
 
 from varuna_domain.entities import Case, CaseStatus, ScientificStatus, Artifact
-from varuna_domain.repositories import (
-    InMemoryCaseRepository, InMemoryArtifactRepository, InMemoryEventStore,
-)
+from varuna_domain.ports import CaseRepository, ArtifactRepository, EventRepository, ObjectStore
 from varuna_praman.praman import PramanService
 from varuna_pravaah.event_spine import EventSpine
 from varuna_data_guard.guard import evaluate_data_guard, GuardVerdict
 from varuna_contracts.schemas import VesselTrack
 
 
+from varuna_domain.ports import CaseRepository, ArtifactRepository, EventRepository, ObjectStore
+
 class CaseWorkflow:
     """Orchestrates the full CASE-0001 vertical slice."""
 
-    def __init__(self):
-        self.cases = InMemoryCaseRepository()
-        self.artifacts = InMemoryArtifactRepository()
-        self.events_store = InMemoryEventStore()
-        self.praman = PramanService()
-        self.event_spine = EventSpine()
+    def __init__(self,
+                 case_repo: CaseRepository,
+                 artifact_repo: ArtifactRepository,
+                 event_repo: EventRepository,
+                 object_store: Optional[ObjectStore] = None):
+        self.cases = case_repo
+        self.artifacts = artifact_repo
+        self.events_store = event_repo
+        self.praman = PramanService(self.artifacts, object_store)
+        self.event_spine = EventSpine(self.events_store)
 
     def create_case(self, case_id: Optional[str] = None) -> Case:
         case_id = case_id or f"CASE-{uuid.uuid4().hex[:8].upper()}"
@@ -76,11 +80,12 @@ class CaseWorkflow:
             return case, guard_result
 
         # Store context for later phases
-        case._input = {
-            "slick_lons": slick_lons, "slick_lats": slick_lats,
-            "tracks": tracks, "obs_time_hours": obs_time_hours,
+        case.metadata["input"] = {
+            "slick_lons": slick_lons.tolist(), "slick_lats": slick_lats.tolist(),
+            "tracks": [t.model_dump() for t in tracks], "obs_time_hours": obs_time_hours,
             "age_prior_mean": age_prior_mean, "age_prior_std": age_prior_std,
         }
+        self.cases.save(case)
         return case, guard_result
 
     def reconstruct(self, case: Case, seed: int = 42) -> dict:
@@ -88,19 +93,20 @@ class CaseWorkflow:
         from varuna_nyaya.services import PrativartanService
 
         case.transition(CaseStatus.RECONSTRUCTING, "workflow")
-        inp = case._input
+        inp = case.metadata["input"]
         svc = PrativartanService()
         slick_id = f"slick-{uuid.uuid4().hex[:8]}"
 
         phi = svc.reconstruct_origin(
-            slick_lons=inp["slick_lons"], slick_lats=inp["slick_lats"],
+            slick_lons=np.array(inp["slick_lons"]), slick_lats=np.array(inp["slick_lats"]),
             obs_time_hours=inp["obs_time_hours"],
             case_id=case.case_id, slick_id=slick_id,
             age_prior_mean_hours=inp["age_prior_mean"],
             age_prior_std_hours=inp["age_prior_std"],
             seed=seed,
         )
-        case._phi = phi
+        case.metadata["phi"] = phi.model_dump(mode="json")
+        self.cases.save(case)
 
         phi_artifact = self.praman.register_artifact(
             artifact_type="phi_field", case_id=case.case_id,
@@ -114,18 +120,23 @@ class CaseWorkflow:
     def attribute(self, case: Case, latent_prior: float = 0.5) -> dict:
         """Run NYAYA attribution."""
         from varuna_nyaya.services import NyayaService, ValidityService
+        from varuna_contracts.phi import PhiField
+        from varuna_contracts.schemas import VesselTrack
 
         case.transition(CaseStatus.ATTRIBUTING, "workflow")
-        inp = case._input
+        inp = case.metadata["input"]
+        phi = PhiField.model_validate(case.metadata["phi"])
+        tracks = [VesselTrack.model_validate(t) for t in inp["tracks"]]
         nyaya = NyayaService()
 
         attribution = nyaya.attribute(
-            phi=case._phi, tracks=inp["tracks"],
+            phi=phi, tracks=tracks,
             case_id=case.case_id,
-            slick_lons=inp["slick_lons"], slick_lats=inp["slick_lats"],
+            slick_lons=np.array(inp["slick_lons"]), slick_lats=np.array(inp["slick_lats"]),
             latent_prior=latent_prior,
         )
-        case._attribution = attribution
+        case.metadata["attribution"] = attribution.model_dump(mode="json")
+        self.cases.save(case)
 
         attr_artifact = self.praman.register_artifact(
             artifact_type="attribution", case_id=case.case_id,
@@ -143,8 +154,9 @@ class CaseWorkflow:
         # Validity Gate
         case.transition(CaseStatus.EVALUATING, "workflow")
         validity_svc = ValidityService()
-        gate_result = validity_svc.evaluate(case._phi, attribution)
-        case._gate_result = gate_result
+        gate_result = validity_svc.evaluate(phi, attribution)
+        case.metadata["gate_result"] = gate_result
+        self.cases.save(case)
 
         gate_artifact = self.praman.register_artifact(
             artifact_type="validity_gate", case_id=case.case_id,

@@ -1,8 +1,14 @@
 """
 VARUNA GRID — CASE-0001 Deterministic Integration Fixture.
 
+SOFTWARE REGRESSION FIXTURE — NOT SCIENTIFIC BENCHMARK.
+
 Generates a synthetic case with known ground truth for E2E testing.
 Ground truth is used ONLY for assertion, never passed to inference.
+
+This fixture verifies system behaviour under controlled conditions.
+It MUST NOT be cited as evidence of scientific accuracy or operational
+readiness. Scientific validation belongs to M2.2 (deferred).
 """
 import numpy as np
 from datetime import datetime, timezone, timedelta
