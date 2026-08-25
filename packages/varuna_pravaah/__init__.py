@@ -1,1 +1,2 @@
-"""VARUNA GRID v2 — pravaah. See LLM_IMPLEMENTATION_GUIDE.md for the module contract."""
+"""VARUNA GRID — PRAVAAH Event Spine."""
+from varuna_pravaah.event_spine import EventSpine, Event

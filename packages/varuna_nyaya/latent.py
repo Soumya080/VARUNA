@@ -1,53 +1,49 @@
 """
-VARUNA GRID — Latent-source hypothesis L₀ computation via corridor subtraction.
+VARUNA GRID — Latent-source hypothesis L0 computation.
+
+This module is maintained for backward compatibility.
+New code should use likelihoods.compute_density_likelihoods.
 """
 import numpy as np
-from typing import List
-from datetime import datetime, timezone
+from typing import List, Dict, Tuple
 from varuna_contracts.schemas import VesselTrack
-from varuna_geospatial.utils import haversine_km_vec
-
-_BASE_TIME = datetime(2026, 1, 1, tzinfo=timezone.utc)
+from varuna_nyaya.corridor import build_corridor_mask, build_union_mask, integrate_phi_over_mask
 
 
-def compute_latent_probability(
-    phi_data: np.ndarray,      # (n_t, n_y, n_x)
+def compute_likelihoods_and_latent(
+    phi_data: np.ndarray,
     lon_edges: np.ndarray,
     lat_edges: np.ndarray,
-    time_edges: np.ndarray,    # in hours from epoch
+    time_edges: np.ndarray,
     tracks: List[VesselTrack],
     corridor_width_km: float = 5.0,
-) -> float:
+) -> Tuple[Dict[str, float], float]:
     """
-    L₀ = 1 − Σ Φ[cells inside ANY track corridor]
+    Computes raw per-vessel likelihoods (L_k) and latent probability (L0).
+
+    DEPRECATED: Use likelihoods.compute_density_likelihoods for
+    scientifically sound inference. Raw mass likelihoods have a
+    structural domain mismatch that causes latent to trivially dominate.
     """
-    covered = np.zeros_like(phi_data, dtype=bool)
-
-    lon_centers = 0.5 * (lon_edges[:-1] + lon_edges[1:])
-    lat_centers = 0.5 * (lat_edges[:-1] + lat_edges[1:])
-    time_centers = 0.5 * (time_edges[:-1] + time_edges[1:])
-
-    n_t, n_y, n_x = phi_data.shape
-
-    # Meshgrid for vectorized distance computation
-    lon_mesh, lat_mesh = np.meshgrid(lon_centers, lat_centers)
-    lon_flat = lon_mesh.ravel()
-    lat_flat = lat_mesh.ravel()
-
-    base_ts = _BASE_TIME.timestamp()
+    likelihoods = {}
+    masks = []
 
     for track in tracks:
-        for point in track.points:
-            t_hours = (point.timestamp.timestamp() - base_ts) / 3600.0
-            t_idx = int(np.argmin(np.abs(time_centers - t_hours)))
+        mask = build_corridor_mask(
+            track=track, phi_data=phi_data,
+            lon_edges=lon_edges, lat_edges=lat_edges,
+            time_edges=time_edges, corridor_width_km=corridor_width_km,
+        )
+        L_k = integrate_phi_over_mask(phi_data, mask)
+        likelihoods[track.mmsi] = L_k
+        masks.append(mask)
 
-            dists = haversine_km_vec(
-                lon_flat, lat_flat,
-                point.lon, point.lat
-            )
+    if masks:
+        union_mask = build_union_mask(masks)
+        covered_mass = integrate_phi_over_mask(phi_data, union_mask)
+        L_0 = 1.0 - covered_mass
+    else:
+        L_0 = 1.0
 
-            dists_2d = dists.reshape((n_y, n_x))
-            covered[t_idx, dists_2d < corridor_width_km] = True
-
-    residual_mass = float(phi_data[~covered].sum())
-    return residual_mass
+    L_0 = max(0.0, min(1.0, L_0))
+    return likelihoods, L_0
