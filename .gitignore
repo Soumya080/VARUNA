@@ -49,10 +49,20 @@ data/scenes/*.tiff
 data/scenes/*.safe
 data/scenes/*.zip
 data/output/
+data/raw/**
+!data/raw/**/.gitkeep
+data/bronze/**
+!data/bronze/**/.gitkeep
+data/silver/**
+!data/silver/**/.gitkeep
+data/gold/**
+!data/gold/**/.gitkeep
+data/manifests/**
+!data/manifests/**/.gitkeep
 *.npz
 *.npy
 
-# ── Models (large binary weights — do not commit) ──
+# ── Models & Artifacts (large binary weights, runs — do not commit) ──
 models/*.pt
 models/*.pth
 models/*.torchscript
@@ -60,6 +70,14 @@ models/*.onnx
 models/*.joblib
 models/*.pkl
 models/*.h5
+artifacts/models/**
+!artifacts/models/**/.gitkeep
+artifacts/checkpoints/**
+!artifacts/checkpoints/**/.gitkeep
+artifacts/experiments/**
+!artifacts/experiments/**/.gitkeep
+artifacts/reports/**
+!artifacts/reports/**/.gitkeep
 
 # ── Experiment results (large CSVs, plots) ──
 experiments/go_nogo/results/
