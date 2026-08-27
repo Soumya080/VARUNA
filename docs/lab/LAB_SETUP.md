@@ -59,7 +59,7 @@ uv sync --extra ml --extra dev --extra data
 
 ### Using Standard `pip`
 ```bash
-# Create virtual environment with Python >= 3.10
+# Create virtual environment with Python >= 3.12
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
 

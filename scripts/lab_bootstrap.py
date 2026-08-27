@@ -70,7 +70,7 @@ def check_python() -> Dict[str, Any]:
     """Inspects Python version and interpreter path."""
     version_info = sys.version_info
     version_str = f"{version_info.major}.{version_info.minor}.{version_info.micro}"
-    is_compatible = version_info.major == 3 and version_info.minor >= 10
+    is_compatible = version_info.major == 3 and version_info.minor >= 12
     return {
         "version": version_str,
         "executable": sys.executable,
