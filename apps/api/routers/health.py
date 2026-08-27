@@ -1,11 +1,24 @@
 """
 VARUNA GRID — Health Router.
 """
-from fastapi import APIRouter
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends
 
 from apps.api.config import settings
+from apps.api.dependencies import get_adapter_registry
+from varuna_source_adapters.service import AdapterRegistry
 
 router = APIRouter(tags=["health"])
+
+@router.get("/health/deep")
+def deep_health(adapters: AdapterRegistry = Depends(get_adapter_registry)):
+    adapter_health = adapters.health()
+    all_ok = all(adapter_health.values())
+    return {
+        "status": "healthy" if all_ok else "degraded",
+        "adapters": adapter_health,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 @router.get("/health")
 def health_check():

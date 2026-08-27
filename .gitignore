@@ -103,6 +103,16 @@ htmlcov/
 # ── mypy ──
 .mypy_cache/
 
+# ── Node ──
+node_modules/
+
+# ── Linter / Tool Caches ──
+.ruff_cache/
+.hypothesis/
+
+# ── User notes / vaults (not project code) ──
+MEM/
+
 # ── Misc ──
 *.bak
 *.tmp

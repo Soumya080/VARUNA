@@ -72,117 +72,23 @@ def run_case(
         config=config
     )
     
-    # 3. NYAYA — compute likelihoods + priors
-    likelihoods = {}
-    priors = {}
-    for track in tracks:
-        L_k = compute_path_integral(track, phi)
-        prior = compute_prior(track, phi)
-        likelihoods[track.mmsi] = L_k * prior.combined
-        priors[track.mmsi] = (L_k, prior)
-        
-    # Load phi data once for latent computation
-    phi_npz = np.load(phi.data_path)
-    L_0 = compute_latent_probability(
-        phi_data=phi_npz['phi'],
-        lon_edges=phi_npz['lon_edges'],
-        lat_edges=phi_npz['lat_edges'],
-        time_edges=phi_npz['time_edges'],
+    # 3. NYAYA — compute density likelihoods + priors + posterior
+    from varuna_nyaya.services import NyayaService
+    nyaya = NyayaService()
+    attribution = nyaya.attribute(
+        phi=phi,
         tracks=tracks,
-        corridor_width_km=5.0
-    )
-    
-    posterior, distinguish, decision, entropy = compute_posterior(
-        likelihoods=likelihoods,
-        latent_probability_mass=L_0,
-        latent_prior_weight=1.0
-    )
-    
-    # Build CandidateScore list sorted by posterior descending
-    slick_center_lon = float(np.mean(slick_lons))
-    slick_center_lat = float(np.mean(slick_lats))
-    
-    # Collect raw candidate data first
-    raw_candidates = []
-    for mmsi in posterior:
-        if mmsi == "LATENT_SOURCE":
-            continue
-        L_k, prior = priors[mmsi]
-        
-        # Compute closest approach for the candidate
-        track = next(t for t in tracks if t.mmsi == mmsi)
-        min_dist = float('inf')
-        min_time = 0.0
-        base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
-        for pt in track.points:
-            d = haversine_km_vec(
-                np.array([pt.lon]), np.array([pt.lat]),
-                slick_center_lon, slick_center_lat
-            )[0]
-            if d < min_dist:
-                min_dist = d
-                min_time = (pt.timestamp - base_time).total_seconds() / 3600.0
-                
-        raw_candidates.append({
-            "mmsi": mmsi,
-            "vessel_type": track.vessel_type,
-            "path_integral": L_k,
-            "prior": prior,
-            "likelihood": L_k * prior.combined,
-            "posterior": posterior[mmsi],
-            "closest_approach_km": min_dist,
-            "time_at_closest_hours": min_time,
-            "phi_mass_explained": posterior[mmsi],
-        })
-    
-    # Sort by posterior descending BEFORE constructing pydantic objects
-    raw_candidates.sort(key=lambda c: c["posterior"], reverse=True)
-    
-    candidate_scores = []
-    for i, rc in enumerate(raw_candidates):
-        candidate_scores.append(CandidateScore(
-            rank=i + 1,
-            **rc,
-        ))
-    
-    latent_prob = posterior.get("LATENT_SOURCE", 0.0)
-    
-    # Determine latent finding
-    if latent_prob > 0.5:
-        latent_finding = LatentFinding.NO_PLAUSIBLE_VISIBLE_SOURCE
-    elif latent_prob > 0.2:
-        latent_finding = LatentFinding.VISIBLE_SOURCES_EXIST_BUT_WEAK
-    else:
-        latent_finding = LatentFinding.INSUFFICIENT_COVERAGE
-    
-    top_post = candidate_scores[0].posterior if candidate_scores else 0.0
-    top_gap_val = 0.0
-    if len(candidate_scores) >= 2:
-        top_gap_val = candidate_scores[0].posterior - candidate_scores[1].posterior
-    elif len(candidate_scores) == 1:
-        top_gap_val = candidate_scores[0].posterior
-    
-    attr_env = phi.envelope.derive(
-        artifact_id=f"attr-{case_id}",
-        produced_by="nyaya_attribution"
-    )
-    
-    attribution = AttributionResultV2(
         case_id=case_id,
-        slick_id=slick_id,
-        phi_id=phi.phi_id,
-        decision_state=decision,
-        candidates=candidate_scores,
-        latent_probability=latent_prob,
-        latent_finding=latent_finding,
-        top_posterior=top_post,
-        top_gap=top_gap_val,
-        distinguishability=distinguish,
-        posterior_entropy=entropy,
-        n_candidates_screened=len(tracks),
-        n_candidates_scored=len(candidate_scores),
-        envelope=attr_env,
+        slick_lons=slick_lons,
+        slick_lats=slick_lats,
     )
+    decision = attribution.decision_state
+    candidate_scores = attribution.candidates
+    latent_prob = attribution.latent_probability
+    distinguish = attribution.distinguishability
+    entropy = attribution.posterior_entropy
+    posterior = {c.mmsi: c.posterior for c in candidate_scores}
+    posterior["LATENT_SOURCE"] = latent_prob
     
     # 4. Validity Gate
     gate_result = evaluate_validity_gate(

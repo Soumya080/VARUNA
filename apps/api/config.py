@@ -15,6 +15,18 @@ class VarunaSettings(BaseSettings):
     use_postgres: bool = False           # False = in-memory by default
     use_minio: bool = False              # False = local dict-backed by default
     
+    # Providers
+    provider_netra: str = "mock"
+    provider_chhaya: str = "mock"
+    provider_pravaah: str = "mock"
+    provider_abhiyan: str = "mock"
+    provider_adapters: str = "mock"
+    provider_smriti: str = "mock"
+
+    # Alert channels
+    alert_channels: list[str] = ["console"]   # "console" | "mock_sms" | "mock_sachet"
+    alert_dedupe_window_seconds: int = 300
+
     # Infrastructure
     database_url: Optional[str] = None
     redis_url: Optional[str] = None

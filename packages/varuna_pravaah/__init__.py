@@ -1,2 +1,3 @@
-"""VARUNA GRID — PRAVAAH Event Spine."""
-from varuna_pravaah.event_spine import EventSpine
+"""VARUNA GRID v2 - PRAVAAH (Oil Spill Drift Forecasting)"""
+from varuna_pravaah.protocol import PravaahProvider
+from varuna_pravaah.service import PravaahService

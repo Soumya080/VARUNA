@@ -47,3 +47,23 @@ def compute_likelihoods_and_latent(
 
     L_0 = max(0.0, min(1.0, L_0))
     return likelihoods, L_0
+
+
+def compute_latent_probability(
+    phi_data: np.ndarray,
+    lon_edges: np.ndarray,
+    lat_edges: np.ndarray,
+    time_edges: np.ndarray,
+    tracks: List[VesselTrack],
+    corridor_width_km: float = 5.0,
+) -> float:
+    """Compute latent source probability mass L_0."""
+    _, L_0 = compute_likelihoods_and_latent(
+        phi_data=phi_data,
+        lon_edges=lon_edges,
+        lat_edges=lat_edges,
+        time_edges=time_edges,
+        tracks=tracks,
+        corridor_width_km=corridor_width_km,
+    )
+    return L_0

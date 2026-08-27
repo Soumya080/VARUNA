@@ -1,7 +1,9 @@
 # VARUNA GRID v2 — Lab Quickstart Guide
 
 > **Goal**: Get a college GPU machine ready for VARUNA training in under 5 minutes.  
-> **Scientific Status**: `EXPERIMENTAL / UNVALIDATED`
+> **Scientific Status**: `EXPERIMENTAL / UNVALIDATED`  
+> **Required Python**: 3.12.x  
+> **Tag**: `varuna-lab-ready-v1`
 
 ---
 
@@ -10,9 +12,10 @@
 ```bash
 git clone <repo-url> VARUNA
 cd VARUNA
+git checkout varuna-lab-ready-v1    # exact frozen state
 
-# Install dependencies (use uv or pip)
-uv sync --extra ml
+# Install dependencies (use uv — recommended)
+uv sync --extra ml --extra data --extra dev
 # or: pip install -e ".[dev,ml,data]"
 ```
 
@@ -54,22 +57,51 @@ python scripts/smoke_train_chhaya.py
 
 ## 4. Ingest Real Datasets & Full Training
 
-Once raw datasets (Sentinel-1, Zenodo, AIS, ERA5) are placed into `data/raw/`:
+Place raw datasets (Sentinel-1, AIS, ERA5, etc.) into `data/raw/`:
+
+```
+data/raw/sentinel1/    — SAR GRD scenes
+data/raw/ais/          — Vessel tracks
+data/raw/era5/         — Atmospheric forcing
+data/raw/cmems/        — Ocean currents
+data/raw/zenodo/       — Oil Spill Benchmark (if available)
+```
+
+Then run the data pipeline:
 
 ```bash
 # 1. Validate raw data integrity
 python scripts/validate_data.py
 
-# 2. Convert raw data into canonical representations (Bronze -> Silver)
+# 2. Convert raw → Silver canonical representations
 python scripts/build_canonical.py
 
 # 3. Build dataset lineage manifest
 python scripts/build_manifest.py
 
-# 4. Generate tiled, normalized ML Gold tensors (Silver -> Gold)
+# 4. Generate tiled, normalized Gold ML tensors
 python scripts/build_gold.py
+```
 
-# 5. Train NETRA & CHHAYA on Gold datasets
+Then train:
+
+```bash
+# 5. Train NETRA (SAR Oil Spill Segmentation)
 python train_netra.py --config configs/lab/netra.yaml
+
+# 6. Train CHHAYA (Dark Vessel Trajectory Reconstruction)
 python train_chhaya.py --config configs/lab/chhaya.yaml
 ```
+
+---
+
+## Troubleshooting
+
+See [LAB_TROUBLESHOOTING.md](LAB_TROUBLESHOOTING.md) for common issues.
+
+| Issue | Fix |
+|---|---|
+| `ModuleNotFoundError: varuna_*` | Run `uv sync` or set `PYTHONPATH=packages:.` |
+| `segmentation_models_pytorch` warning | Install with `uv sync --extra ml` |
+| GPU not detected | Verify NVIDIA drivers + CUDA toolkit match PyTorch build |
+| Python < 3.12 errors (`StrEnum`) | **Must use Python 3.12.x** |

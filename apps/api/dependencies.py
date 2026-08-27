@@ -81,3 +81,41 @@ def get_workflow(
         event_repo=event_repo,
         object_store=object_store
     )
+
+def get_adapter_registry():
+    from varuna_source_adapters.service import AdapterRegistry
+    return AdapterRegistry.create_mock()
+
+def get_model_registry():
+    from varuna_domain.model_registry import InMemoryModelRegistry
+    return InMemoryModelRegistry()
+
+_in_memory_mission_repo = None
+
+def get_mission_service():
+    global _in_memory_mission_repo
+    from varuna_missions.service import MissionService
+    if _in_memory_mission_repo is None:
+        from varuna_missions.repository import InMemoryMissionRepository
+        _in_memory_mission_repo = InMemoryMissionRepository()
+    return MissionService(repo=_in_memory_mission_repo)
+
+def get_prahari_service():
+    from varuna_domain.prahari.service import PrahariService
+    from varuna_domain.prahari.mock import MockPrahariProvider
+    return PrahariService(provider=MockPrahariProvider(), netra_service=None, workflow=None)
+
+def get_abhiyan_service():
+    from varuna_abhiyan.service import AbhiyanService
+    from varuna_abhiyan.mock import MockAbhiyanProvider
+    return AbhiyanService(provider=MockAbhiyanProvider())
+
+def get_smriti_service():
+    from varuna_smriti.service import SmritiService
+    from varuna_smriti.mock import MockSmritiProvider
+    return SmritiService(provider=MockSmritiProvider())
+
+def get_alert_service():
+    from varuna_alerts.service import AlertService
+    from varuna_alerts.channels.mock_sms import MockSmsChannel
+    return AlertService(channels=[MockSmsChannel()])

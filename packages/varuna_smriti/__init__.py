@@ -1,1 +1,3 @@
-"""VARUNA GRID v2 — smriti. See LLM_IMPLEMENTATION_GUIDE.md for the module contract."""
+"""VARUNA GRID v2 - SMRITI (Event Log & State Store)"""
+from varuna_smriti.protocol import SmritiProvider
+from varuna_smriti.service import SmritiService
