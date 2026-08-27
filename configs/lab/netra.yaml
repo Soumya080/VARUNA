@@ -1,0 +1,43 @@
+# ==============================================================================
+# VARUNA GRID v2 — NETRA LAB TRAINING CONFIGURATION
+# Baseline configuration sized for typical university lab hardware:
+# Target Hardware: NVIDIA RTX (12 GB VRAM), 32 GB System RAM, 8 CPU cores.
+# Note: These values are conservative baselines for smoke/initial training runs
+# and are NOT claimed to be optimal.
+# ==============================================================================
+
+# Experiment tracking & Lineage
+experiment_name: "netra_lab_baseline_v1"
+model_name: "netra_segmentation"
+dataset_version: "gold_v1.0.0"
+seed: 42
+
+# Hardware & Acceleration
+device: "cuda"                  # "cuda" or "cpu" (falls back automatically if cuda unavailable)
+mixed_precision: true           # AMP (FP16/BF16) to conserve VRAM
+num_workers: 4                  # DataLoader CPU workers (conservative for 32GB RAM)
+gradient_accumulation: 2        # Effective batch size multiplier without VRAM penalty
+
+# Model Architecture
+architecture: "unet"
+encoder_name: "resnet34"
+encoder_weights: null           # null for offline/air-gapped training without internet download
+in_channels: 3                  # VV, VH, Wind magnitude
+classes: 3                      # 0=background, 1=oil_slick, 2=lookalike
+
+# Data & Tiling
+image_size: 512                 # Tile spatial dimension (512x512)
+batch_size: 4                   # Per-step batch size (conservative for 12GB VRAM)
+
+# Optimization & Schedule
+epochs: 25                      # Training epochs
+learning_rate: 0.0003           # 3e-4 AdamW baseline
+weight_decay: 0.0001
+warmup_epochs: 3
+patience: 6                     # Early stopping patience
+
+# Storage & Checkpoints
+checkpoint_dir: "artifacts/checkpoints/netra"
+save_top_k: 3
+save_last: true
+log_interval: 10

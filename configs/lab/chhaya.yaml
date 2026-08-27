@@ -1,0 +1,44 @@
+# ==============================================================================
+# VARUNA GRID v2 — CHHAYA LAB TRAINING CONFIGURATION
+# Baseline configuration sized for typical university lab hardware:
+# Target Hardware: NVIDIA RTX (12 GB VRAM), 32 GB System RAM, 8 CPU cores.
+# Note: These values are conservative baselines for smoke/initial training runs
+# and are NOT claimed to be optimal.
+# ==============================================================================
+
+# Experiment tracking & Lineage
+experiment_name: "chhaya_lab_baseline_v1"
+model_name: "chhaya_dark_vessel_reconstruction"
+dataset_version: "gold_v1.0.0"
+seed: 42
+
+# Hardware & Acceleration
+device: "cuda"                  # "cuda" or "cpu" (falls back automatically if cuda unavailable)
+mixed_precision: true           # Automatic mixed precision
+num_workers: 4                  # DataLoader workers
+gradient_accumulation: 1
+
+# Model Architecture
+architecture: "lstm"            # "lstm" or "transformer"
+input_dim: 8                    # [lon, lat, sog, cog, heading, gap_duration, dist_prev, time_delta]
+hidden_dim: 128
+num_layers: 2
+dropout: 0.1
+output_dim: 2                   # Predicted [delta_lon, delta_lat] trajectory offset
+
+# Data & Sequence
+image_size: 128                 # Sequence length / max trajectory sequence points
+batch_size: 32                  # Conservative batch size for 12GB VRAM
+
+# Optimization & Schedule
+epochs: 30
+learning_rate: 0.001            # 1e-3 Adam baseline
+weight_decay: 0.0001
+warmup_epochs: 2
+patience: 8
+
+# Storage & Checkpoints
+checkpoint_dir: "artifacts/checkpoints/chhaya"
+save_top_k: 3
+save_last: true
+log_interval: 20
