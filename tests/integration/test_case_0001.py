@@ -20,6 +20,9 @@ if not hasattr(_enum, "StrEnum"):
 import pytest
 from tests.fixtures.case_0001 import generate_case_0001
 from varuna_domain.case_workflow import CaseWorkflow
+from varuna_domain.repositories import (
+    InMemoryCaseRepository, InMemoryArtifactRepository, InMemoryEventStore,
+)
 
 
 class TestCase0001EndToEnd:
@@ -27,7 +30,13 @@ class TestCase0001EndToEnd:
 
     def setup_method(self):
         self.fixture = generate_case_0001()
-        self.workflow = CaseWorkflow()
+        # CaseWorkflow requires explicit repos (see tests/regression/
+        # test_golden_cases.py::_make_workflow for the canonical pattern).
+        self.workflow = CaseWorkflow(
+            case_repo=InMemoryCaseRepository(),
+            artifact_repo=InMemoryArtifactRepository(),
+            event_repo=InMemoryEventStore(),
+        )
 
     def test_full_pipeline_executes(self):
         """The entire pipeline runs without error."""

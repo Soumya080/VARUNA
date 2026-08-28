@@ -54,6 +54,10 @@ seed: ## Load the shared CASE-0001 fixture
 test: ## Fast tests: unit + contract (no services needed)
 	$(PY) -m pytest tests/unit tests/contract -q
 
+.PHONY: test-api
+test-api: ## API + regression tests (no services needed)
+	$(PY) -m pytest tests/api tests/regression -q
+
 .PHONY: test-integration
 test-integration: ## Integration tests (requires: make up-infra)
 	$(PY) -m pytest tests/integration -q
@@ -97,7 +101,7 @@ security: ## bandit + pip-audit
 	pip-audit || true
 
 .PHONY: check
-check: lint typecheck test ## Everything CI runs on a PR
+check: lint typecheck test test-api ## Everything CI runs on a PR
 
 # ── demo ─────────────────────────────────────────────────────────────────────
 .PHONY: demo

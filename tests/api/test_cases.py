@@ -31,7 +31,11 @@ def test_ingest_case():
     data = response.json()
     assert data["case_id"] == "TEST-123"
     assert "guard_verdict" in data
-    assert data["status"] == "ingesting"
+    # CaseWorkflow.ingest() transitions INGESTING -> GUARDING before running
+    # the guard, and there is no post-guard-success state until reconstruct()
+    # is called, so "guarding" is the correct resting status on the accept
+    # path (see packages/varuna_domain/case_workflow.py:65-90).
+    assert data["status"] == "guarding"
 
 def test_reconstruct_case():
     response = client.post("/v1/cases/TEST-123/reconstruct", json={"seed": 42})

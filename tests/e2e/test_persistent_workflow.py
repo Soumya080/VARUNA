@@ -20,7 +20,9 @@ def test_full_workflow_end_to_end():
     # 2. Ingest
     resp = client.post(f"/v1/cases/{case_id}/ingest", json={"use_fixture": "case_0001"})
     assert resp.status_code == 200
-    assert resp.json()["status"] in ("ingesting", "guarding")
+    # "guarding" is the only correct resting status on the accept path — see
+    # tests/api/test_cases.py::test_ingest_case for why.
+    assert resp.json()["status"] == "guarding"
     
     # 3. Reconstruct
     resp = client.post(f"/v1/cases/{case_id}/reconstruct", json={"seed": 42})
