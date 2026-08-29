@@ -76,22 +76,35 @@ class SensitivityBlock(_Base):
     make the honesty claim defensible: if age_sensitivity is high, the origin
     field is an artefact of the age prior, not of the data.
 
-    Each value is a normalised displacement in [0, 1]: 0 = insensitive,
-    1 = the field moves by its own effective radius under a 1-sigma perturbation.
+    Each value is a normalised displacement, `0 = insensitive`, `1 = the
+    field moves by its own effective radius under a 1-sigma perturbation`
+    (see packages/varuna_prativartan/sensitivity.py::build_sensitivity_block
+    for the ratified ADR-0007 computation — displacement is not capped at
+    1; a shift larger than the field's own radius is a real, reportable
+    value above 1, not an error).
+
+    `weathering_sensitivity` is `float | None` (ADR-0007 amendment) because
+    no weathering model exists in PRATIVARTAN at all — `PhiField.
+    weathering_model` is always `None` in this codebase. There is nothing
+    to perturb, so this is honestly `None` rather than a number standing
+    in for physics that isn't implemented. The other three axes ARE real
+    perturbable parameters (age prior, forcing noise, diffusivity) and
+    remain required.
     """
     age_sensitivity: float = Field(..., ge=0)
     forcing_sensitivity: float = Field(..., ge=0)
     diffusivity_sensitivity: float = Field(..., ge=0)
-    weathering_sensitivity: float = Field(..., ge=0)
+    weathering_sensitivity: float | None = Field(None, ge=0)
 
     @property
     def dominant_assumption(self) -> str:
-        return max(
-            [("age", self.age_sensitivity), ("forcing", self.forcing_sensitivity),
-             ("diffusivity", self.diffusivity_sensitivity),
-             ("weathering", self.weathering_sensitivity)],
-            key=lambda kv: kv[1],
-        )[0]
+        candidates = [
+            ("age", self.age_sensitivity), ("forcing", self.forcing_sensitivity),
+            ("diffusivity", self.diffusivity_sensitivity),
+        ]
+        if self.weathering_sensitivity is not None:
+            candidates.append(("weathering", self.weathering_sensitivity))
+        return max(candidates, key=lambda kv: kv[1])[0]
 
 
 class PhiDiagnostics(_Base):
@@ -146,11 +159,14 @@ class PhiField(_Base):
     time_distribution: TimeDistribution
     spatial_modes: list[SpatialMode] = Field(default_factory=list)
     diagnostics: PhiDiagnostics
-    # None means "not computed", not "computed and found to be zero". A real
-    # sensitivity sweep re-runs the ensemble under perturbed age/forcing
-    # assumptions (see TODO(P1) in phi_builder.py) — until that exists, this
-    # is honestly None rather than a fabricated placeholder value. The
-    # validity gate treats None as PHI_DIAGNOSTICS_UNAVAILABLE (blocking).
+    # None means "not computed", not "computed and found to be zero".
+    # `phi_builder.build_phi_field()`'s default path always leaves this
+    # None (a real sweep costs 7x the ensemble runtime); a real,
+    # non-fabricated sweep exists at
+    # varuna_prativartan.sensitivity.run_sensitivity_sweep() +
+    # build_sensitivity_block() (ADR-0007, ratified) for callers that
+    # explicitly request it. The validity gate treats None as
+    # PHI_DIAGNOSTICS_UNAVAILABLE (blocking).
     sensitivity: SensitivityBlock | None = None
 
     n_particles: int = Field(..., gt=0)

@@ -126,6 +126,72 @@ class PrativartanService:
         )
         return phi
 
+    def reconstruct_origin_with_sensitivity(
+        self,
+        slick_lons: np.ndarray,
+        slick_lats: np.ndarray,
+        obs_time_hours: float,
+        case_id: str,
+        slick_id: str,
+        age_prior_mean_hours: float = 36.0,
+        age_prior_std_hours: float = 24.0,
+        n_particles: int = 500,
+        n_ensemble: int = 20,
+        seed: int = 42,
+        input_envelope: EvidenceEnvelope | None = None,
+        current: AbstractCurrentField | None = None,
+        wind: AbstractWindField | None = None,
+    ) -> PhiField:
+        """
+        Like `reconstruct_origin`, but additionally runs the real
+        sensitivity sweep (ADR-0007) and returns a PhiField with
+        `sensitivity` genuinely populated instead of None.
+
+        This is a SEPARATE, explicitly-opt-in method rather than the
+        default behavior of `reconstruct_origin` because the sweep costs
+        7x the ensemble runtime (1 baseline + 2 age + 2 forcing + 2
+        diffusivity real re-runs) — every existing caller of
+        `reconstruct_origin` (CaseWorkflow, tests, experiments) is
+        completely unaffected by this method's existence and continues to
+        get sensitivity=None at the cheap 1-run cost, exactly as before.
+
+        Raises ValueError (propagated from `build_sensitivity_block`) if
+        the baseline field is degenerate (zero effective_support_km2) —
+        this is not caught and silenced, since a fabricated sensitivity
+        would be worse than a raised, visible error.
+        """
+        from varuna_prativartan.sensitivity import build_sensitivity_block, run_sensitivity_sweep
+
+        config = PratiConfig(
+            n_particles=n_particles,
+            n_ensemble=n_ensemble,
+            backward_duration_hours=age_prior_mean_hours + 2.0 * age_prior_std_hours,
+            seed=seed,
+        )
+        if input_envelope is not None:
+            base_env = input_envelope
+        else:
+            base_env = EvidenceEnvelope(
+                artifact_id=case_id,
+                produced_by="prativartan_service",
+                provenance=Provenance(source_id="synthetic"),
+                mode=EvidenceMode.SIMULATED,
+            )
+        current = current if current is not None else SyntheticModelCurrentField()
+        wind = wind if wind is not None else SyntheticWindField()
+
+        sweep = run_sensitivity_sweep(
+            slick_lons=slick_lons, slick_lats=slick_lats, obs_time_hours=obs_time_hours,
+            case_id=case_id, slick_id=slick_id,
+            age_prior_mean_hours=age_prior_mean_hours, age_prior_std_hours=age_prior_std_hours,
+            config=config, current=current, wind=wind, input_envelope=base_env,
+        )
+        block = build_sensitivity_block(sweep)
+
+        phi = sweep.baseline.phi
+        phi.sensitivity = block  # PhiField has validate_assignment=True
+        return phi
+
 
 class NyayaService:
     """Runs attribution: density likelihoods -> priors -> posterior."""
