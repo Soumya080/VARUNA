@@ -6,7 +6,10 @@ from varuna_data_eng.schemas.quality import QualityState, QualityVerdict
 from varuna_data_eng.schemas.canonical_sar import CanonicalSAR, SARSensor, SARBand, Polarization, ChannelMeta
 from varuna_data_eng.schemas.oil_mask import OilMask, OilLabelClass
 from varuna_data_eng.schemas.ais import RawAISPoint, RawAISTrack, AISGapRecord, GapClass, raw_to_locked
-from varuna_data_eng.schemas.forcing import ForcingCube, ForcingSource, ForcingVariable
+from varuna_data_eng.schemas.forcing import (
+    ForcingCube, ForcingSource, ForcingVariable,
+    SpatialCoverageStatus, TimeSeriesStatus,
+)
 from varuna_data_eng.schemas.attribution_case import AgePrior, AttributionCaseInput, AttributionCaseTruth, AttributionCase, CaseMetadata
 from varuna_data_eng.schemas.normalization import NormalizationRecord, ChannelStats
 from varuna_data_eng.schemas.manifest import DatasetManifest, ManifestEntry, SplitManifest, DataQualityReport
@@ -203,7 +206,11 @@ def test_forcing_cube(dummy_provenance, dummy_bbox):
         time_range=(datetime.now(timezone.utc), datetime.now(timezone.utc)),
         file_checksum="abcd",
         file_size_bytes=1024,
-        provenance=dummy_provenance
+        provenance=dummy_provenance,
+        # Single time_coords entry -> genuinely insufficient for advection,
+        # not silently "sufficient" (see ForcingCube's model_validator).
+        time_series_status=TimeSeriesStatus.INSUFFICIENT,
+        spatial_coverage_status=SpatialCoverageStatus.FULL,
     )
     assert cube.source == ForcingSource.ERA5
 

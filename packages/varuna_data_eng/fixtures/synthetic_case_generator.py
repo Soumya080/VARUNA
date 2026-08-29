@@ -4,7 +4,9 @@ from varuna_contracts.schemas import GeoPoint, BBox, VesselType
 from varuna_data_eng.schemas.canonical_sar import CanonicalSAR, SARSensor, SARBand, Polarization
 from varuna_data_eng.schemas.oil_mask import OilMask, OilLabelClass
 from varuna_data_eng.schemas.ais import RawAISPoint, RawAISTrack, raw_to_locked
-from varuna_data_eng.schemas.forcing import ForcingCube, ForcingSource
+from varuna_data_eng.schemas.forcing import (
+    ForcingCube, ForcingSource, SpatialCoverageStatus, TimeSeriesStatus,
+)
 from varuna_data_eng.schemas.attribution_case import (
     AttributionCase, AttributionCaseInput, AttributionCaseTruth, CaseMetadata, AgePrior
 )
@@ -78,7 +80,13 @@ class SyntheticCaseGenerator:
             time_range=(obs_time - timedelta(hours=24), obs_time),
             file_checksum="123",
             file_size_bytes=100,
-            provenance=prov
+            provenance=prov,
+            # 2 real time steps -> honestly sufficient; single reconciled
+            # bbox -> full coverage. This is a synthetic fixture, not a
+            # real ERA5/CMEMS read, but the flags must still reflect what
+            # was actually constructed rather than a silent default.
+            time_series_status=TimeSeriesStatus.SUFFICIENT,
+            spatial_coverage_status=SpatialCoverageStatus.FULL,
         )
         
         pt1 = RawAISPoint(
