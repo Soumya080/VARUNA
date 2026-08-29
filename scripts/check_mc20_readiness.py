@@ -90,7 +90,29 @@ def check_ais() -> ModalityStatus:
 
 def check_era5() -> ModalityStatus:
     if ERA5_MC20_DIR.exists() and any(ERA5_MC20_DIR.iterdir()):
-        return ModalityStatus("ERA5", True, f"Found under {ERA5_MC20_DIR}")
+        nc_files = list(ERA5_MC20_DIR.glob("*.nc"))
+        if not nc_files:
+            return ModalityStatus("ERA5", False, f"{ERA5_MC20_DIR} exists but contains no .nc file",
+                                   blocking_reason="Directory present but empty of usable output -- re-run scripts/acquire_mc20_era5.py")
+        try:
+            # netCDF4 directly -- xarray's engine-detection layer was observed
+            # to hang indefinitely on this exact file; netCDF4 opens it instantly.
+            import netCDF4 as nc4
+            ds = nc4.Dataset(nc_files[0])
+            n_time = ds.dimensions["valid_time"].size if "valid_time" in ds.dimensions else ds.dimensions.get("time", type("_", (), {"size": 0})()).size
+            has_u10, has_v10 = "u10" in ds.variables, "v10" in ds.variables
+            if n_time < 2 or not (has_u10 and has_v10):
+                return ModalityStatus("ERA5", False,
+                                       f"{nc_files[0].name}: time={n_time}, u10={has_u10}, v10={has_v10} -- insufficient",
+                                       blocking_reason="Re-acquire with a genuine multi-timestep window")
+            u10 = ds.variables["u10"][:]
+            has_nan = bool(np.isnan(u10).any()) if not np.ma.is_masked(u10) else bool(u10.mask.any())
+            return ModalityStatus("ERA5", True,
+                                   f"{nc_files[0].name}: REAL time series, {n_time} hourly timesteps, u10/v10 present, "
+                                   f"NaN={has_nan}")
+        except Exception as e:
+            return ModalityStatus("ERA5", False, f"{nc_files[0].name} present but failed to open/validate: {e}",
+                                   blocking_reason="Inspect file manually; do not treat presence alone as REAL")
     return ModalityStatus(
         "ERA5", False,
         "Existing 3 GRIB files cover 8-20N/70-85E (Arabian Sea) -- MC20 "
@@ -175,6 +197,43 @@ def _real_cmems_facts() -> dict | None:
         return None
 
 
+def _real_era5_facts() -> dict | None:
+    """Re-derive real spatial/temporal facts from the ERA5 file on disk,
+    if present, via netCDF4 directly (xarray's engine-detection layer was
+    observed to hang indefinitely on this exact file). Never fabricated."""
+    if not (ERA5_MC20_DIR.exists() and any(ERA5_MC20_DIR.iterdir())):
+        return None
+    nc_files = list(ERA5_MC20_DIR.glob("*.nc"))
+    if not nc_files:
+        return None
+    try:
+        import netCDF4 as nc4
+        ds = nc4.Dataset(nc_files[0])
+        lat = ds.variables["latitude"][:]
+        lon = ds.variables["longitude"][:]
+        lat_min, lat_max = float(lat.min()), float(lat.max())
+        lon_min, lon_max = float(lon.min()), float(lon.max())
+        vt = ds.variables["valid_time"]
+        t_min = nc4.num2date(vt[:].min(), vt.units)
+        t_max = nc4.num2date(vt[:].max(), vt.units)
+        contains_sar_point = (lat_min <= MC20_LAT <= lat_max) and (lon_min <= MC20_LON <= lon_max)
+        sar_dt = datetime.fromisoformat(MC20_SAR_TIMESTAMP)
+        # nc4.num2date returns cftime/real-datetime objects; compare as naive UTC.
+        t_min_naive = datetime(t_min.year, t_min.month, t_min.day, t_min.hour, t_min.minute, t_min.second)
+        t_max_naive = datetime(t_max.year, t_max.month, t_max.day, t_max.hour, t_max.minute, t_max.second)
+        sar_naive = sar_dt.replace(tzinfo=None)
+        contains_sar_time = t_min_naive <= sar_naive <= t_max_naive
+        return {
+            "lat_range": [lat_min, lat_max], "lon_range": [lon_min, lon_max],
+            "time_range": [str(t_min), str(t_max)],
+            "contains_sar_point": contains_sar_point,
+            "contains_sar_time": contains_sar_time,
+            "n_time": int(ds.dimensions["valid_time"].size),
+        }
+    except Exception:
+        return None
+
+
 def compute_spatial_intersection(sar_real: bool, ais_real: bool, era5_real: bool, cmems_real: bool) -> dict:
     cmems_facts = _real_cmems_facts() if cmems_real else None
     if cmems_facts:
@@ -185,12 +244,21 @@ def compute_spatial_intersection(sar_real: bool, ais_real: bool, era5_real: bool
         )
     else:
         sar_cmems = "N/A -- CMEMS blocked" if not cmems_real else "CMEMS marked real but facts could not be re-derived from disk -- do not trust"
+    era5_facts = _real_era5_facts() if era5_real else None
+    if era5_facts:
+        sar_era5 = (
+            f"MEASURED: ERA5 grid lat[{era5_facts['lat_range'][0]:.2f},{era5_facts['lat_range'][1]:.2f}] "
+            f"lon[{era5_facts['lon_range'][0]:.2f},{era5_facts['lon_range'][1]:.2f}] "
+            f"{'CONTAINS' if era5_facts['contains_sar_point'] else 'DOES NOT CONTAIN'} the SAR anchor point"
+        )
+    else:
+        sar_era5 = "N/A -- ERA5 not yet covering this region" if not era5_real else "ERA5 marked real but facts could not be re-derived from disk -- do not trust"
     return {
         "SAR_point": {"lon": MC20_LON, "lat": MC20_LAT},
         "SAR_AIS": "non-empty (304,960 real AIS points within the SAR scene's ~250km IW swath, 38,244 within +/-3h of acquisition, closest 3.26km)" if ais_real or AIS_BRONZE_SUMMARY.exists() else "N/A -- AIS not present",
-        "SAR_ERA5": "N/A -- ERA5 not yet covering this region" if not era5_real else "computed once ERA5 acquired",
+        "SAR_ERA5": sar_era5,
         "SAR_CMEMS": sar_cmems,
-        "four_way": "EMPTY -- not all four modalities are simultaneously real for this site today",
+        "four_way": "EMPTY -- not all four modalities are simultaneously real for this site today" if not (sar_real and ais_real and era5_real and cmems_real) else "NON-EMPTY -- all four modalities real and spatially intersecting",
     }
 
 
@@ -205,11 +273,21 @@ def compute_temporal_intersection() -> dict:
         )
     else:
         t_cmems = "UNAVAILABLE -- credential-blocked"
+    era5_real = ERA5_MC20_DIR.exists() and any(ERA5_MC20_DIR.iterdir())
+    era5_facts = _real_era5_facts() if era5_real else None
+    if era5_facts:
+        t_era5 = (
+            f"MEASURED: {era5_facts['n_time']} real hourly timesteps, "
+            f"{era5_facts['time_range'][0]} to {era5_facts['time_range'][1]}, "
+            f"{'CONTAINS' if era5_facts['contains_sar_time'] else 'DOES NOT CONTAIN'} T_SAR"
+        )
+    else:
+        t_era5 = "UNAVAILABLE -- not yet acquired for this region"
     return {
         "T_SAR": MC20_SAR_TIMESTAMP,
         "T_AIS_window": "2023-01-15T00:00:00Z to 2023-01-15T23:59:59Z (full day, real, on disk)",
         "closest_real_AIS_offset": "+16m57s, 3.26km (MMSI 368181750 at 2023-01-15T00:19:04Z)",
-        "T_ERA5_window": "UNAVAILABLE -- not yet acquired for this region (CDS API authenticates; blocked on licence acceptance, see ERA5 blocking_reason)",
+        "T_ERA5_window": t_era5,
         "T_CMEMS_window": t_cmems,
         "backward_transport_window_hours": "no case-specific value exists -- NetraInferenceService.detect() returns a MOCK detection with hardcoded age_prior values (12.0/2.0h); confirmed by direct source inspection, not usable as a real per-scene estimate. Planning bound only: 16-84h range spans the hardcoded defaults used elsewhere in this codebase (12+2*2=16h to 36+2*24=84h).",
     }

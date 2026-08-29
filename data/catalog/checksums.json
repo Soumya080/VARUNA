@@ -127657,6 +127657,15 @@
         "sha256": "06163c96bf97b8fd2c34fb7b18720c3219d3bd1824f428dfb56ce24a5b0b9130",
         "sha256_note": null
       }
+    ],
+    "era5_mc20": [
+      {
+        "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\era5_mc20\\era5_mc20_2023-01-11_to_2023-01-17.nc",
+        "size_bytes": 263213,
+        "mtime": "2026-08-29T17:10:02.313206+00:00",
+        "sha256": "8db79ceb5b3aa417d688a0d75e01bd6e5f2f0d9119d6280d1beed5c1d8d8e399",
+        "sha256_note": null
+      }
     ]
   }
 }
