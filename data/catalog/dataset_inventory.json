@@ -129,6 +129,18 @@
       "total_bytes": 14233360384,
       "status": "present",
       "caveats": []
+    },
+    "cmems_mc20_timeseries": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems_mc20_timeseries",
+      "exists": true,
+      "n_files": 1,
+      "total_bytes": 2580836,
+      "status": "present",
+      "caveats": [
+        "REAL multi-timestep time series (133 hourly steps, 2023-01-11T12:00 to 2023-01-17T00:00), NOT a single-timestep snapshot -- unlike the pre-existing cmems entry.",
+        "Region: lat[27,31] lon[-91,-87], contains the MC20 anchor point (28.936N, -88.970W) and T_SAR (2023-01-15T00:02:06.898Z).",
+        "Acquired via scripts/acquire_mc20_cmems.py; product cmems_mod_glo_phy_anfc_0.083deg_PT1H-m, variables uo/vo."
+      ]
     }
   }
 }

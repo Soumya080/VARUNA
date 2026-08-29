@@ -127648,6 +127648,15 @@
         "sha256": "890194cd9fff6313b802de6e3e5f79159e6d03bbea32e9b23b98dd102dfb3cce",
         "sha256_note": null
       }
+    ],
+    "cmems_mc20_timeseries": [
+      {
+        "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems_mc20_timeseries\\cmems_mc20_2023-01-11_to_2023-01-17.nc",
+        "size_bytes": 2580836,
+        "mtime": "2026-08-29T16:36:07.066726+00:00",
+        "sha256": "06163c96bf97b8fd2c34fb7b18720c3219d3bd1824f428dfb56ce24a5b0b9130",
+        "sha256_note": null
+      }
     ]
   }
 }

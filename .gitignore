@@ -24,6 +24,12 @@ env/
 *.env
 !.env.example
 
+# ── Credentials (CDS API / Copernicus / any local rc files) ──
+.cdsapirc
+*.cdsapirc
+.copernicusmarine/
+.netrc
+
 # ── IDE / Editor ──
 .vscode/
 .idea/

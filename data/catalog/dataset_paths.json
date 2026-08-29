@@ -15,6 +15,7 @@
     "sentinel1_repo": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1",
     "asf_sentinel1_raw": "D:\\ROUTER(DATASETS)\\ASF",
     "oil_external": "D:\\ROUTER(DATASETS)\\Oil",
-    "netra_gold_v0_1": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\netra"
+    "netra_gold_v0_1": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\netra",
+    "cmems_mc20_timeseries": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems_mc20_timeseries"
   }
 }
