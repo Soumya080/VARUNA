@@ -1,7 +1,7 @@
 import pytest
 from varuna_abhiyan.optimizer import TaskingOptimizer
 from varuna_contracts.schemas import AssetType, SearchBox, BBox, GeoPoint
-from varuna_contracts.evidence import EvidenceEnvelope
+from varuna_contracts.evidence import EvidenceEnvelope, EvidenceMode
 
 def test_tasking_optimizer():
     optimizer = TaskingOptimizer()
@@ -16,7 +16,8 @@ def test_tasking_optimizer():
     env = EvidenceEnvelope(
         artifact_id="test",
         produced_by="test",
-        provenance={"source_id": "test"}
+        provenance={"source_id": "test"},
+        mode=EvidenceMode.SIMULATED,
     )
     
     taskings = optimizer.generate_tasking([box], [AssetType.DORNIER], env)

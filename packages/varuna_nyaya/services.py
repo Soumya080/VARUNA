@@ -5,17 +5,18 @@ Clean interfaces between scientific computation and application layer.
 These services accept domain inputs and return contract types.
 They do NOT call FastAPI, Postgres, Redis, or MinIO.
 """
+import time
 import numpy as np
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timezone
 
 from varuna_contracts.schemas import VesselTrack
 from varuna_contracts.decision import (
     AttributionResultV2, CandidateScore, DecisionState,
-    LatentFinding, PriorContribution,
+    LatentFinding, PriorContribution, ValidityGateResult,
 )
 from varuna_contracts.evidence import (
-    EvidenceEnvelope, TrustState, ValidityState, Provenance,
+    EvidenceEnvelope, EvidenceMode, ValidityState, Provenance,
 )
 from varuna_contracts.phi import PhiField
 
@@ -46,26 +47,49 @@ class PrativartanService:
         n_particles: int = 500,
         n_ensemble: int = 20,
         seed: int = 42,
+        input_envelope: Optional[EvidenceEnvelope] = None,
     ) -> PhiField:
+        """
+        `input_envelope`, when supplied, carries the real forcing/evidence
+        provenance (mode, trust, quality) into the resulting PhiField via
+        `.derive()`. No real forcing pipeline exists yet (ERA5/CMEMS ->
+        ForcingCube -> AbstractCurrentField/AbstractWindField is Tranche 2),
+        so every call site today omits it and gets the explicit default
+        below instead.
+
+        That default is `mode=EvidenceMode.SIMULATED` — a plain Python
+        default reflecting current systemic reality (there is nothing else
+        this call path could honestly be), not a value read from settings
+        or config. It replaces the previous unconditional
+        `Provenance(source_id="synthetic")`, which asserted synthetic
+        *lineage* but never declared *mode* at all — see ADR-0006.
+        """
         config = PratiConfig(
             n_particles=n_particles,
             n_ensemble=n_ensemble,
             backward_duration_hours=age_prior_mean_hours + 2.0 * age_prior_std_hours,
             seed=seed,
         )
-        base_env = EvidenceEnvelope(
-            artifact_id=case_id,
-            produced_by="prativartan_service",
-            provenance=Provenance(source_id="synthetic"),
-        )
+        if input_envelope is not None:
+            base_env = input_envelope
+        else:
+            base_env = EvidenceEnvelope(
+                artifact_id=case_id,
+                produced_by="prativartan_service",
+                provenance=Provenance(source_id="synthetic"),
+                mode=EvidenceMode.SIMULATED,
+            )
         current = SyntheticModelCurrentField()
         wind = SyntheticWindField()
 
+        t0 = time.perf_counter()
         ensemble_res = run_backward_ensemble(
             obs_lons=slick_lons, obs_lats=slick_lats,
             obs_time_hours=obs_time_hours,
             current=current, wind=wind, config=config,
         )
+        runtime_seconds = time.perf_counter() - t0
+
         phi = build_phi_field(
             ensemble_results=ensemble_res,
             case_id=case_id, slick_id=slick_id,
@@ -74,6 +98,7 @@ class PrativartanService:
             age_prior_mean_hours=age_prior_mean_hours,
             age_prior_std_hours=age_prior_std_hours,
             config=config,
+            runtime_seconds=runtime_seconds,
         )
         return phi
 
@@ -90,7 +115,17 @@ class NyayaService:
         slick_lats: np.ndarray,
         corridor_width_km: float = 5.0,
         latent_prior: float = 0.5,
+        tracks_envelope: Optional[EvidenceEnvelope] = None,
     ) -> AttributionResultV2:
+        """
+        `tracks_envelope`, when supplied, carries the AIS source's own
+        provenance/mode into the merged output via `.derive(also_from=...)`
+        — e.g. REAL Phi + SIMULATED AIS -> SIMULATED, never the reverse. No
+        real AIS adapter exists yet (Tranche 3), so `VesselTrack` itself
+        carries no per-track envelope today and every current call site
+        omits this parameter; the result's mode is then simply phi's own,
+        unchanged from before this parameter existed.
+        """
         phi_npz = np.load(phi.data_path)
         densities, rho_0, diag = compute_density_likelihoods(
             phi_data=phi_npz["phi"],
@@ -166,6 +201,7 @@ class NyayaService:
 
         attr_env = phi.envelope.derive(
             artifact_id=f"attr-{case_id}", produced_by="nyaya_service",
+            also_from=[tracks_envelope] if tracks_envelope is not None else (),
         )
 
         return AttributionResultV2(
@@ -183,16 +219,20 @@ class NyayaService:
 class ValidityService:
     """Evaluates the validity gate on attribution results."""
 
-    def evaluate(self, phi: PhiField, attribution: AttributionResultV2) -> dict:
+    def evaluate(self, phi: PhiField, attribution: AttributionResultV2) -> ValidityGateResult:
+        """
+        Returns the typed `ValidityGateResult` contract directly — this used
+        to hardcode `source_trust=TrustState.TRUSTED` regardless of input and
+        return an untyped dict, discarding reason codes, the envelope, and
+        anything DataGuard might have actually determined upstream. Trust is
+        now read from `attribution.envelope.trust`, the real value produced
+        by whatever built that envelope (today, still TRUSTED by default
+        because no source has ever marked it otherwise — see ADR-0006 on why
+        that is a starting condition to close in a later tranche, not a
+        promotion of this call site).
+        """
         from varuna_nyaya.validity_gate import evaluate_validity_gate
-        result = evaluate_validity_gate(
+        return evaluate_validity_gate(
             phi=phi, attribution=attribution,
-            source_trust=TrustState.TRUSTED,
+            source_trust=attribution.envelope.trust,
         )
-        return {
-            "state": result.state.value,
-            "checks": [{"name": c.name, "passed": c.passed} for c in result.checks],
-            "blocking_reasons": result.blocking_reasons,
-            "caveats": result.officer_visible_caveats,
-            "allows_action": result.allows_operational_action,
-        }

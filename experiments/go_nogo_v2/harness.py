@@ -1,6 +1,7 @@
 """
 VARUNA GRID — Go/No-Go v2 Experiment Harness.
 """
+import time
 import uuid
 from typing import List, Dict
 from datetime import datetime, timezone
@@ -11,7 +12,7 @@ from varuna_contracts.decision import (
     LatentFinding, PriorContribution
 )
 from varuna_contracts.evidence import (
-    EvidenceEnvelope, TrustState, ValidityState, Provenance
+    EvidenceEnvelope, EvidenceMode, TrustState, ValidityState, Provenance
 )
 from varuna_prativartan.config import PratiConfig
 from varuna_prativartan.current_field import SyntheticModelCurrentField, SyntheticWindField
@@ -43,6 +44,7 @@ def run_case(
         artifact_id=case_id,
         produced_by="go_nogo_v2_harness",
         provenance=Provenance(source_id="synthetic_go_nogo_v2"),
+        mode=EvidenceMode.SIMULATED,
     )
     
     # 2. PRATIVARTAN
@@ -52,6 +54,7 @@ def run_case(
     age_prior_mean = config.backward_duration_hours
     age_prior_std = 24.0
     
+    _t0 = time.perf_counter()
     ensemble_res = run_backward_ensemble(
         obs_lons=slick_lons,
         obs_lats=slick_lats,
@@ -60,7 +63,8 @@ def run_case(
         wind=wind,
         config=config
     )
-    
+    _runtime_seconds = time.perf_counter() - _t0
+
     phi = build_phi_field(
         ensemble_results=ensemble_res,
         case_id=case_id,
@@ -69,7 +73,8 @@ def run_case(
         obs_time_hours=obs_time_hours,
         age_prior_mean_hours=age_prior_mean,
         age_prior_std_hours=age_prior_std,
-        config=config
+        config=config,
+        runtime_seconds=_runtime_seconds,
     )
     
     # 3. NYAYA — compute density likelihoods + priors + posterior

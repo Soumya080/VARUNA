@@ -2,11 +2,11 @@
 VARUNA GRID — Validity Gate module.
 """
 from varuna_contracts.decision import (
-    AttributionResultV2, ValidityGateResult, GateCheck, DecisionState
+    AttributionResultV2, ValidityGateResult, GateCheck, GateReason, DecisionState
 )
 from varuna_contracts.phi import PhiField
 from varuna_contracts.evidence import (
-    TrustState, ValidityState, Provenance, EvidenceEnvelope
+    EvidenceMode, TrustState, ValidityState, Provenance, EvidenceEnvelope
 )
 
 
@@ -25,6 +25,7 @@ def evaluate_validity_gate(
         name="source_trust",
         passed=trust_ok,
         detail=f"trust={source_trust.value}",
+        reason_code=None if trust_ok else GateReason.DATA_QUARANTINED,
     ))
     if not trust_ok:
         blocking.append("Input data quarantined — zero influence permitted")
@@ -37,6 +38,7 @@ def evaluate_validity_gate(
         observed=phi.diagnostics.convergence,
         threshold=0.15,
         detail=f"flag={phi.diagnostics.convergence_flag.value}",
+        reason_code=None if conv_ok else GateReason.PHI_NOT_CONVERGED,
     ))
     if not conv_ok:
         blocking.append("Origin field did not converge")
@@ -48,6 +50,7 @@ def evaluate_validity_gate(
         passed=ent_ok,
         observed=phi.diagnostics.entropy,
         threshold=0.95,
+        reason_code=None if ent_ok else GateReason.PHI_UNINFORMATIVE,
     ))
     if not ent_ok:
         blocking.append("Origin field is near-uniform — no spatial discrimination")
@@ -60,6 +63,7 @@ def evaluate_validity_gate(
         passed=ec_ok,
         observed=ec,
         threshold=0.8,
+        reason_code=None if ec_ok else GateReason.EVIDENCE_INSUFFICIENT,
     ))
     if not ec_ok:
         caveats.append(f"Only {ec:.0%} of ensemble members completed")
@@ -74,31 +78,53 @@ def evaluate_validity_gate(
         passed=loss_ok,
         observed=loss_frac,
         threshold=0.2,
+        reason_code=None if loss_ok else GateReason.EVIDENCE_INSUFFICIENT,
     ))
     if not loss_ok:
         caveats.append(f"{loss_frac:.0%} of particles lost to boundaries")
 
-    # Check 6: Age sensitivity
-    age_ok = phi.sensitivity.age_sensitivity < 0.7
-    checks.append(GateCheck(
-        name="age_sensitivity",
-        passed=age_ok,
-        observed=phi.sensitivity.age_sensitivity,
-        threshold=0.7,
-    ))
-    if not age_ok:
-        caveats.append("Origin driven by age assumption, not data")
+    # Check 6/7: Age and forcing sensitivity. Only run when a real
+    # SensitivityBlock exists — see the new phi_diagnostics_availability
+    # check below for what happens when it does not (Tranche 1 default,
+    # since the sensitivity sweep is a P1 follow-up: see phi_builder.py).
+    if phi.sensitivity is not None:
+        age_ok = phi.sensitivity.age_sensitivity < 0.7
+        checks.append(GateCheck(
+            name="age_sensitivity",
+            passed=age_ok,
+            observed=phi.sensitivity.age_sensitivity,
+            threshold=0.7,
+            reason_code=None if age_ok else GateReason.EVIDENCE_INSUFFICIENT,
+        ))
+        if not age_ok:
+            caveats.append("Origin driven by age assumption, not data")
 
-    # Check 7: Forcing sensitivity
-    force_ok = phi.sensitivity.forcing_sensitivity < 0.7
-    checks.append(GateCheck(
-        name="forcing_sensitivity",
-        passed=force_ok,
-        observed=phi.sensitivity.forcing_sensitivity,
-        threshold=0.7,
-    ))
-    if not force_ok:
-        caveats.append("Result sensitive to forcing choice")
+        force_ok = phi.sensitivity.forcing_sensitivity < 0.7
+        checks.append(GateCheck(
+            name="forcing_sensitivity",
+            passed=force_ok,
+            observed=phi.sensitivity.forcing_sensitivity,
+            threshold=0.7,
+            reason_code=None if force_ok else GateReason.FORCING_INSUFFICIENT,
+        ))
+        if not force_ok:
+            caveats.append("Result sensitive to forcing choice")
+    else:
+        # Do NOT fabricate a passing (or failing) sensitivity number just to
+        # keep the gate's shape unchanged. Missing diagnostics that the gate
+        # policy requires are a BLOCKING condition — the system fails
+        # closed rather than trusting a manufactured 0.1.
+        checks.append(GateCheck(
+            name="phi_diagnostics_availability",
+            passed=False,
+            detail="SensitivityBlock not computed — sensitivity sweep not yet "
+                   "implemented (see phi_builder.py TODO(P1))",
+            reason_code=GateReason.PHI_DIAGNOSTICS_UNAVAILABLE,
+        ))
+        blocking.append(
+            "Sensitivity diagnostics unavailable — cannot certify the origin "
+            "field is not an artefact of the age/forcing assumptions"
+        )
 
     # Check 8: Posterior entropy
     post_ent_ok = attribution.posterior_entropy < 0.9
@@ -107,6 +133,7 @@ def evaluate_validity_gate(
         passed=post_ent_ok,
         observed=attribution.posterior_entropy,
         threshold=0.9,
+        reason_code=None if post_ent_ok else GateReason.ATTRIBUTION_UNCERTAIN,
     ))
     if not post_ent_ok:
         blocking.append("Posterior is near-flat — cannot rank candidates")
@@ -118,9 +145,35 @@ def evaluate_validity_gate(
         passed=dist_ok,
         observed=attribution.distinguishability,
         threshold=0.1,
+        reason_code=None if dist_ok else GateReason.ATTRIBUTION_NOT_DISTINGUISHABLE,
     ))
     if not dist_ok:
         caveats.append("Cannot separate top candidates")
+
+    # Check 10: Evidence mode. SIMULATED evidence must be visible to the
+    # officer and must never silently present as REAL — but it is not, on
+    # its own, a reason to block a synthetic integration run (the synthetic
+    # E2E test in Tranche 1 must still execute end to end). UNAVAILABLE
+    # evidence, by contrast, blocks: there is nothing there to act on.
+    evidence_mode = attribution.envelope.mode
+    if evidence_mode is EvidenceMode.UNAVAILABLE:
+        checks.append(GateCheck(
+            name="evidence_mode",
+            passed=False,
+            detail=f"mode={evidence_mode.value}",
+            reason_code=GateReason.EVIDENCE_INSUFFICIENT,
+        ))
+        blocking.append("Evidence is unavailable — nothing to attribute")
+    elif evidence_mode is EvidenceMode.SIMULATED:
+        checks.append(GateCheck(
+            name="evidence_mode",
+            passed=True,
+            detail=f"mode={evidence_mode.value}",
+            reason_code=GateReason.EVIDENCE_SIMULATED,
+        ))
+        caveats.append("Evidence is SIMULATED — not a real-world observation")
+    else:
+        checks.append(GateCheck(name="evidence_mode", passed=True, detail="mode=real"))
 
     # Determine state
     if blocking:

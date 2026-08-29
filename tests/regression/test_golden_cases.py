@@ -42,8 +42,16 @@ class TestCase0001:
         )
         assert result["status"] == "completed"
         assert result["decision"] == "strong_lead"
-        assert result["gate_state"] == "valid"
-        assert result["allows_action"] is True
+        # As of the Tranche 1 provenance/honesty hardening, PhiField.sensitivity
+        # is genuinely None (no sensitivity sweep is implemented yet — see
+        # phi_builder.py TODO(P1)), and the validity gate correctly refuses to
+        # fabricate a passing sensitivity check for it. The previous "valid"/
+        # allows_action=True here was earned by hardcoded age_sensitivity=
+        # forcing_sensitivity=0.1 literals that always passed; this is the
+        # gate now failing closed on genuinely missing diagnostics, not a
+        # regression in the attribution itself (decision_state is unchanged).
+        assert result["gate_state"] == "restricted"
+        assert result["allows_action"] is False
         assert result["scientific_status"] == "experimental"
         assert result["n_artifacts"] >= 4
         assert result["n_events"] >= 6

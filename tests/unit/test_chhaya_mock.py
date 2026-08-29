@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime, timezone
 
 from varuna_contracts.schemas import AISPoint, BBox
-from varuna_contracts.evidence import EvidenceEnvelope, TrustState, ValidityState, QualityMetrics
+from varuna_contracts.evidence import EvidenceEnvelope, EvidenceMode, TrustState, ValidityState, QualityMetrics
 from varuna_chhaya.protocol import LatentFinding
 from varuna_chhaya.mock import MockChhayaProvider
 
@@ -14,7 +14,8 @@ def _make_test_envelope() -> EvidenceEnvelope:
         trust=TrustState.TRUSTED,
         validity_state=ValidityState.VALID,
         quality=QualityMetrics(model_confidence=1.0),
-        provenance=Provenance(source_id="test")
+        provenance=Provenance(source_id="test"),
+        mode=EvidenceMode.SIMULATED,
     )
 
 def test_insufficient_coverage_returns_no_dark_claim():

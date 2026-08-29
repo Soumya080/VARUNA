@@ -3,12 +3,20 @@ M4 Full Pipeline E2E: PRAHARI → NETRA → PRATIVARTAN → NYAYA → Gate
 → PRAVAAH → ABHIYAN → Mission → PRAMAN → SMRITI
 
 All providers are mocks. No GPU. No external calls.
+
+SYNTHETIC E2E — NOT REAL SCIENTIFIC VALIDATION. This test proves that the
+mock-provider chain wires together and that EvidenceMode propagates
+correctly (every derived envelope stays SIMULATED, never silently upgrading
+to REAL) — it does not validate PRATIVARTAN's or NYAYA's science, which are
+stubbed here with `_DummyGateResult` rather than actually run (see the
+comment at that class). A real, non-stubbed attribution chain test is a
+later-tranche deliverable (see the parallel core-system hardening plan).
 """
 import pytest
 from datetime import datetime, timezone
 
 from varuna_contracts.schemas import BBox, GeoPoint
-from varuna_contracts.evidence import EvidenceEnvelope, TrustState, Provenance
+from varuna_contracts.evidence import EvidenceEnvelope, EvidenceMode, TrustState, Provenance
 from varuna_contracts.states import MissionState
 
 from varuna_netra.service import NetraService
@@ -55,16 +63,23 @@ def test_m4_full_pipeline():
 
     # 2. Create base envelope
     base_env = EvidenceEnvelope(
-        artifact_id="scene-001", 
+        artifact_id="scene-001",
         produced_by="source_adapter",
         provenance=Provenance(source_id="sentinel.mock", source_version="mock-v1"),
+        mode=EvidenceMode.SIMULATED,
     )
+
+    assert base_env.mode is EvidenceMode.SIMULATED
 
     # 3. NETRA
     detections, netra_env = netra_svc.detect_slicks(
         "tests/fixtures/scene_mock_01.tif", None, base_env, "CASE-E2E")
     assert len(detections) >= 1
     slick = detections[0]
+    # EvidenceMode must survive the hop unchanged (SIMULATED in, SIMULATED
+    # out) — never silently upgraded to REAL just because it passed through
+    # a "real" (i.e. non-mock-class-named) service wrapper.
+    assert netra_env.mode is EvidenceMode.SIMULATED
 
     # 4 & 5 & 6 Mocked for brevity since PRATIVARTAN and NYAYA require complex inputs
     gate_result = _DummyGateResult(ValidityState.VALID)
@@ -72,13 +87,16 @@ def test_m4_full_pipeline():
     # 7. CHHAYA
     dark_dets, latent_finding, chhaya_env = chhaya_svc.investigate(
         "tests/fixtures/scene_mock_01.tif", [], slick.bbox, base_env, "CASE-E2E")
+    assert chhaya_env.mode is EvidenceMode.SIMULATED
 
     # 8. PRAVAAH
     forecast, pravaah_env = pravaah_svc.forecast(slick, None, 48.0, netra_env, "CASE-E2E")
     assert forecast.horizon_hours == 48.0
+    assert pravaah_env.mode is EvidenceMode.SIMULATED
 
     # 9. ABHIYAN
     taskings, abhiyan_env = abhiyan_svc.plan_mission([], [], gate_result.state, netra_env, "CASE-E2E")
+    assert abhiyan_env.mode is EvidenceMode.SIMULATED
 
     # 10. Mission
     if gate_result.allows_operational_action and taskings:

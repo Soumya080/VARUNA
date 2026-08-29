@@ -2,7 +2,7 @@ import pytest
 from varuna_netra.inference import NetraInferenceService
 from varuna_infra.model_loader import ModelLoader, UnregisteredModelError
 from varuna_domain.model_registry import InMemoryModelRegistry, ModelStatus
-from varuna_contracts.evidence import EvidenceEnvelope
+from varuna_contracts.evidence import EvidenceEnvelope, EvidenceMode
 
 def test_netra_inference_requires_approved_model():
     registry = InMemoryModelRegistry()
@@ -34,7 +34,8 @@ def test_netra_inference_detect():
         case_id="case1",
         artifact_id="art1",
         produced_by="test_runner",
-        provenance={"source_id": "test"}
+        provenance={"source_id": "test"},
+        mode=EvidenceMode.SIMULATED,
     )
     detections = service.detect("scene.tiff", "wind.nc", envelope)
     

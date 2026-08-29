@@ -37,6 +37,7 @@ __all__ = [
     "CandidateScore",
     "DecisionState",
     "GateCheck",
+    "GateReason",
     "LatentFinding",
     "PriorContribution",
     "ValidityGateResult",
@@ -141,12 +142,42 @@ class AttributionResultV2(_Base):
 
 # ───────────────────────── Validity / Uncertainty Gate ─────────────────────────
 
+class GateReason(StrEnum):
+    """
+    Machine-readable classification for a GateCheck's outcome. ADR-0006.
+
+    Complements, never replaces, GateCheck.detail — the free-text `detail`
+    field stays as the officer-facing explanation; `reason_code` is what a
+    caller can switch on without string-matching English sentences. Not
+    every check populates a code (an existing passing check may leave it
+    None), and not every code here is emitted by the current validity gate
+    — some (e.g. ACTION_NOT_AUTHORIZED, TEMPORAL_JOIN_UNAVAILABLE) belong to
+    gates implemented in a later tranche and exist here now so the contract
+    doesn't need a second ADR when they land.
+    """
+    DATA_INVALID = "data_invalid"
+    DATA_QUARANTINED = "data_quarantined"
+    EVIDENCE_INSUFFICIENT = "evidence_insufficient"
+    EVIDENCE_SIMULATED = "evidence_simulated"
+    PHI_NOT_CONVERGED = "phi_not_converged"
+    PHI_UNINFORMATIVE = "phi_uninformative"
+    PHI_DIAGNOSTICS_UNAVAILABLE = "phi_diagnostics_unavailable"
+    ATTRIBUTION_UNCERTAIN = "attribution_uncertain"
+    ATTRIBUTION_NOT_DISTINGUISHABLE = "attribution_not_distinguishable"
+    FORCING_INSUFFICIENT = "forcing_insufficient"
+    TEMPORAL_JOIN_UNAVAILABLE = "temporal_join_unavailable"
+    ACTION_NOT_AUTHORIZED = "action_not_authorized"
+
+
 class GateCheck(_Base):
     name: str
     passed: bool
     observed: float | None = None
     threshold: float | None = None
     detail: str = ""
+    reason_code: GateReason | None = None  # defaulted: existing extra="forbid"
+                                            # consumers that construct GateCheck
+                                            # without this field keep working.
 
 
 class ValidityGateResult(_Base):

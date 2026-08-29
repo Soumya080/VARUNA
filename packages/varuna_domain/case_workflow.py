@@ -154,17 +154,22 @@ class CaseWorkflow:
         # Validity Gate
         case.transition(CaseStatus.EVALUATING, "workflow")
         validity_svc = ValidityService()
-        gate_result = validity_svc.evaluate(phi, attribution)
-        case.metadata["gate_result"] = gate_result
+        gate_result = validity_svc.evaluate(phi, attribution)  # ValidityGateResult
+        # Stored/serialized as a dict below (case.metadata is plain JSON-able
+        # storage, and GET /v1/cases/{id}/validity returns it verbatim) — the
+        # typed object itself is what ValidityService now returns and what
+        # any Python caller should consume directly.
+        gate_result_dict = gate_result.model_dump(mode="json")
+        case.metadata["gate_result"] = gate_result_dict
         self.cases.save(case)
 
         gate_artifact = self.praman.register_artifact(
             artifact_type="validity_gate", case_id=case.case_id,
-            produced_by="validity_gate", data=gate_result,
+            produced_by="validity_gate", data=gate_result_dict,
         )
         self.event_spine.emit("validity.evaluated", case.case_id, payload={
-            "state": gate_result["state"],
-            "allows_action": gate_result["allows_action"],
+            "state": gate_result.state.value,
+            "allows_action": gate_result.allows_operational_action,
         })
 
         # Evidence sealed
@@ -179,8 +184,8 @@ class CaseWorkflow:
             "decision": attribution.decision_state.value,
             "latent_probability": attribution.latent_probability,
             "n_candidates": len(attribution.candidates),
-            "gate_state": gate_result["state"],
-            "allows_action": gate_result["allows_action"],
+            "gate_state": gate_result.state.value,
+            "allows_action": gate_result.allows_operational_action,
             "scientific_status": ScientificStatus.EXPERIMENTAL.value,
         }
 

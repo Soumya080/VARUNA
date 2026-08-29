@@ -1,11 +1,15 @@
 """
 VARUNA GRID — Backward ensemble runner.
 """
+import logging
 import numpy as np
 from typing import List, Tuple
 from varuna_prativartan.config import PratiConfig
 from varuna_prativartan.engine import advect_particles
 from varuna_prativartan.current_field import AbstractCurrentField, AbstractWindField
+
+logger = logging.getLogger(__name__)
+
 
 def run_backward_ensemble(
     obs_lons: np.ndarray,
@@ -42,23 +46,38 @@ def run_backward_ensemble(
             
         lons = obs_lons[indices]
         lats = obs_lats[indices]
-        
-        hist_lons, hist_lats, hist_times = advect_particles(
-            lons=lons,
-            lats=lats,
-            current=current,
-            wind=wind,
-            wind_drift_factor=wdf,
-            diffusivity=diff,
-            duration_hours=config.backward_duration_hours,
-            dt_seconds=config.dt_seconds,
-            rng=rng,
-            current_noise_factor=cnf,
-            current_angle_noise_deg=cad,
-            start_time_hours=obs_time_hours,
-            backward=True,
-        )
-        
+
+        # A failing member (e.g. a forcing field raising on an out-of-domain
+        # query, per Tranche 2's fail-closed CubeBackedField) is dropped
+        # rather than crashing the whole ensemble. This is what makes
+        # `len(results)` an honest ensemble_members_completed count instead
+        # of an unconditional echo of config.n_ensemble — see phi_builder.py.
+        # No change to the advection mathematics itself: advect_particles is
+        # called with the same arguments either way.
+        try:
+            hist_lons, hist_lats, hist_times = advect_particles(
+                lons=lons,
+                lats=lats,
+                current=current,
+                wind=wind,
+                wind_drift_factor=wdf,
+                diffusivity=diff,
+                duration_hours=config.backward_duration_hours,
+                dt_seconds=config.dt_seconds,
+                rng=rng,
+                current_noise_factor=cnf,
+                current_angle_noise_deg=cad,
+                start_time_hours=obs_time_hours,
+                backward=True,
+            )
+        except Exception:
+            logger.warning(
+                "ensemble member %d/%d failed and was dropped (not counted "
+                "toward ensemble_members_completed)", m + 1, config.n_ensemble,
+                exc_info=True,
+            )
+            continue
+
         results.append((hist_lons, hist_lats, hist_times))
-        
+
     return results

@@ -146,7 +146,12 @@ class PhiField(_Base):
     time_distribution: TimeDistribution
     spatial_modes: list[SpatialMode] = Field(default_factory=list)
     diagnostics: PhiDiagnostics
-    sensitivity: SensitivityBlock
+    # None means "not computed", not "computed and found to be zero". A real
+    # sensitivity sweep re-runs the ensemble under perturbed age/forcing
+    # assumptions (see TODO(P1) in phi_builder.py) — until that exists, this
+    # is honestly None rather than a fabricated placeholder value. The
+    # validity gate treats None as PHI_DIAGNOSTICS_UNAVAILABLE (blocking).
+    sensitivity: SensitivityBlock | None = None
 
     n_particles: int = Field(..., gt=0)
     n_ensemble: int = Field(..., gt=0)

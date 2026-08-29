@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timezone
 
-from varuna_contracts.evidence import EvidenceEnvelope, Provenance
+from varuna_contracts.evidence import EvidenceEnvelope, EvidenceMode, Provenance
 from varuna_domain.model_registry import InMemoryModelRegistry, ModelStatus
 from varuna_infra.model_loader import ModelLoader
 from varuna_netra.inference import NetraInferenceService
@@ -49,7 +49,8 @@ def test_netra_uses_shared_normalization_when_arrays_available():
     service = NetraInferenceService(_approved_loader(), "v1", normalization_record=_norm_record())
 
     envelope = EvidenceEnvelope(
-        artifact_id="art1", produced_by="test_runner", provenance=Provenance(source_id="test")
+        artifact_id="art1", produced_by="test_runner", provenance=Provenance(source_id="test"),
+        mode=EvidenceMode.SIMULATED,
     )
     detections = service.detect(scene_path, None, envelope)
 
@@ -66,7 +67,8 @@ def test_netra_without_normalization_record_is_unaffected():
     existing callers or force normalization to run."""
     service = NetraInferenceService(_approved_loader(), "v1")
     envelope = EvidenceEnvelope(
-        artifact_id="art1", produced_by="test_runner", provenance=Provenance(source_id="test")
+        artifact_id="art1", produced_by="test_runner", provenance=Provenance(source_id="test"),
+        mode=EvidenceMode.SIMULATED,
     )
     detections = service.detect("scene_without_sidecar.tif", None, envelope)
     assert len(detections) == 1

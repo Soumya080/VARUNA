@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 from varuna_contracts.schemas import SlickDetection, GeoPoint, BBox, SlickClass, ForwardForecast
-from varuna_contracts.evidence import EvidenceEnvelope, TrustState, ValidityState, QualityMetrics
+from varuna_contracts.evidence import EvidenceEnvelope, EvidenceMode, TrustState, ValidityState, QualityMetrics
 from varuna_pravaah.mock import MockPravaahProvider
 
 def _make_test_envelope() -> EvidenceEnvelope:
@@ -14,7 +14,8 @@ def _make_test_envelope() -> EvidenceEnvelope:
         trust=TrustState.TRUSTED,
         validity_state=ValidityState.VALID,
         quality=QualityMetrics(model_confidence=1.0),
-        provenance=Provenance(source_id="test")
+        provenance=Provenance(source_id="test"),
+        mode=EvidenceMode.SIMULATED,
     )
 
 def _make_test_slick(lon: float = 72.0, lat: float = 15.0) -> SlickDetection:

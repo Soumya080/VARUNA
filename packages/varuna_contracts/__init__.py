@@ -16,6 +16,7 @@ from varuna_contracts.decision import (
     CandidateScore,
     DecisionState,
     GateCheck,
+    GateReason,
     LatentFinding,
     PriorContribution,
     ValidityGateResult,
@@ -26,6 +27,7 @@ from varuna_contracts.evidence import (
     DegradationState,
     EnvelopedArtifact,
     EvidenceEnvelope,
+    EvidenceMode,
     Provenance,
     QualityMetrics,
     TrustState,
@@ -96,9 +98,11 @@ __all__ = [
     # evidence
     "EvidenceEnvelope",
     "EvidenceManifest",
+    "EvidenceMode",
     "EvidenceState",
     "ForwardForecast",
     "GateCheck",
+    "GateReason",
     # domain payloads
     "GeoPoint",
     "InvestigationState",

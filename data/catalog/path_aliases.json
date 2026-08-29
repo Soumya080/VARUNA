@@ -1,0 +1,65 @@
+{
+  "generated_at": "2026-08-29T08:32:56.516388+00:00",
+  "aliases": {
+    "zenodo_part1": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\extracted\\part1",
+      "logical_role": "netra_training_positive"
+    },
+    "zenodo_part2": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\extracted\\part2",
+      "logical_role": "netra_training_hard_negative"
+    },
+    "zenodo_downloads": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\downloads",
+      "logical_role": "provenance_archive"
+    },
+    "era5": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\era5",
+      "logical_role": "forcing_wind"
+    },
+    "cmems": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems",
+      "logical_role": "forcing_current"
+    },
+    "ais": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\ais",
+      "logical_role": "attribution_evidence"
+    },
+    "essd": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\essd",
+      "logical_role": "netra_external_evaluation"
+    },
+    "xview3": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\xview3",
+      "logical_role": "chhaya_training"
+    },
+    "bhoonidhi": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\bhoonidhi",
+      "logical_role": "indian_domain_evaluation"
+    },
+    "nisar": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\nisar",
+      "logical_role": "cross_sensor_evaluation"
+    },
+    "risat": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\risat",
+      "logical_role": "cross_sensor_evaluation"
+    },
+    "sentinel1_repo": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1",
+      "logical_role": "staging"
+    },
+    "asf_sentinel1_raw": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\ASF",
+      "logical_role": "indian_domain_source_material"
+    },
+    "oil_external": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\Oil",
+      "logical_role": "unknown"
+    },
+    "netra_gold_v0_1": {
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\netra",
+      "logical_role": "netra_training_derived"
+    }
+  }
+}

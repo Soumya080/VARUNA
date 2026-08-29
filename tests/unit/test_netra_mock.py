@@ -6,7 +6,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 from varuna_contracts.schemas import SlickDetection, SlickClass, GeoPoint, BBox
-from varuna_contracts.evidence import EvidenceEnvelope, TrustState, ValidityState, QualityMetrics, DegradationState, AnomalyFlag
+from varuna_contracts.evidence import EvidenceEnvelope, EvidenceMode, TrustState, ValidityState, QualityMetrics, DegradationState, AnomalyFlag
 from varuna_netra.mock import MockNetraProvider
 from varuna_netra.service import NetraService
 
@@ -18,7 +18,8 @@ def _make_test_envelope() -> EvidenceEnvelope:
         trust=TrustState.TRUSTED,
         validity_state=ValidityState.VALID,
         quality=QualityMetrics(model_confidence=1.0),
-        provenance=Provenance(source_id="test")
+        provenance=Provenance(source_id="test"),
+        mode=EvidenceMode.SIMULATED,
     )
 
 def test_mock_returns_valid_slick_detections():

@@ -1,6 +1,6 @@
 import pytest
 from varuna_contracts.schemas import AssetType, SearchBox, BBox, GeoPoint
-from varuna_contracts.evidence import EvidenceEnvelope, TrustState, ValidityState, QualityMetrics, Provenance
+from varuna_contracts.evidence import EvidenceEnvelope, EvidenceMode, TrustState, ValidityState, QualityMetrics, Provenance
 from varuna_abhiyan.mock import MockAbhiyanProvider
 from varuna_abhiyan.service import AbhiyanService
 
@@ -11,7 +11,8 @@ def _make_test_envelope() -> EvidenceEnvelope:
         trust=TrustState.TRUSTED,
         validity_state=ValidityState.VALID,
         quality=QualityMetrics(model_confidence=1.0),
-        provenance=Provenance(source_id="test")
+        provenance=Provenance(source_id="test"),
+        mode=EvidenceMode.SIMULATED,
     )
 
 def test_abhiyan_returns_tasking():
