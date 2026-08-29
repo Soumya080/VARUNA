@@ -295,3 +295,52 @@ def read_cmems_netcdf(path: Path, *, adapter_id: str = "cmems.real") -> ForcingC
         )
     finally:
         ds.close()
+
+
+def load_era5_wind_arrays(cube: ForcingCube) -> tuple[np.ndarray, np.ndarray]:
+    """Load the raw (n_time, n_lat, n_lon) u10/v10 arrays backing `cube` from
+    its own `data_path`, in the exact coordinate order `read_era5_grib`
+    stored (`cube.lat_coords`/`cube.lon_coords`) — this is what
+    `CubeBackedWindField.load_arrays()` requires. Read-only; opens the same
+    file `read_era5_grib` already validated, does not fabricate or resample.
+    """
+    ds = xr.open_dataset(cube.data_path, engine="netcdf4")
+    try:
+        u = np.asarray(ds["u10"].values, dtype=float)
+        v = np.asarray(ds["v10"].values, dtype=float)
+        return u, v
+    finally:
+        ds.close()
+
+
+def load_cmems_current_arrays(cube: ForcingCube) -> tuple[np.ndarray, np.ndarray]:
+    """Load the raw (n_time, n_lat, n_lon) uo/vo arrays backing `cube` from
+    its own `data_path`, in the exact coordinate order `read_cmems_netcdf`
+    stored. CMEMS Copernicus Marine files carry a `depth` dimension even for
+    surface fields (single-level `depth=0`, sized 1 here) —
+    `CubeBackedCurrentField.load_arrays()` expects a plain (n_time, n_lat,
+    n_lon) grid, so the length-1 depth axis is squeezed here, not silently
+    reshaped or averaged: `assert cube's depth dim is exactly 1` before
+    squeezing, so a genuinely multi-level file would raise rather than
+    silently pick a level.
+    """
+    ds = xr.open_dataset(cube.data_path, engine="netcdf4")
+    try:
+        u_da, v_da = ds["uo"], ds["vo"]
+        if "depth" in u_da.dims:
+            depth_axis = u_da.dims.index("depth")
+            if ds.sizes["depth"] != 1:
+                raise ValueError(
+                    f"CMEMS file {cube.data_path} has {ds.sizes['depth']} depth "
+                    f"levels; load_cmems_current_arrays only supports the "
+                    f"single-level surface case and refuses to guess which "
+                    f"level to use."
+                )
+            u = np.squeeze(np.asarray(u_da.values, dtype=float), axis=depth_axis)
+            v = np.squeeze(np.asarray(v_da.values, dtype=float), axis=depth_axis)
+        else:
+            u = np.asarray(u_da.values, dtype=float)
+            v = np.asarray(v_da.values, dtype=float)
+        return u, v
+    finally:
+        ds.close()

@@ -1,0 +1,1099 @@
+{
+  "_README": "EXAMPLE / SYNTHETIC payloads for docs/api/OPERATOR_CASE_CONTRACT_V1.md. REAL_SCIENTIFIC_SECTIONS was produced by actually running CaseWorkflow against tests/fixtures/case_0001.py (a deterministic SOFTWARE REGRESSION FIXTURE, not a scientific benchmark, and at tiny fixture particle/ensemble scale) -- every value in it is a genuine computed output of that run, not hand-typed. PARTIAL and BLOCKED are entirely hand-constructed illustrative payloads and are marked SYNTHETIC in their case_id. None of the three resemble real MC20 results.",
+  "REAL_SCIENTIFIC_SECTIONS": {
+    "schema_version": "v1",
+    "case_id": "EXAMPLE-PIPELINE-COMPUTED-1",
+    "generated_at": "2026-08-29T20:29:37.231039Z",
+    "system_status": {
+      "case_status": "completed",
+      "scientific_status": "experimental",
+      "error": null
+    },
+    "observation": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": null,
+      "value": {
+        "n_slick_points": 300,
+        "n_tracks": 5,
+        "obs_time_hours": 120.0,
+        "bbox": {
+          "min_lon": 71.9324825185256,
+          "min_lat": 15.101363782298654,
+          "max_lon": 71.99842758973688,
+          "max_lat": 15.189605551355857
+        }
+      }
+    },
+    "detection": {
+      "status": "not_yet_produced",
+      "reason": "NETRA_INFERENCE_NOT_WIRED_INTO_CASE_PIPELINE",
+      "evidence_mode": null,
+      "value": null
+    },
+    "origin": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": "simulated",
+      "value": {
+        "phi_id": "phi-EXAMPLE-PIPELINE-COMPUTED-1-0f11f73e",
+        "slick_id": "slick-83d62069",
+        "case_id": "EXAMPLE-PIPELINE-COMPUTED-1",
+        "data_path": "C:\\Users\\tripti\\AppData\\Local\\Temp\\phi-EXAMPLE-PIPELINE-COMPUTED-1-0f11f73e.npz",
+        "bbox": {
+          "min_lon": 71.19450541048883,
+          "min_lat": 14.317654284193035,
+          "max_lon": 72.01927808764374,
+          "max_lat": 15.332249325139458
+        },
+        "grid_shape": [
+          86,
+          53,
+          44
+        ],
+        "time_distribution": {
+          "time_edges_unix": [
+            1767351600.0,
+            1767355200.0,
+            1767358800.0,
+            1767362400.0,
+            1767366000.0,
+            1767369600.0,
+            1767373200.0,
+            1767376800.0,
+            1767380400.0,
+            1767384000.0,
+            1767387600.0,
+            1767391200.0,
+            1767394800.0,
+            1767398400.0,
+            1767402000.0,
+            1767405600.0,
+            1767409200.0,
+            1767412800.0,
+            1767416400.0,
+            1767420000.0,
+            1767423600.0,
+            1767427200.0,
+            1767430800.0,
+            1767434400.0,
+            1767438000.0,
+            1767441600.0,
+            1767445200.0,
+            1767448800.0,
+            1767452400.0,
+            1767456000.0,
+            1767459600.0,
+            1767463200.0,
+            1767466800.0,
+            1767470400.0,
+            1767474000.0,
+            1767477600.0,
+            1767481200.0,
+            1767484800.0,
+            1767488400.0,
+            1767492000.0,
+            1767495600.0,
+            1767499200.0,
+            1767502800.0,
+            1767506400.0,
+            1767510000.0,
+            1767513600.0,
+            1767517200.0,
+            1767520800.0,
+            1767524400.0,
+            1767528000.0,
+            1767531600.0,
+            1767535200.0,
+            1767538800.0,
+            1767542400.0,
+            1767546000.0,
+            1767549600.0,
+            1767553200.0,
+            1767556800.0,
+            1767560400.0,
+            1767564000.0,
+            1767567600.0,
+            1767571200.0,
+            1767574800.0,
+            1767578400.0,
+            1767582000.0,
+            1767585600.0,
+            1767589200.0,
+            1767592800.0,
+            1767596400.0,
+            1767600000.0,
+            1767603600.0,
+            1767607200.0,
+            1767610800.0,
+            1767614400.0,
+            1767618000.0,
+            1767621600.0,
+            1767625200.0,
+            1767628800.0,
+            1767632400.0,
+            1767636000.0,
+            1767639600.0,
+            1767643200.0,
+            1767646800.0,
+            1767650400.0,
+            1767654000.0,
+            1767657600.0,
+            1767661200.0
+          ],
+          "mass": [
+            9.99999860695766e-10,
+            0.0025717285461723804,
+            0.0027903735172003508,
+            0.003022355493158102,
+            0.0032679454889148474,
+            0.0035273623652756214,
+            0.0038007679395377636,
+            0.004088261630386114,
+            0.004389873240143061,
+            0.004705559927970171,
+            0.005035199224948883,
+            0.00537858484312892,
+            0.005735422484576702,
+            0.006105325184762478,
+            0.006487810984253883,
+            0.006882300600409508,
+            0.007288113236427307,
+            0.0077044665813446045,
+            0.008130477741360664,
+            0.008565161377191544,
+            0.00900743342936039,
+            0.009456112049520016,
+            0.009909920394420624,
+            0.010367492213845253,
+            0.010827379301190376,
+            0.011288050562143326,
+            0.011747906915843487,
+            0.012205291539430618,
+            0.012658488005399704,
+            0.01310573797672987,
+            0.013545255176723003,
+            0.013975227251648903,
+            0.014393839053809643,
+            0.014799271710216999,
+            0.015189731493592262,
+            0.015563447959721088,
+            0.015918701887130737,
+            0.016253821551799774,
+            0.016567207872867584,
+            0.016857344657182693,
+            0.01712280698120594,
+            0.017362283542752266,
+            0.017574571073055267,
+            0.017758596688508987,
+            0.017913421615958214,
+            0.018038254231214523,
+            0.018132448196411133,
+            0.018195517361164093,
+            0.01822713389992714,
+            0.01822713389992714,
+            0.018195517361164093,
+            0.018132446333765984,
+            0.018038254231214523,
+            0.017913421615958214,
+            0.017758594825863838,
+            0.017574571073055267,
+            0.017362283542752266,
+            0.01712280698120594,
+            0.016857344657182693,
+            0.016567204147577286,
+            0.016253821551799774,
+            0.015918701887130737,
+            0.015563449822366238,
+            0.015189731493592262,
+            0.014799271710216999,
+            0.014393837191164494,
+            0.013975227251648903,
+            0.013545254245400429,
+            0.013105737045407295,
+            0.01265848707407713,
+            0.012205291539430618,
+            0.011747907847166061,
+            0.011288050562143326,
+            0.010827379301190376,
+            0.010367492213845253,
+            0.009909920394420624,
+            0.009456112049520016,
+            0.009007434360682964,
+            0.008565161377191544,
+            0.008130477741360664,
+            0.0077044665813446045,
+            0.007288113236427307,
+            0.006882300600409508,
+            0.006487811449915171,
+            0.006105325184762478,
+            0.0014338565524667501
+          ],
+          "mode_unix": 1767526200.0,
+          "p05_unix": 1767400200.0,
+          "p95_unix": 1767634200.0
+        },
+        "spatial_modes": [],
+        "diagnostics": {
+          "entropy": 0.7726898083158926,
+          "concentration": 0.8349883556365967,
+          "effective_support_km2": 65695.04174422754,
+          "convergence": 0.2767111770524234,
+          "convergence_flag": "marginal",
+          "n_modes": 1,
+          "multimodal": false,
+          "boundary_interaction": false,
+          "particles_lost": 0,
+          "particles_seeded": 6000,
+          "ensemble_members_completed": 20,
+          "ensemble_members_requested": 20,
+          "runtime_seconds": 0.27259459998458624
+        },
+        "sensitivity": null,
+        "n_particles": 500,
+        "n_ensemble": 20,
+        "backward_duration_hours": 84.0,
+        "dt_seconds": 900.0,
+        "forcing_current_source": "synthetic_shear_v1",
+        "forcing_wind_source": "synthetic_wind_v1",
+        "weathering_model": null,
+        "envelope": {
+          "artifact_id": "phi-EXAMPLE-PIPELINE-COMPUTED-1-0f11f73e",
+          "case_id": null,
+          "parent_artifact_ids": [
+            "EXAMPLE-PIPELINE-COMPUTED-1"
+          ],
+          "produced_by": "prativartan",
+          "model_version": "prativartan_pure_numpy_v1",
+          "processing_version": "2.0.0",
+          "created_at": "2026-08-29T20:29:37.178922Z",
+          "crs": "EPSG:4326",
+          "units": {},
+          "provenance": {
+            "source_id": "prativartan",
+            "source_version": null,
+            "raw_artifact_refs": [],
+            "retrieved_at": null,
+            "adapter_id": null,
+            "license": null,
+            "citation": null,
+            "notes": null
+          },
+          "mode": "simulated",
+          "trust": "trusted",
+          "influence_weight": 1.0,
+          "quality": {
+            "completeness": null,
+            "freshness_seconds": null,
+            "spatial_coverage": null,
+            "resolution_m": null,
+            "ood_score": null,
+            "model_confidence": null,
+            "extra": {}
+          },
+          "uncertainty": {
+            "representation": "none",
+            "mean": null,
+            "std": null,
+            "lower": null,
+            "upper": null,
+            "interval_confidence": null,
+            "entropy": null,
+            "n_samples": null,
+            "sensitivity": {}
+          },
+          "calibration_state": "not_applicable",
+          "validity_state": "valid",
+          "degradation_state": "nominal",
+          "anomaly_flags": [],
+          "content_hash": null
+        },
+        "created_at": "2026-08-29T20:29:37.186037Z"
+      }
+    },
+    "ais": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": null,
+      "value": [
+        {
+          "mmsi": "DECOY_0000",
+          "vessel_name": null,
+          "vessel_type": "cargo",
+          "n_points": 144,
+          "start_time": "2026-01-04T00:00:00Z",
+          "end_time": "2026-01-06T23:30:00Z",
+          "total_gap_minutes": 0.0,
+          "max_gap_minutes": 0.0,
+          "transponder_active": true
+        },
+        {
+          "mmsi": "DECOY_0001",
+          "vessel_name": null,
+          "vessel_type": "cargo",
+          "n_points": 144,
+          "start_time": "2026-01-04T00:00:00Z",
+          "end_time": "2026-01-06T23:30:00Z",
+          "total_gap_minutes": 0.0,
+          "max_gap_minutes": 0.0,
+          "transponder_active": true
+        },
+        {
+          "mmsi": "DECOY_0002",
+          "vessel_name": null,
+          "vessel_type": "cargo",
+          "n_points": 144,
+          "start_time": "2026-01-04T00:00:00Z",
+          "end_time": "2026-01-06T23:30:00Z",
+          "total_gap_minutes": 0.0,
+          "max_gap_minutes": 0.0,
+          "transponder_active": true
+        },
+        {
+          "mmsi": "DECOY_0003",
+          "vessel_name": null,
+          "vessel_type": "cargo",
+          "n_points": 144,
+          "start_time": "2026-01-04T00:00:00Z",
+          "end_time": "2026-01-06T23:30:00Z",
+          "total_gap_minutes": 0.0,
+          "max_gap_minutes": 0.0,
+          "transponder_active": true
+        },
+        {
+          "mmsi": "CASE0001_TRUE",
+          "vessel_name": null,
+          "vessel_type": "tanker",
+          "n_points": 144,
+          "start_time": "2026-01-04T00:00:00Z",
+          "end_time": "2026-01-06T23:30:00Z",
+          "total_gap_minutes": 0.0,
+          "max_gap_minutes": 0.0,
+          "transponder_active": true
+        }
+      ]
+    },
+    "attribution": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": "simulated",
+      "value": {
+        "case_id": "EXAMPLE-PIPELINE-COMPUTED-1",
+        "slick_id": "slick-83d62069",
+        "phi_id": "phi-EXAMPLE-PIPELINE-COMPUTED-1-0f11f73e",
+        "decision_state": "strong_lead",
+        "candidates": [
+          {
+            "mmsi": "CASE0001_TRUE",
+            "vessel_name": null,
+            "vessel_type": "tanker",
+            "path_integral": 0.01121197547763586,
+            "prior": {
+              "gap_score": 0.0,
+              "speed_anomaly": 0.0,
+              "loiter_score": 0.0,
+              "night_proximity": 0.0625,
+              "type_weight": 1.5,
+              "combined": 1.5093750000000001,
+              "weights_version": "hand_tuned_v1"
+            },
+            "likelihood": 0.01121197547763586,
+            "posterior": 0.48251612191891347,
+            "rank": 1,
+            "closest_approach_km": 15.961765932016046,
+            "time_at_closest_hours": 97.0,
+            "phi_mass_explained": 0.01121197547763586,
+            "ais_reliability": 1.0,
+            "influence_weight": 1.0
+          },
+          {
+            "mmsi": "DECOY_0001",
+            "vessel_name": null,
+            "vessel_type": "cargo",
+            "path_integral": 0.00394199974834919,
+            "prior": {
+              "gap_score": 0.0,
+              "speed_anomaly": 0.0,
+              "loiter_score": 0.0,
+              "night_proximity": 0.06944444444444445,
+              "type_weight": 1.2,
+              "combined": 1.2083333333333333,
+              "weights_version": "hand_tuned_v1"
+            },
+            "likelihood": 0.00394199974834919,
+            "posterior": 0.15057339056586347,
+            "rank": 2,
+            "closest_approach_km": 6.368949794865121,
+            "time_at_closest_hours": 90.0,
+            "phi_mass_explained": 0.00394199974834919,
+            "ais_reliability": 1.0,
+            "influence_weight": 1.0
+          },
+          {
+            "mmsi": "DECOY_0000",
+            "vessel_name": null,
+            "vessel_type": "cargo",
+            "path_integral": 1.8062135495711118e-05,
+            "prior": {
+              "gap_score": 0.0,
+              "speed_anomaly": 0.0,
+              "loiter_score": 0.0,
+              "night_proximity": 0.013888888888888888,
+              "type_weight": 1.2,
+              "combined": 1.2016666666666667,
+              "weights_version": "hand_tuned_v1"
+            },
+            "likelihood": 1.8062135495711118e-05,
+            "posterior": 0.0007582310704820929,
+            "rank": 3,
+            "closest_approach_km": 9.7878782525993,
+            "time_at_closest_hours": 86.0,
+            "phi_mass_explained": 1.8062135495711118e-05,
+            "ais_reliability": 1.0,
+            "influence_weight": 1.0
+          },
+          {
+            "mmsi": "DECOY_0002",
+            "vessel_name": null,
+            "vessel_type": "cargo",
+            "path_integral": 0.0,
+            "prior": {
+              "gap_score": 0.0,
+              "speed_anomaly": 0.0,
+              "loiter_score": 0.0,
+              "night_proximity": 0.1736111111111111,
+              "type_weight": 1.2,
+              "combined": 1.2208333333333334,
+              "weights_version": "hand_tuned_v1"
+            },
+            "likelihood": 0.0,
+            "posterior": 0.0,
+            "rank": 4,
+            "closest_approach_km": 30.522277527245723,
+            "time_at_closest_hours": 136.0,
+            "phi_mass_explained": 0.0,
+            "ais_reliability": 1.0,
+            "influence_weight": 1.0
+          },
+          {
+            "mmsi": "DECOY_0003",
+            "vessel_name": null,
+            "vessel_type": "cargo",
+            "path_integral": 0.0,
+            "prior": {
+              "gap_score": 0.0,
+              "speed_anomaly": 0.0,
+              "loiter_score": 0.0,
+              "night_proximity": 0.034722222222222224,
+              "type_weight": 1.2,
+              "combined": 1.2041666666666668,
+              "weights_version": "hand_tuned_v1"
+            },
+            "likelihood": 0.0,
+            "posterior": 0.0,
+            "rank": 5,
+            "closest_approach_km": 4.518940774186739,
+            "time_at_closest_hours": 95.5,
+            "phi_mass_explained": 0.0,
+            "ais_reliability": 1.0,
+            "influence_weight": 1.0
+          }
+        ],
+        "latent_probability": 0.366152256444741,
+        "latent_finding": "visible_sources_exist_but_weak",
+        "latent_inferred_point": null,
+        "top_posterior": 0.48251612191891347,
+        "top_gap": 0.33194273135304997,
+        "distinguishability": 0.5236947433009378,
+        "posterior_entropy": 0.5637104108734544,
+        "calibration_state": "uncalibrated",
+        "calibration_version": null,
+        "phi_quality_summary": "",
+        "phi_multimodal": false,
+        "n_candidates_screened": 5,
+        "n_candidates_scored": 5,
+        "envelope": {
+          "artifact_id": "attr-EXAMPLE-PIPELINE-COMPUTED-1",
+          "case_id": null,
+          "parent_artifact_ids": [
+            "phi-EXAMPLE-PIPELINE-COMPUTED-1-0f11f73e"
+          ],
+          "produced_by": "nyaya_service",
+          "model_version": null,
+          "processing_version": "0.1.0",
+          "created_at": "2026-08-29T20:29:37.230040Z",
+          "crs": "EPSG:4326",
+          "units": {},
+          "provenance": {
+            "source_id": "nyaya_service",
+            "source_version": null,
+            "raw_artifact_refs": [],
+            "retrieved_at": null,
+            "adapter_id": null,
+            "license": null,
+            "citation": null,
+            "notes": null
+          },
+          "mode": "simulated",
+          "trust": "trusted",
+          "influence_weight": 1.0,
+          "quality": {
+            "completeness": null,
+            "freshness_seconds": null,
+            "spatial_coverage": null,
+            "resolution_m": null,
+            "ood_score": null,
+            "model_confidence": null,
+            "extra": {}
+          },
+          "uncertainty": {
+            "representation": "none",
+            "mean": null,
+            "std": null,
+            "lower": null,
+            "upper": null,
+            "interval_confidence": null,
+            "entropy": null,
+            "n_samples": null,
+            "sensitivity": {}
+          },
+          "calibration_state": "not_applicable",
+          "validity_state": "valid",
+          "degradation_state": "nominal",
+          "anomaly_flags": [],
+          "content_hash": null
+        },
+        "computed_at": "2026-08-29T20:29:37.230040Z"
+      }
+    },
+    "validity": {
+      "status": "blocked",
+      "reason": null,
+      "evidence_mode": "simulated",
+      "value": {
+        "case_id": "EXAMPLE-PIPELINE-COMPUTED-1",
+        "state": "restricted",
+        "checks": [
+          {
+            "name": "source_trust",
+            "passed": true,
+            "observed": null,
+            "threshold": null,
+            "detail": "trust=trusted",
+            "reason_code": null
+          },
+          {
+            "name": "phi_convergence",
+            "passed": true,
+            "observed": 0.2767111770524234,
+            "threshold": 0.15,
+            "detail": "flag=marginal",
+            "reason_code": null
+          },
+          {
+            "name": "phi_entropy",
+            "passed": true,
+            "observed": 0.7726898083158926,
+            "threshold": 0.95,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "ensemble_completeness",
+            "passed": true,
+            "observed": 1.0,
+            "threshold": 0.8,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "particle_loss",
+            "passed": true,
+            "observed": 0.0,
+            "threshold": 0.2,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "phi_diagnostics_availability",
+            "passed": false,
+            "observed": null,
+            "threshold": null,
+            "detail": "SensitivityBlock not computed \u2014 sensitivity sweep not yet implemented (see phi_builder.py TODO(P1))",
+            "reason_code": "phi_diagnostics_unavailable"
+          },
+          {
+            "name": "posterior_entropy",
+            "passed": true,
+            "observed": 0.5637104108734544,
+            "threshold": 0.9,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "distinguishability",
+            "passed": true,
+            "observed": 0.5236947433009378,
+            "threshold": 0.1,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "evidence_mode",
+            "passed": true,
+            "observed": null,
+            "threshold": null,
+            "detail": "mode=simulated",
+            "reason_code": "evidence_simulated"
+          }
+        ],
+        "blocking_reasons": [
+          "Sensitivity diagnostics unavailable \u2014 cannot certify the origin field is not an artefact of the age/forcing assumptions"
+        ],
+        "officer_visible_caveats": [
+          "Evidence is SIMULATED \u2014 not a real-world observation"
+        ],
+        "source_trust": "trusted",
+        "envelope": {
+          "artifact_id": "gate-EXAMPLE-PIPELINE-COMPUTED-1",
+          "case_id": null,
+          "parent_artifact_ids": [
+            "attr-EXAMPLE-PIPELINE-COMPUTED-1"
+          ],
+          "produced_by": "validity_gate",
+          "model_version": null,
+          "processing_version": "0.1.0",
+          "created_at": "2026-08-29T20:29:37.231039Z",
+          "crs": "EPSG:4326",
+          "units": {},
+          "provenance": {
+            "source_id": "validity_gate",
+            "source_version": null,
+            "raw_artifact_refs": [],
+            "retrieved_at": null,
+            "adapter_id": null,
+            "license": null,
+            "citation": null,
+            "notes": null
+          },
+          "mode": "simulated",
+          "trust": "trusted",
+          "influence_weight": 1.0,
+          "quality": {
+            "completeness": null,
+            "freshness_seconds": null,
+            "spatial_coverage": null,
+            "resolution_m": null,
+            "ood_score": null,
+            "model_confidence": null,
+            "extra": {}
+          },
+          "uncertainty": {
+            "representation": "none",
+            "mean": null,
+            "std": null,
+            "lower": null,
+            "upper": null,
+            "interval_confidence": null,
+            "entropy": null,
+            "n_samples": null,
+            "sensitivity": {}
+          },
+          "calibration_state": "not_applicable",
+          "validity_state": "restricted",
+          "degradation_state": "nominal",
+          "anomaly_flags": [],
+          "content_hash": null
+        },
+        "evaluated_at": "2026-08-29T20:29:37.231039Z"
+      }
+    },
+    "forecast": {
+      "status": "not_yet_produced",
+      "reason": "PRAVAAH forecast is not yet wired into CaseWorkflow.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "decision": {
+      "status": "not_yet_produced",
+      "reason": "ABHIYAN tasking is not yet wired into CaseWorkflow.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "mission": {
+      "status": "not_yet_produced",
+      "reason": "Mission FSM is not yet wired into CaseWorkflow/operator-view lookup.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "alerts": {
+      "status": "not_yet_produced",
+      "reason": "Alert routing is not yet wired into CaseWorkflow.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "evidence": {
+      "components": [
+        {
+          "component": "sar",
+          "status": "not_yet_produced",
+          "score": null,
+          "reason": "NETRA_INFERENCE_NOT_WIRED_INTO_CASE_PIPELINE",
+          "evidence_mode": null,
+          "observed_at": null
+        },
+        {
+          "component": "ais",
+          "status": "produced",
+          "score": null,
+          "reason": "No AIS completeness metric is computed by the current backend.",
+          "evidence_mode": null,
+          "observed_at": null
+        },
+        {
+          "component": "model_consistency",
+          "status": "not_yet_produced",
+          "score": null,
+          "reason": "No cross-model consistency check is implemented in the current backend.",
+          "evidence_mode": null,
+          "observed_at": null
+        },
+        {
+          "component": "forcing",
+          "status": "produced",
+          "score": 1.0,
+          "reason": null,
+          "evidence_mode": "simulated",
+          "observed_at": null
+        }
+      ]
+    },
+    "provenance": {
+      "case_id": "EXAMPLE-PIPELINE-COMPUTED-1",
+      "artifact_ids": [
+        "input_slick-18125bce",
+        "phi_field-55cc5332",
+        "attribution-88670726",
+        "validity_gate-a16236ab"
+      ],
+      "source_ids": [
+        "ingest",
+        "nyaya",
+        "prativartan",
+        "validity_gate"
+      ],
+      "model_versions": {},
+      "processing_versions": {},
+      "manifest_artifact_id": null,
+      "generated_at": "2026-08-29T20:29:37.231039Z"
+    }
+  },
+  "PARTIAL_SYNTHETIC": {
+    "schema_version": "v1",
+    "case_id": "EXAMPLE-SYNTHETIC-PARTIAL-1",
+    "generated_at": "2026-08-29T20:29:37.232038Z",
+    "system_status": {
+      "case_status": "reconstructing",
+      "scientific_status": "experimental",
+      "error": null
+    },
+    "observation": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": null,
+      "value": {
+        "n_slick_points": 42,
+        "n_tracks": 2,
+        "obs_time_hours": 48.0,
+        "bbox": null
+      }
+    },
+    "detection": {
+      "status": "not_yet_produced",
+      "reason": "NETRA_INFERENCE_NOT_WIRED_INTO_CASE_PIPELINE",
+      "evidence_mode": null,
+      "value": null
+    },
+    "origin": {
+      "status": "not_yet_produced",
+      "reason": "CaseWorkflow.reconstruct() has not run for this case.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "ais": {
+      "status": "not_yet_produced",
+      "reason": "No AIS tracks were ingested for this case.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "attribution": {
+      "status": "not_yet_produced",
+      "reason": "CaseWorkflow.attribute() has not run for this case.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "validity": {
+      "status": "not_yet_produced",
+      "reason": "ValidityService.evaluate() has not run for this case.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "forecast": {
+      "status": "not_yet_produced",
+      "reason": "PRAVAAH forecast is not yet wired into CaseWorkflow.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "decision": {
+      "status": "not_yet_produced",
+      "reason": "ABHIYAN tasking is not yet wired into CaseWorkflow.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "mission": {
+      "status": "not_yet_produced",
+      "reason": "Mission FSM is not yet wired into CaseWorkflow/operator-view lookup.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "alerts": {
+      "status": "not_yet_produced",
+      "reason": "Alert routing is not yet wired into CaseWorkflow.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "evidence": {
+      "components": [
+        {
+          "component": "sar",
+          "status": "not_yet_produced",
+          "score": null,
+          "reason": "NETRA_INFERENCE_NOT_WIRED_INTO_CASE_PIPELINE",
+          "evidence_mode": null,
+          "observed_at": null
+        },
+        {
+          "component": "ais",
+          "status": "not_yet_produced",
+          "score": null,
+          "reason": "No AIS tracks were ingested for this case.",
+          "evidence_mode": null,
+          "observed_at": null
+        },
+        {
+          "component": "model_consistency",
+          "status": "not_yet_produced",
+          "score": null,
+          "reason": "No cross-model consistency check is implemented in the current backend.",
+          "evidence_mode": null,
+          "observed_at": null
+        },
+        {
+          "component": "forcing",
+          "status": "not_yet_produced",
+          "score": null,
+          "reason": "CaseWorkflow.reconstruct() has not run for this case.",
+          "evidence_mode": null,
+          "observed_at": null
+        }
+      ]
+    },
+    "provenance": {
+      "case_id": "EXAMPLE-SYNTHETIC-PARTIAL-1",
+      "artifact_ids": [],
+      "source_ids": [],
+      "model_versions": {},
+      "processing_versions": {},
+      "manifest_artifact_id": null,
+      "generated_at": "2026-08-29T20:29:37.232038Z"
+    }
+  },
+  "BLOCKED_SYNTHETIC": {
+    "schema_version": "v1",
+    "case_id": "EXAMPLE-SYNTHETIC-BLOCKED-1",
+    "generated_at": "2026-08-29T20:29:37.232038Z",
+    "system_status": {
+      "case_status": "evaluating",
+      "scientific_status": "experimental",
+      "error": null
+    },
+    "observation": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": null,
+      "value": {
+        "n_slick_points": 300,
+        "n_tracks": 5,
+        "obs_time_hours": 120.0,
+        "bbox": null
+      }
+    },
+    "detection": {
+      "status": "not_yet_produced",
+      "reason": "NETRA_INFERENCE_NOT_WIRED_INTO_CASE_PIPELINE",
+      "evidence_mode": null,
+      "value": null
+    },
+    "origin": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": "simulated",
+      "value": null
+    },
+    "ais": {
+      "status": "not_yet_produced",
+      "reason": "No AIS tracks were ingested for this case.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "attribution": {
+      "status": "not_yet_produced",
+      "reason": "Attribution withheld pending validity gate review.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "validity": {
+      "status": "blocked",
+      "reason": null,
+      "evidence_mode": "simulated",
+      "value": {
+        "case_id": "EXAMPLE-SYNTHETIC-BLOCKED-1",
+        "state": "restricted",
+        "checks": [
+          {
+            "name": "phi_diagnostics_availability",
+            "passed": true,
+            "observed": null,
+            "threshold": null,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "phi_not_converged",
+            "passed": false,
+            "observed": null,
+            "threshold": null,
+            "detail": "ensemble did not converge at this scale",
+            "reason_code": null
+          }
+        ],
+        "blocking_reasons": [
+          "phi_not_converged"
+        ],
+        "officer_visible_caveats": [
+          "Origin field convergence is marginal; treat as analysis-only."
+        ],
+        "source_trust": "trusted",
+        "envelope": {
+          "artifact_id": "gate-example-1",
+          "case_id": null,
+          "parent_artifact_ids": [],
+          "produced_by": "synthetic_example",
+          "model_version": null,
+          "processing_version": "0.1.0",
+          "created_at": "2026-08-29T20:29:37.232038Z",
+          "crs": "EPSG:4326",
+          "units": {},
+          "provenance": {
+            "source_id": "synthetic_example",
+            "source_version": null,
+            "raw_artifact_refs": [],
+            "retrieved_at": null,
+            "adapter_id": null,
+            "license": null,
+            "citation": null,
+            "notes": null
+          },
+          "mode": "simulated",
+          "trust": "trusted",
+          "influence_weight": 1.0,
+          "quality": {
+            "completeness": null,
+            "freshness_seconds": null,
+            "spatial_coverage": null,
+            "resolution_m": null,
+            "ood_score": null,
+            "model_confidence": null,
+            "extra": {}
+          },
+          "uncertainty": {
+            "representation": "none",
+            "mean": null,
+            "std": null,
+            "lower": null,
+            "upper": null,
+            "interval_confidence": null,
+            "entropy": null,
+            "n_samples": null,
+            "sensitivity": {}
+          },
+          "calibration_state": "not_applicable",
+          "validity_state": "valid",
+          "degradation_state": "nominal",
+          "anomaly_flags": [],
+          "content_hash": null
+        },
+        "evaluated_at": "2026-08-29T20:29:37.232038Z"
+      }
+    },
+    "forecast": {
+      "status": "not_yet_produced",
+      "reason": "PRAVAAH forecast is not yet wired into CaseWorkflow.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "decision": {
+      "status": "not_yet_produced",
+      "reason": "ABHIYAN tasking is not yet wired into CaseWorkflow.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "mission": {
+      "status": "not_yet_produced",
+      "reason": "Mission FSM is not yet wired into CaseWorkflow/operator-view lookup.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "alerts": {
+      "status": "not_yet_produced",
+      "reason": "Alert routing is not yet wired into CaseWorkflow.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "evidence": {
+      "components": [
+        {
+          "component": "sar",
+          "status": "not_yet_produced",
+          "score": null,
+          "reason": "NETRA_INFERENCE_NOT_WIRED_INTO_CASE_PIPELINE",
+          "evidence_mode": null,
+          "observed_at": null
+        },
+        {
+          "component": "forcing",
+          "status": "produced",
+          "score": 0.75,
+          "reason": null,
+          "evidence_mode": "simulated",
+          "observed_at": null
+        }
+      ]
+    },
+    "provenance": {
+      "case_id": "EXAMPLE-SYNTHETIC-BLOCKED-1",
+      "artifact_ids": [
+        "phi-example1",
+        "gate-example1"
+      ],
+      "source_ids": [
+        "prativartan",
+        "validity_gate"
+      ],
+      "model_versions": {},
+      "processing_versions": {},
+      "manifest_artifact_id": null,
+      "generated_at": "2026-08-29T20:29:37.232038Z"
+    }
+  }
+}

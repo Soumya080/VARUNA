@@ -13,6 +13,8 @@ from apps.api.schemas import (
     AttributeRequest, PhiResponse, AttributionResponse
 )
 from apps.api.errors import CaseNotFoundError
+from apps.api.operator_case_view import build_operator_case
+from varuna_contracts.operator_case import OperatorCase
 
 router = APIRouter(prefix="/v1/cases", tags=["cases"])
 
@@ -141,6 +143,18 @@ def get_validity(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):
     if not case or "gate_result" not in case.metadata:
         raise HTTPException(404, "Validity not available")
     return case.metadata["gate_result"]
+
+@router.get("/{case_id}/operator-view", response_model=OperatorCase)
+def get_operator_view(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):
+    """
+    Read-only canonical operator case projection (OPERATOR_CASE_SCHEMA_VERSION).
+    See docs/api/OPERATOR_CASE_CONTRACT_V1.md. Serializes real backend state
+    only — never computes, infers, or overrides it.
+    """
+    case = workflow.cases.get(case_id)
+    if not case:
+        raise CaseNotFoundError(case_id)
+    return build_operator_case(case, workflow)
 
 @router.get("/{case_id}/artifacts")
 def get_artifacts(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):
