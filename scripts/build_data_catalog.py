@@ -36,9 +36,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DATASETS_ROOT = REPO_ROOT.parent  # D:\ROUTER(DATASETS)\
 
 # Files at or under this size get a real sha256. Above it, only size+mtime
-# is recorded — hashing hundreds of GB here would make this script a
-# multi-hour job, which is not what a catalog build should be.
-HASH_SIZE_LIMIT_BYTES = 50 * 1024 * 1024  # 50 MB
+# is recorded. Kept small deliberately: the Zenodo raw scenes alone are
+# ~16-33MB each across several thousand files, and a 50MB threshold was
+# found in practice to turn this into a multi-hour full-corpus hash pass
+# on a spinning disk. 2MB comfortably covers manifests/metadata/small
+# masks while excluding every raw scene and archive.
+HASH_SIZE_LIMIT_BYTES = 2 * 1024 * 1024  # 2 MB
 
 CATALOG_DIR = REPO_ROOT / "data" / "catalog"
 

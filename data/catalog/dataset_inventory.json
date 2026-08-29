@@ -1,0 +1,132 @@
+{
+  "generated_at": "2026-08-29T00:27:25.875465+00:00",
+  "datasets": {
+    "zenodo_part1": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\extracted\\part1",
+      "exists": true,
+      "n_files": 2400,
+      "total_bytes": 56187241650,
+      "status": "present",
+      "caveats": []
+    },
+    "zenodo_part2": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\extracted\\part2",
+      "exists": true,
+      "n_files": 3425,
+      "total_bytes": 92493046728,
+      "status": "present",
+      "caveats": []
+    },
+    "zenodo_downloads": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\downloads",
+      "exists": true,
+      "n_files": 6,
+      "total_bytes": 86645099170,
+      "status": "present",
+      "caveats": []
+    },
+    "era5": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\era5",
+      "exists": true,
+      "n_files": 3,
+      "total_bytes": 2130980256,
+      "status": "present",
+      "caveats": [
+        "3 GRIB1 files span 3 different spatial bboxes; treat as spatial_coverage_status=partial until reconciled to their intersection.",
+        "cfgrib/eccodes not confirmed installed in the active environment at catalog-build time."
+      ]
+    },
+    "cmems": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems",
+      "exists": true,
+      "n_files": 2,
+      "total_bytes": 564424542,
+      "status": "present",
+      "caveats": [
+        "Both NetCDF files have time=1 (single timestep). time_series_status=insufficient \u2014 cannot drive advection."
+      ]
+    },
+    "ais": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\ais",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "essd": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\essd",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "xview3": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\xview3",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "bhoonidhi": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\bhoonidhi",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "nisar": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\nisar",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "risat": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\risat",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "sentinel1_repo": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "asf_sentinel1_raw": {
+      "path": "D:\\ROUTER(DATASETS)\\ASF",
+      "exists": true,
+      "n_files": 251,
+      "total_bytes": 387862306750,
+      "status": "present",
+      "caveats": [
+        "Sentinel-1 Level-0 RAW (unfocused). Requires SAR focusing (SNAP/IPF) before use as imagery \u2014 not GRD. Do not treat as ready NETRA input."
+      ]
+    },
+    "oil_external": {
+      "path": "D:\\ROUTER(DATASETS)\\Oil",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "netra_gold_v0_1": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\netra",
+      "exists": true,
+      "n_files": 12144,
+      "total_bytes": 14233360384,
+      "status": "present",
+      "caveats": []
+    }
+  }
+}

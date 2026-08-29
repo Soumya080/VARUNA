@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-08-29T00:27:25.875465+00:00",
+  "paths": {
+    "zenodo_part1": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\extracted\\part1",
+    "zenodo_part2": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\extracted\\part2",
+    "zenodo_downloads": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\downloads",
+    "era5": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\era5",
+    "cmems": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems",
+    "ais": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\ais",
+    "essd": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\essd",
+    "xview3": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\xview3",
+    "bhoonidhi": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\bhoonidhi",
+    "nisar": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\nisar",
+    "risat": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\risat",
+    "sentinel1_repo": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1",
+    "asf_sentinel1_raw": "D:\\ROUTER(DATASETS)\\ASF",
+    "oil_external": "D:\\ROUTER(DATASETS)\\Oil",
+    "netra_gold_v0_1": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\netra"
+  }
+}
