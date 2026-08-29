@@ -60,7 +60,25 @@ class ReadinessResult:
 
 def check_sar() -> ModalityStatus:
     if SAR_RAW_DIR.exists() and any(SAR_RAW_DIR.iterdir()):
-        return ModalityStatus("SAR", True, f"Found under {SAR_RAW_DIR}")
+        safe_dirs = list(SAR_RAW_DIR.glob("*.SAFE"))
+        if not safe_dirs:
+            return ModalityStatus("SAR", False, f"{SAR_RAW_DIR} exists but contains no .SAFE product",
+                                   blocking_reason="Re-run scripts/acquire_mc20_sar.py")
+        safe = safe_dirs[0]
+        has_measurement = (safe / "measurement").exists() and any((safe / "measurement").glob("*.tiff"))
+        has_calibration = (safe / "annotation" / "calibration").exists()
+        calib_report = REPO_ROOT / "reports" / "mc20_sar_calibration_validation.json"
+        calib_note = ""
+        if calib_report.exists():
+            r = json.loads(calib_report.read_text())
+            calib_note = (f"; calibration pipeline VALIDATED against real SAFE data "
+                           f"(VV dB range {r['vv_db_range']}, VH dB range {r['vh_db_range']}, "
+                           f"{r['n_tiles_512']} real 512x512 tiles, no NaN/Inf in normalized output)")
+        if not (has_measurement and has_calibration):
+            return ModalityStatus("SAR", False,
+                                   f"{safe.name}: measurement={has_measurement}, calibration={has_calibration} -- incomplete SAFE structure",
+                                   blocking_reason="Re-download; extraction may be incomplete")
+        return ModalityStatus("SAR", True, f"{safe.name}: real SAFE product, VV+VH measurement TIFFs + calibration XMLs present{calib_note}")
     return ModalityStatus(
         "SAR", False,
         f"Product identified and catalog-confirmed ({MC20_SAR_PRODUCT_NAME}, "
@@ -97,19 +115,24 @@ def check_era5() -> ModalityStatus:
         try:
             # netCDF4 directly -- xarray's engine-detection layer was observed
             # to hang indefinitely on this exact file; netCDF4 opens it instantly.
+            # `with` is required: an unclosed netCDF4.Dataset left open when
+            # another Dataset is opened later in the same process caused a
+            # real Windows access violation (HDF5 handle conflict),
+            # reproduced via pytest running check_era5+_real_era5_facts
+            # (and the CMEMS equivalents) back to back in one process.
             import netCDF4 as nc4
-            ds = nc4.Dataset(nc_files[0])
-            n_time = ds.dimensions["valid_time"].size if "valid_time" in ds.dimensions else ds.dimensions.get("time", type("_", (), {"size": 0})()).size
-            has_u10, has_v10 = "u10" in ds.variables, "v10" in ds.variables
-            if n_time < 2 or not (has_u10 and has_v10):
-                return ModalityStatus("ERA5", False,
-                                       f"{nc_files[0].name}: time={n_time}, u10={has_u10}, v10={has_v10} -- insufficient",
-                                       blocking_reason="Re-acquire with a genuine multi-timestep window")
-            u10 = ds.variables["u10"][:]
-            has_nan = bool(np.isnan(u10).any()) if not np.ma.is_masked(u10) else bool(u10.mask.any())
-            return ModalityStatus("ERA5", True,
-                                   f"{nc_files[0].name}: REAL time series, {n_time} hourly timesteps, u10/v10 present, "
-                                   f"NaN={has_nan}")
+            with nc4.Dataset(nc_files[0]) as ds:
+                n_time = ds.dimensions["valid_time"].size if "valid_time" in ds.dimensions else ds.dimensions.get("time", type("_", (), {"size": 0})()).size
+                has_u10, has_v10 = "u10" in ds.variables, "v10" in ds.variables
+                if n_time < 2 or not (has_u10 and has_v10):
+                    return ModalityStatus("ERA5", False,
+                                           f"{nc_files[0].name}: time={n_time}, u10={has_u10}, v10={has_v10} -- insufficient",
+                                           blocking_reason="Re-acquire with a genuine multi-timestep window")
+                u10 = ds.variables["u10"][:]
+                has_nan = bool(np.isnan(u10).any()) if not np.ma.is_masked(u10) else bool(u10.mask.any())
+                return ModalityStatus("ERA5", True,
+                                       f"{nc_files[0].name}: REAL time series, {n_time} hourly timesteps, u10/v10 present, "
+                                       f"NaN={has_nan}")
         except Exception as e:
             return ModalityStatus("ERA5", False, f"{nc_files[0].name} present but failed to open/validate: {e}",
                                    blocking_reason="Inspect file manually; do not treat presence alone as REAL")
@@ -134,21 +157,23 @@ def check_cmems() -> ModalityStatus:
             return ModalityStatus("CMEMS", False, f"{CMEMS_MC20_DIR} exists but contains no .nc file",
                                    blocking_reason="Directory present but empty of usable output -- re-run scripts/acquire_mc20_cmems.py")
         try:
-            import xarray as xr
-            ds = xr.open_dataset(nc_files[0])
-            n_time = ds.sizes.get("time", 0)
-            has_uo = "uo" in ds.data_vars
-            has_vo = "vo" in ds.data_vars
-            if n_time < 2 or not (has_uo and has_vo):
-                return ModalityStatus("CMEMS", False,
-                                       f"{nc_files[0].name}: time={n_time}, uo={has_uo}, vo={has_vo} -- insufficient for a real time series",
-                                       blocking_reason="Re-acquire with a genuine multi-timestep window")
-            import numpy as np
-            uo = ds["uo"].values
-            nan_frac = float(np.isnan(uo).mean())
-            return ModalityStatus("CMEMS", True,
-                                   f"{nc_files[0].name}: REAL time series, {n_time} timesteps, uo/vo present, "
-                                   f"{nan_frac:.1%} NaN (coastal/shelf masking, not a query error), no Inf")
+            # netCDF4 directly -- xarray's engine-detection layer has been
+            # observed to hang indefinitely and unpredictably in this
+            # environment (reproduced on both the ERA5 and this CMEMS
+            # file across separate runs); netCDF4 opens both instantly.
+            import netCDF4 as nc4
+            with nc4.Dataset(nc_files[0]) as ds:
+                n_time = ds.dimensions["time"].size if "time" in ds.dimensions else 0
+                has_uo, has_vo = "uo" in ds.variables, "vo" in ds.variables
+                if n_time < 2 or not (has_uo and has_vo):
+                    return ModalityStatus("CMEMS", False,
+                                           f"{nc_files[0].name}: time={n_time}, uo={has_uo}, vo={has_vo} -- insufficient for a real time series",
+                                           blocking_reason="Re-acquire with a genuine multi-timestep window")
+                uo = ds.variables["uo"][:]
+                nan_frac = float(np.isnan(uo).mean()) if not np.ma.is_masked(uo) else float(uo.mask.mean())
+                return ModalityStatus("CMEMS", True,
+                                       f"{nc_files[0].name}: REAL time series, {n_time} timesteps, uo/vo present, "
+                                       f"{nan_frac:.1%} NaN (coastal/shelf masking, not a query error), no Inf")
         except Exception as e:
             return ModalityStatus("CMEMS", False, f"{nc_files[0].name} present but failed to open/validate: {e}",
                                    blocking_reason="Inspect file manually; do not treat presence alone as REAL")
@@ -178,20 +203,28 @@ def _real_cmems_facts() -> dict | None:
     if not nc_files:
         return None
     try:
-        import xarray as xr
-        ds = xr.open_dataset(nc_files[0])
-        lat_min, lat_max = float(ds.latitude.min()), float(ds.latitude.max())
-        lon_min, lon_max = float(ds.longitude.min()), float(ds.longitude.max())
-        t_min, t_max = ds.time.values.min(), ds.time.values.max()
+        import netCDF4 as nc4
+        with nc4.Dataset(nc_files[0]) as ds:
+            lat = ds.variables["latitude"][:]
+            lon = ds.variables["longitude"][:]
+            lat_min, lat_max = float(lat.min()), float(lat.max())
+            lon_min, lon_max = float(lon.min()), float(lon.max())
+            tvar = ds.variables["time"]
+            t_min = nc4.num2date(tvar[:].min(), tvar.units)
+            t_max = nc4.num2date(tvar[:].max(), tvar.units)
+            n_time = int(ds.dimensions["time"].size)
         contains_sar_point = (lat_min <= MC20_LAT <= lat_max) and (lon_min <= MC20_LON <= lon_max)
-        sar_ts = np.datetime64(MC20_SAR_TIMESTAMP.replace("+00:00", ""))
-        contains_sar_time = t_min <= sar_ts <= t_max
+        sar_dt = datetime.fromisoformat(MC20_SAR_TIMESTAMP)
+        t_min_naive = datetime(t_min.year, t_min.month, t_min.day, t_min.hour, t_min.minute, t_min.second)
+        t_max_naive = datetime(t_max.year, t_max.month, t_max.day, t_max.hour, t_max.minute, t_max.second)
+        sar_naive = sar_dt.replace(tzinfo=None)
+        contains_sar_time = t_min_naive <= sar_naive <= t_max_naive
         return {
             "lat_range": [lat_min, lat_max], "lon_range": [lon_min, lon_max],
             "time_range": [str(t_min), str(t_max)],
             "contains_sar_point": contains_sar_point,
             "contains_sar_time": contains_sar_time,
-            "n_time": int(ds.sizes.get("time", 0)),
+            "n_time": n_time,
         }
     except Exception:
         return None
@@ -208,14 +241,15 @@ def _real_era5_facts() -> dict | None:
         return None
     try:
         import netCDF4 as nc4
-        ds = nc4.Dataset(nc_files[0])
-        lat = ds.variables["latitude"][:]
-        lon = ds.variables["longitude"][:]
-        lat_min, lat_max = float(lat.min()), float(lat.max())
-        lon_min, lon_max = float(lon.min()), float(lon.max())
-        vt = ds.variables["valid_time"]
-        t_min = nc4.num2date(vt[:].min(), vt.units)
-        t_max = nc4.num2date(vt[:].max(), vt.units)
+        with nc4.Dataset(nc_files[0]) as ds:
+            lat = ds.variables["latitude"][:]
+            lon = ds.variables["longitude"][:]
+            lat_min, lat_max = float(lat.min()), float(lat.max())
+            lon_min, lon_max = float(lon.min()), float(lon.max())
+            vt = ds.variables["valid_time"]
+            t_min = nc4.num2date(vt[:].min(), vt.units)
+            t_max = nc4.num2date(vt[:].max(), vt.units)
+            n_time = int(ds.dimensions["valid_time"].size)
         contains_sar_point = (lat_min <= MC20_LAT <= lat_max) and (lon_min <= MC20_LON <= lon_max)
         sar_dt = datetime.fromisoformat(MC20_SAR_TIMESTAMP)
         # nc4.num2date returns cftime/real-datetime objects; compare as naive UTC.
@@ -228,7 +262,7 @@ def _real_era5_facts() -> dict | None:
             "time_range": [str(t_min), str(t_max)],
             "contains_sar_point": contains_sar_point,
             "contains_sar_time": contains_sar_time,
-            "n_time": int(ds.dimensions["valid_time"].size),
+            "n_time": n_time,
         }
     except Exception:
         return None

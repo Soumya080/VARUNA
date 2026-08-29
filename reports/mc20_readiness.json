@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-08-29T17:15:16.031685+00:00",
+  "generated_at": "2026-08-29T17:54:15.412397+00:00",
   "case": "mc20_2023-01-15",
   "modalities": [
     {
       "name": "SAR",
-      "is_real": false,
-      "detail": "Product identified and catalog-confirmed (S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE, 2023-01-15T00:02:06.898000+00:00) but not downloaded.",
-      "blocking_reason": "Copernicus Data Space credentials configured (CDSE_USERNAME/CDSE_PASSWORD set) but REJECTED by the identity server -- confirmed HTTP 401 on an authenticated token request to https://identity.dataspace.copernicus.eu/... (reproduced twice, not transient). This is an account-side problem (wrong password, unverified account, or an old Copernicus Open Access Hub / scihub account rather than a Copernicus Data Space Ecosystem account), not a missing-credential or code problem."
+      "is_real": true,
+      "detail": "S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE: real SAFE product, VV+VH measurement TIFFs + calibration XMLs present; calibration pipeline VALIDATED against real SAFE data (VV dB range [-36.138397216796875, 14.051604270935059], VH dB range [-49.148712158203125, 4.251455783843994], 9 real 512x512 tiles, no NaN/Inf in normalized output)",
+      "blocking_reason": null
     },
     {
       "name": "AIS",
@@ -35,19 +35,17 @@
     "SAR_AIS": "non-empty (304,960 real AIS points within the SAR scene's ~250km IW swath, 38,244 within +/-3h of acquisition, closest 3.26km)",
     "SAR_ERA5": "MEASURED: ERA5 grid lat[27.00,31.00] lon[-91.00,-87.00] CONTAINS the SAR anchor point",
     "SAR_CMEMS": "MEASURED: CMEMS grid lat[27.00,31.00] lon[-91.00,-87.00] CONTAINS the SAR anchor point",
-    "four_way": "EMPTY -- not all four modalities are simultaneously real for this site today"
+    "four_way": "NON-EMPTY -- all four modalities real and spatially intersecting"
   },
   "temporal_intersections": {
     "T_SAR": "2023-01-15T00:02:06.898000+00:00",
     "T_AIS_window": "2023-01-15T00:00:00Z to 2023-01-15T23:59:59Z (full day, real, on disk)",
     "closest_real_AIS_offset": "+16m57s, 3.26km (MMSI 368181750 at 2023-01-15T00:19:04Z)",
     "T_ERA5_window": "MEASURED: 168 real hourly timesteps, 2023-01-11 00:00:00 to 2023-01-17 23:00:00, CONTAINS T_SAR",
-    "T_CMEMS_window": "MEASURED: 133 real hourly timesteps, 2023-01-11T12:00:00.000000000 to 2023-01-17T00:00:00.000000000, CONTAINS T_SAR",
+    "T_CMEMS_window": "MEASURED: 133 real hourly timesteps, 2023-01-11 12:00:00 to 2023-01-17 00:00:00, CONTAINS T_SAR",
     "backward_transport_window_hours": "no case-specific value exists -- NetraInferenceService.detect() returns a MOCK detection with hardcoded age_prior values (12.0/2.0h); confirmed by direct source inspection, not usable as a real per-scene estimate. Planning bound only: 16-84h range spans the hardcoded defaults used elsewhere in this codebase (12+2*2=16h to 36+2*24=84h)."
   },
   "locked_data_contamination": false,
-  "real_e2e_ready": false,
-  "blockers": [
-    "SAR: Copernicus Data Space credentials configured (CDSE_USERNAME/CDSE_PASSWORD set) but REJECTED by the identity server -- confirmed HTTP 401 on an authenticated token request to https://identity.dataspace.copernicus.eu/... (reproduced twice, not transient). This is an account-side problem (wrong password, unverified account, or an old Copernicus Open Access Hub / scihub account rather than a Copernicus Data Space Ecosystem account), not a missing-credential or code problem."
-  ]
+  "real_e2e_ready": true,
+  "blockers": []
 }

@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-08-29T16:43:30.656715+00:00",
+  "generated_at": "2026-08-29T17:55:47.694115+00:00",
   "case": "mc20_2023-01-15",
-  "pass": "MC20_REAL_E2E_ACQUISITION_FINAL",
+  "pass": "MC20_REAL_E2E_ACQUISITION_FINAL_v2_all_data_modalities_real",
   "gate_result": {
-    "generated_at": "2026-08-29T16:39:38.397279+00:00",
+    "generated_at": "2026-08-29T17:54:15.412397+00:00",
     "case": "mc20_2023-01-15",
     "modalities": [
       {
         "name": "SAR",
-        "is_real": false,
-        "detail": "Product identified and catalog-confirmed (S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE, 2023-01-15T00:02:06.898000+00:00) but not downloaded.",
-        "blocking_reason": "Copernicus Data Space credentials configured (CDSE_USERNAME/CDSE_PASSWORD set) but REJECTED by the identity server -- confirmed HTTP 401 on an authenticated token request to https://identity.dataspace.copernicus.eu/... (reproduced twice, not transient). This is an account-side problem (wrong password, unverified account, or an old Copernicus Open Access Hub / scihub account rather than a Copernicus Data Space Ecosystem account), not a missing-credential or code problem."
+        "is_real": true,
+        "detail": "S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE: real SAFE product, VV+VH measurement TIFFs + calibration XMLs present; calibration pipeline VALIDATED against real SAFE data (VV dB range [-36.138397216796875, 14.051604270935059], VH dB range [-49.148712158203125, 4.251455783843994], 9 real 512x512 tiles, no NaN/Inf in normalized output)",
+        "blocking_reason": null
       },
       {
         "name": "AIS",
@@ -20,9 +20,9 @@
       },
       {
         "name": "ERA5",
-        "is_real": false,
-        "detail": "Existing 3 GRIB files cover 8-20N/70-85E (Arabian Sea) -- MC20 (28.94N, -88.97W) is outside that domain, confirmed by direct coordinate check. A region-scoped request has not been made.",
-        "blocking_reason": "CDS API credentials configured and AUTHENTICATE successfully (CDSAPI_URL/CDSAPI_KEY set, confirmed via a real job submission attempt) but the request was rejected with HTTP 403 'required licences not accepted' for the reanalysis-era5-single-levels dataset. This is an account-side one-time action, not a credential or code problem: the operator must visit https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download#manage-licences while logged in and accept the licence, then the identical request will succeed."
+        "is_real": true,
+        "detail": "era5_mc20_2023-01-11_to_2023-01-17.nc: REAL time series, 168 hourly timesteps, u10/v10 present, NaN=False",
+        "blocking_reason": null
       },
       {
         "name": "CMEMS",
@@ -37,33 +37,102 @@
         "lat": 28.936
       },
       "SAR_AIS": "non-empty (304,960 real AIS points within the SAR scene's ~250km IW swath, 38,244 within +/-3h of acquisition, closest 3.26km)",
-      "SAR_ERA5": "N/A -- ERA5 not yet covering this region",
+      "SAR_ERA5": "MEASURED: ERA5 grid lat[27.00,31.00] lon[-91.00,-87.00] CONTAINS the SAR anchor point",
       "SAR_CMEMS": "MEASURED: CMEMS grid lat[27.00,31.00] lon[-91.00,-87.00] CONTAINS the SAR anchor point",
-      "four_way": "EMPTY -- not all four modalities are simultaneously real for this site today"
+      "four_way": "NON-EMPTY -- all four modalities real and spatially intersecting"
     },
     "temporal_intersections": {
       "T_SAR": "2023-01-15T00:02:06.898000+00:00",
       "T_AIS_window": "2023-01-15T00:00:00Z to 2023-01-15T23:59:59Z (full day, real, on disk)",
       "closest_real_AIS_offset": "+16m57s, 3.26km (MMSI 368181750 at 2023-01-15T00:19:04Z)",
-      "T_ERA5_window": "UNAVAILABLE -- not yet acquired for this region (CDS API authenticates; blocked on licence acceptance, see ERA5 blocking_reason)",
-      "T_CMEMS_window": "MEASURED: 133 real hourly timesteps, 2023-01-11T12:00:00.000000000 to 2023-01-17T00:00:00.000000000, CONTAINS T_SAR",
+      "T_ERA5_window": "MEASURED: 168 real hourly timesteps, 2023-01-11 00:00:00 to 2023-01-17 23:00:00, CONTAINS T_SAR",
+      "T_CMEMS_window": "MEASURED: 133 real hourly timesteps, 2023-01-11 12:00:00 to 2023-01-17 00:00:00, CONTAINS T_SAR",
       "backward_transport_window_hours": "no case-specific value exists -- NetraInferenceService.detect() returns a MOCK detection with hardcoded age_prior values (12.0/2.0h); confirmed by direct source inspection, not usable as a real per-scene estimate. Planning bound only: 16-84h range spans the hardcoded defaults used elsewhere in this codebase (12+2*2=16h to 36+2*24=84h)."
     },
     "locked_data_contamination": false,
-    "real_e2e_ready": false,
-    "blockers": [
-      "SAR: Copernicus Data Space credentials configured (CDSE_USERNAME/CDSE_PASSWORD set) but REJECTED by the identity server -- confirmed HTTP 401 on an authenticated token request to https://identity.dataspace.copernicus.eu/... (reproduced twice, not transient). This is an account-side problem (wrong password, unverified account, or an old Copernicus Open Access Hub / scihub account rather than a Copernicus Data Space Ecosystem account), not a missing-credential or code problem.",
-      "ERA5: CDS API credentials configured and AUTHENTICATE successfully (CDSAPI_URL/CDSAPI_KEY set, confirmed via a real job submission attempt) but the request was rejected with HTTP 403 'required licences not accepted' for the reanalysis-era5-single-levels dataset. This is an account-side one-time action, not a credential or code problem: the operator must visit https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download#manage-licences while logged in and accept the licence, then the identical request will succeed."
-    ]
+    "real_e2e_ready": true,
+    "blockers": []
+  },
+  "sar_calibration_validation": {
+    "anchor_geolocation_lookup": {
+      "line": 8036,
+      "pixel": 19425,
+      "lat": 28.99512972756588,
+      "lon": -88.96974096929206
+    },
+    "crop_window": {
+      "box": [
+        18657,
+        7268,
+        20193,
+        8804
+      ],
+      "size": 1536
+    },
+    "vv_dn_range": [
+      9,
+      2891
+    ],
+    "vh_dn_range": [
+      2,
+      937
+    ],
+    "vv_db_range": [
+      -36.138397216796875,
+      14.051604270935059
+    ],
+    "vh_db_range": [
+      -49.148712158203125,
+      4.251455783843994
+    ],
+    "normalized_range": [
+      0.0,
+      1.0
+    ],
+    "normalized_has_nan": false,
+    "normalized_has_inf": false,
+    "n_tiles_512": 9,
+    "vv_stats_used": {
+      "n_valid_px": 8935820149,
+      "mean": -32.09614066781217,
+      "std": 6.141141318307055,
+      "min": -114.19413757324219,
+      "max": 28.29137420654297,
+      "p1": -44.074999999999996,
+      "p2": -42.475,
+      "p50": -32.775,
+      "p98": -13.825000000000003,
+      "p99": -12.625,
+      "hist_underflow_px": 6351,
+      "hist_overflow_px": 0,
+      "clip_low": -42.475,
+      "clip_high": -13.825000000000003
+    },
+    "vh_stats_used": {
+      "n_valid_px": 8935820149,
+      "mean": -20.33014121512895,
+      "std": 5.501367039011562,
+      "min": -114.67024993896484,
+      "max": 30.896255493164062,
+      "p1": -35.625,
+      "p2": -33.425,
+      "p50": -20.275,
+      "p98": -7.5249999999999915,
+      "p99": -6.174999999999997,
+      "hist_underflow_px": 2892,
+      "hist_overflow_px": 0,
+      "clip_low": -33.425,
+      "clip_high": -7.5249999999999915
+    }
   },
   "readiness_checklist": {
-    "sar_real": false,
+    "sar_real": true,
     "ais_real": true,
-    "era5_real": false,
+    "era5_real": true,
     "cmems_real_time_series": true,
     "spatial_intersection_verified": true,
     "temporal_alignment_verified": true,
-    "sar_preprocessing_validated_against_real_safe": false,
+    "sar_preprocessing_validated_against_real_safe": true,
     "event_gold_manifest_complete": false,
     "provenance_complete": true,
     "no_locked_evaluation_contamination": true,
@@ -73,9 +142,9 @@
     "nyaya_real_ais_path_available": true,
     "validity_gate_requirements_satisfied": false
   },
-  "checklist_true_count": "8/15",
+  "checklist_true_count": "11/15",
   "classification": "REAL_E2E_PARTIAL",
-  "classification_basis": "AIS and CMEMS are genuinely REAL and spatially/temporally verified against the SAR anchor. SAR is credential-rejected (401, account-side) and ERA5 is licence-blocked (403, one-time account action) -- both are real, named, non-bypassed blockers, not silent gaps. NETRA real inference remains a mock stub (pre-existing, out of this scope). PRATIVARTAN real forcing path needs SAR+ERA5+CMEMS together; only CMEMS is real today. This is genuine partial progress, not zero progress and not full readiness -- classified REAL_E2E_PARTIAL.",
+  "classification_basis": "All four DATA modalities (SAR, AIS, ERA5, CMEMS) are now genuinely REAL, spatially and temporally verified against the SAR anchor and T_SAR, with the SAR calibration pipeline validated against the real downloaded SAFE product (not just a synthetic fixture). This is data_track.REAL_E2E_READY = True per scripts/check_mc20_readiness.py -- the data closure task this track owns. The overall SYSTEM is still REAL_E2E_PARTIAL because Event Gold has not been built (correctly deferred to a dedicated build step), NETRA real inference remains a mock stub (pre-existing, outside this track), PRATIVARTAN has not been run end-to-end against these real files (the ingredients now exist; the integration run does not), and the validity gate's Track-2-owned Phi sensitivity path was recently ratified (commit 8c257e0) but not independently re-verified by this track.",
   "files_deleted": 0,
   "files_renamed": 0,
   "files_moved": 0,

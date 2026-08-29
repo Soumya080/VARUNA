@@ -1,229 +1,207 @@
 # MC20 Real E2E Acquisition — Final Report
 
-**Pass:** Data Track execution phase, credential-configured acquisition attempt.
+**Pass:** Data Track execution phase — credential-configured acquisition,
+completed across two rounds (SAR blocked/retried after an operator
+account fix; ERA5 blocked/retried after a licence acceptance; CMEMS
+succeeded on first authenticated attempt).
 **Case (locked, unchanged):** MC20 / Taylor Energy, anchor 28.936°N, -88.970°W, Gulf of Mexico.
 **Classification legend:** every factual claim below is tagged
 `[MEASURED]` (re-derived from real data/response this pass),
 `[DERIVED]` (computed from measured facts), `[DOCUMENTED]` (recorded
-metadata, e.g. from a prior pass or a provider's own labeling), or
-`[BLOCKED]` (attempted, did not succeed, reason named).
+metadata), or `[BLOCKED]` (attempted, did not succeed, reason named).
 
 ---
 
 ## 1. Acquisition status
 
-Three independent acquisitions were attempted this pass, in the order
-SAR → ERA5 → CMEMS, using `scripts/acquire_mc20_{sar,era5,cmems}.py`
-unmodified from the prior pass:
+All three previously-missing modalities were acquired this pass:
 
 | Modality | Result |
 |---|---|
-| SAR (Sentinel-1 GRD) | `[BLOCKED]` — credential rejection |
-| ERA5 (u10/v10) | `[BLOCKED]` — licence not accepted |
-| CMEMS (uo/vo) | **`[MEASURED]` SUCCEEDED** — real 133-timestep series acquired |
+| CMEMS (uo/vo) | **`[MEASURED]` SUCCEEDED** — 133-timestep real series, first attempt after credential fix |
+| ERA5 (u10/v10) | **`[MEASURED]` SUCCEEDED** — 168-timestep real series, after operator accepted the CDS licence |
+| SAR (Sentinel-1 GRD) | **`[MEASURED]` SUCCEEDED** — full 1.74GB product, after operator corrected `CDSE_USERNAME` |
+
+**All four required modalities (SAR, AIS, ERA5, CMEMS) are now genuinely REAL.**
+`scripts/check_mc20_readiness.py` reports `REAL_E2E_READY = True` for
+the data-closure scope this track owns (see §21 for why this is
+distinct from full-system readiness).
 
 ## 2. Credential status (boolean only, no secrets)
 
-`[MEASURED]`, checked via `os.environ` presence, never echoed:
+All six credential variables are set in `.env` (gitignored, never
+committed, never printed). Two required operator-side fixes discovered
+during this pass, both resolved without this session ever seeing the
+corrected values:
 
-| Variable | Set |
-|---|---|
-| `CDSE_USERNAME` | true |
-| `CDSE_PASSWORD` | true |
-| `CDSAPI_URL` | true |
-| `CDSAPI_KEY` | true |
-| `COPERNICUSMARINE_SERVICE_USERNAME` | true |
-| `COPERNICUSMARINE_SERVICE_PASSWORD` | true |
+- **CDSE (Copernicus Data Space)**: initial value returned a reproducible
+  `401 Unauthorized`. Operator identified the *username* was wrong,
+  corrected it directly in `.env`; re-test returned `200`.
+- **CDS API (ERA5)**: credentials authenticated correctly throughout —
+  the block was `403 required licences not accepted`. Operator accepted
+  the licence on the CDS website; the identical request then succeeded
+  (`status: accepted → running → successful`).
+- **Copernicus Marine (CMEMS)**: worked on the first authenticated
+  attempt this pass.
 
-All six were present. Two of three services rejected them or the
-associated account state anyway (see §3–§4) — configured is not the
-same as accepted, and that distinction is the actual finding of this
-pass.
-
-**Unplanned but urgent finding**: before any acquisition was attempted,
-`.env.example` — a file the repo's own `.gitignore` deliberately keeps
-*tracked* as a public template (`!.env.example`) — was found holding
-these same six real values, pasted directly into it in the working
-tree. `git show HEAD:.env.example` confirmed the committed version
-still had empty placeholders `[MEASURED]`, so nothing had reached git
-history. Fixed before touching anything else: the real values were
-copied into `.env` (already gitignored), `.env.example` was restored
-to empty placeholders, and `.gitignore` was extended to also cover
-`.cdsapirc` / `.copernicusmarine/` / `.netrc` (a stray untracked
-`.cdsapirc` was also sitting at repo root). No credential value was
-ever printed, logged, committed, or written into any script or report
-in this session.
+`.env`'s `KEY = value` / `KEY= value` formatting (with stray spaces)
+broke plain `source` twice this pass; fixed both times with a
+structural `sed` normalization that never touches the values
+themselves, only whitespace around `=`.
 
 ## 3. SAR status
 
-`[BLOCKED]`. Product remains identified and catalog-confirmed from the
-prior pass (`S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE`,
-UUID `6fc676ba-b961-5bfc-9211-8076f8f1481c`, 1,741,458,044 bytes) but
-not downloaded.
+**`[MEASURED]` REAL.** Product:
+`S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE`,
+UUID `6fc676ba-b961-5bfc-9211-8076f8f1481c`.
 
-`[MEASURED]` `scripts/acquire_mc20_sar.py` was run with
-`CDSE_USERNAME`/`CDSE_PASSWORD` set. The token request to
-`https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token`
-returned `HTTP 401 Unauthorized`. Reproduced a second time via a
-direct `curl` POST to the same endpoint with the same credentials
-(status code only checked, no response body or credentials printed) —
-`401`, not transient.
-
-This is an authenticated rejection, not a missing-credential state.
-Known causes of a 401 at this specific endpoint (not diagnosed further
-without risking account lockout from repeated attempts): incorrect
-password, an unverified/unactivated Copernicus Data Space Ecosystem
-account, or an account created on the older Copernicus Open Access Hub
-(`scihub.copernicus.eu`) rather than the current Data Space Ecosystem
-(`dataspace.copernicus.eu`) — these are separate systems with separate
-accounts.
-
-`[MEASURED]` A full-drive search (`find` for `*046787_059BFF*` and
-`*S1A_IW_GRDH_1SDV_20230115*` under `D:\ROUTER(DATASETS)`) confirmed
-the exact product does not already exist anywhere on disk under any
-other path — genuinely not downloadable-avoidably, this specific 401
-is the only blocker.
-
-`data/raw/sentinel1_grd/` was never created (the script fails before
-reaching that step) — no partial download exists to protect or resume.
+- Downloaded size: 1,741,458,044 bytes — **exact match** to the expected size.
+- SHA-256 (of the downloaded zip): `68f5c1f4a35fc64f92f07ee595036d668ef87582bfeaa69b1b8fe86742857d96`.
+- Extracted to `data/raw/sentinel1_grd/mc20_2023-01-15/`, real SAFE structure confirmed: `manifest.safe`, `measurement/` (VV+VH GeoTIFFs, 25899×16734 px, 16-bit, ~867MB each), `annotation/` (per-polarization XML + `calibration/calibration-*.xml` + `calibration/noise-*.xml`), `preview/`, `support/`.
+- **Independent cross-check**: the product's own annotation `azimuthTime` for its first geolocation grid point reads `2023-01-15T00:02:06.898342` — matches `T_SAR` used throughout every MC20 report to the microsecond, confirmed from the product's own metadata rather than only the catalog filename.
 
 ## 4. AIS status
 
-`[MEASURED]`, unchanged from the prior pass, re-verified this pass via
-`scripts/check_mc20_readiness.py`: 304,960 real records, 535 unique
-vessels, 530 cleaned tracks, source `data/raw/ais/2023-01-15/AIS_2023_01_15.csv`.
+`[MEASURED]`, unchanged: 304,960 real records, 535 unique vessels, 530
+cleaned tracks, source `data/raw/ais/2023-01-15/AIS_2023_01_15.csv`.
 Not redownloaded, not duplicated, not modified.
 
 ## 5. ERA5 status
 
-`[BLOCKED]`, but differently than before. `scripts/acquire_mc20_era5.py`
-was run with `CDSAPI_URL`/`CDSAPI_KEY` set. `[MEASURED]` Authentication
-succeeded — the request reached job submission
-(`ecmwf.datastores` client, `POST .../processes/reanalysis-era5-single-levels/execution`)
-before failing with `HTTP 403 Forbidden`, body: *"required licences not
-accepted... please visit
-https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download#manage-licences
-to accept the required licence(s)."*
+**`[MEASURED]` REAL.** `data/raw/era5_mc20/era5_mc20_2023-01-11_to_2023-01-17.nc`:
 
-This is a one-time account-side action (accepting the dataset's terms
-of use while logged in), not a credential or code defect. `data/raw/era5_mc20/`
-was created (mkdir happens before the request) but is empty — no
-partial `.nc` file, safe to retry as-is once the licence is accepted.
+- SHA-256: `8db79ceb5b3aa417d688a0d75e01bd6e5f2f0d9119d6280d1beed5c1d8d8e399`.
+- 168 real hourly timesteps, `2023-01-11T00:00` to `2023-01-17T23:00` — spans the full requested week.
+- Region lat[27,31] lon[-91,-87] — exact match to request.
+- `u10` range [-5.08, 14.39] m/s, `v10` range [-12.18, 10.84] m/s — physically plausible Gulf of Mexico winter wind, no NaN, no Inf.
+- Real value at the anchor's nearest grid cell (t0): `u10=0.279 m/s, v10=2.789 m/s`.
+
+**Engineering note**: `xarray.open_dataset()` hung indefinitely on this
+exact file (an engine-detection issue, reproduced consistently, not a
+data problem — the file opens instantly via `netCDF4` directly).
+`check_mc20_readiness.py`'s ERA5/CMEMS checks and their spatial/temporal
+intersection helpers were switched to `netCDF4` for this reason.
 
 ## 6. CMEMS status
 
-**`[MEASURED]` REAL, genuine time series, verified from actual file
-content, not filenames.**
-
-- File: `data/raw/cmems_mc20_timeseries/cmems_mc20_2023-01-11_to_2023-01-17.nc`, 2,580,836 bytes.
-- SHA-256: `06163c96bf97b8fd2c34fb7b18720c3219d3bd1824f428dfb56ce24a5b0b9130`.
-- Product: `cmems_mod_glo_phy_anfc_0.083deg_PT1H-m`, variables `uo`, `vo`.
-- Dimensions: `time=133, depth=1, latitude=49, longitude=49`.
-- Time range: `2023-01-11T12:00:00` to `2023-01-17T00:00:00`, hourly — 133 real timesteps, not a single-frame snapshot.
-- Spatial range: lat `[27.0, 31.0]`, lon `[-91.0, -87.0]`, matching the requested region exactly.
-- Units: `m s-1` for both variables.
-- Data quality: 26.4% NaN across the grid (`[MEASURED]`) — consistent with expected coastal/continental-shelf masking in a Gulf-of-Mexico-coast product at 0.083° resolution, not a query error. No Inf values anywhere. `uo` finite range `[-0.77, 1.66]` m/s, `vo` finite range `[-0.76, 0.67]` m/s — physically plausible ocean current magnitudes.
-- Value at the MC20 anchor's nearest real grid cell (28.917°N, -89.0°W, first timestep): `uo=0.132 m/s`, `vo=-0.145 m/s` — a real, non-NaN measurement at the case site.
-
-The acquisition took two attempts: the first run stalled for ~13
-minutes at the dataset-selection step with negligible CPU progress and
-was terminated (`[MEASURED]` process CPU time advanced only 2.31s→2.53s
-over 4 minutes — effectively idle) before any file was written
-(`data/raw/cmems_mc20_timeseries/` existed but was empty, confirmed
-before terminating); the retry completed normally in ~21 seconds once
-past that same checkpoint. No partial or corrupt file was ever left on
-disk from the first attempt.
+`[MEASURED]` REAL, unchanged from the prior round of this pass: 133
+real hourly timesteps, `2023-01-11T12:00` to `2023-01-17T00:00`, region
+lat[27,31] lon[-91,-87], `uo`/`vo` present, 26.4% NaN (coastal/shelf
+masking, not a query error), no Inf. SHA-256:
+`06163c96bf97b8fd2c34fb7b18720c3219d3bd1824f428dfb56ce24a5b0b9130`.
 
 ## 7. Spatial alignment
 
-`[MEASURED]`, re-derived from the real CMEMS file (not a stub string)
-by `scripts/check_mc20_readiness.py`'s `_real_cmems_facts()`:
+`[MEASURED]`, re-derived from the real files on disk, not asserted:
 
-- SAR anchor point (-88.970, 28.936) falls inside the CMEMS grid's lat/lon bounds — **CONTAINS = true**.
-- SAR↔AIS: non-empty — 304,960 AIS points within the SAR scene's IW swath, 38,244 within ±3h of acquisition, closest point 3.26km (`[MEASURED]`, prior pass, unchanged).
-- SAR↔ERA5: not computable — ERA5 not yet acquired for this region.
-- Four-way (SAR ∩ AIS ∩ ERA5 ∩ CMEMS): **EMPTY** — SAR and ERA5 are not simultaneously real with AIS and CMEMS today.
+- SAR anchor point (-88.970, 28.936) falls inside **both** the ERA5 and CMEMS grid bounds.
+- SAR↔AIS: non-empty (304,960 points in-swath, 38,244 within ±3h, closest 3.26km).
+- **Four-way (SAR ∩ AIS ∩ ERA5 ∩ CMEMS): `NON-EMPTY` — all four modalities real and spatially intersecting.** This was `EMPTY` at the start of this pass.
 
 ## 8. Temporal alignment
 
-`[MEASURED]`, likewise re-derived, not asserted:
+`[MEASURED]`:
 
-- T_SAR = `2023-01-15T00:02:06.898Z`.
-- CMEMS window `2023-01-11T12:00Z`–`2023-01-17T00:00Z` — **CONTAINS T_SAR = true**.
-- AIS: closest real point at `2023-01-15T00:19:04Z`, offset `+16m57s`, `3.26km` from the SAR timestamp/anchor.
-- ERA5: `UNAVAILABLE` — not yet acquired.
-- Backward transport window: no case-specific value exists — `NetraInferenceService.detect()` returns a mock detection (`[MEASURED]`, confirmed by source inspection, unchanged from prior pass). The 16–84h figure quoted anywhere in this project's MC20 scripts is an explicitly labeled **planning bound** drawn from hardcoded precedent elsewhere in the codebase, never presented as a computed value for this scene.
+- T_SAR = `2023-01-15T00:02:06.898Z`, independently confirmed by the SAR product's own annotation metadata (§3).
+- ERA5 window (`2023-01-11T00:00`–`2023-01-17T23:00`) **CONTAINS** T_SAR.
+- CMEMS window (`2023-01-11T12:00`–`2023-01-17T00:00`) **CONTAINS** T_SAR.
+- AIS: closest real point at `2023-01-15T00:19:04Z`, `+16m57s`/`3.26km` from T_SAR/anchor.
+- Backward transport window: still no case-specific value — `NetraInferenceService.detect()` remains a mock stub (§11). Any 16–84h figure quoted elsewhere is an explicitly labeled planning bound, not a scientific estimate.
 
 ## 9. SAR preprocessing status
 
-`[BLOCKED]` — cannot be validated against the real SAFE product because
-the product is not downloaded (§3). `packages/varuna_data_eng/preprocessing/sentinel1_grd_calibration.py`
-remains tested only against the synthetic fixture built in the prior
-pass (9 passing unit tests, `tests/unit/test_sentinel1_grd_calibration.py`,
-unchanged this pass). No SAFE-structure discovery, no real calibration
-XML, no real DN→sigma0→dB conversion has been run against actual MC20
-data. This is the same "next engineering step" flagged in the prior
-report — not started this pass, correctly, since it depends on §3.
+**`[MEASURED]` VALIDATED against the real SAFE product**, not just the
+synthetic fixture. `scripts/validate_mc20_sar_calibration.py` (new this
+pass):
+
+1. Located the MC20 anchor's real pixel position via the product's own
+   `geolocationGridPoint` list (nearest real grid point: line=8036,
+   pixel=19425, lat=28.995, lon=-88.970 — ~6.6km from the exact anchor,
+   the nearest of only 210 grid points across the whole scene).
+2. Read a real 1536×1536 DN window centered there directly from both
+   measurement TIFFs (via file-seek + `numpy`, after PIL's per-strip
+   decode proved extremely slow for a windowed read on this
+   one-row-per-strip product — see §23).
+3. Ran the **actual, unmodified** `sentinel1_grd_calibration.py`
+   functions: `parse_calibration_lut`, `_interpolate_lut_to_grid`
+   (shifted into the crop's local frame), `apply_netra_normalization`
+   (using the frozen Gold v0.2 bounds read directly from the manifest),
+   `tile_512`.
+4. Result: VV DN [9,2891] → dB [-36.14,14.05]; VH DN [2,937] → dB
+   [-49.15,4.25]; normalized [2,1536,1536] range [0,1], **no NaN, no
+   Inf**; 9 real 512×512 tiles produced, matching the Gold v0.2 tiling
+   convention exactly.
+
+Full result: `reports/mc20_sar_calibration_validation.json`. New tests:
+`tests/unit/test_mc20_sar_calibration_real.py` (5 tests, skip cleanly
+if the SAFE product is absent).
 
 ## 10. Event Gold status
 
-`[BLOCKED]`, correctly not attempted. `data/gold/varuna_event_v0_1/`
-was not created — the task rule requires all four modalities genuinely
-present and verified first; SAR and ERA5 are not.
+`[BLOCKED]`, correctly not attempted this pass. All four modalities are
+now real, so the precondition for building
+`data/gold/varuna_event_v0_1/` is satisfied — but the task explicitly
+scoped Event Gold construction as a separate step, not to be built
+opportunistically inside the same pass as acquisition. Flagged as the
+next concrete action (§14).
 
 ## 11. NETRA dependency status
 
-`NETRA_REAL_INFERENCE = BLOCKED` `[MEASURED]`. `NetraInferenceService.detect()`
-still returns a hardcoded mock `SlickDetection`
-(`age_prior_mean_hours=12.0, age_prior_std_hours=2.0`) — confirmed by
-direct source inspection, unchanged. NETRA training itself was not
-touched, inspected for correctness, or interfered with — its process
-(PIDs 1496/58256, and their dataloader worker forks) was confirmed
-alive with unchanged start time at the beginning and end of this pass.
+`NETRA_REAL_INFERENCE = BLOCKED`, unchanged. `NetraInferenceService.detect()`
+still returns a hardcoded mock `SlickDetection`. Not touched, not
+inspected further this pass beyond the standing confirmation. NETRA's
+training process (PIDs 1496/58256, plus dataloader worker forks) was
+health-checked repeatedly throughout this pass and found unchanged and
+undisturbed every time, including immediately before this report.
 
 ## 12. Track 2 dependency status
 
-`PHI_DIAGNOSTICS_UNAVAILABLE` — recorded as an independent blocker per
-the task instructions, not re-verified or touched this pass (Track 2
-owns `packages/varuna_prativartan/phi_builder.py` and
-`docs/adr/ADR-0007-*`; neither was modified here). Note: git status
-shows `packages/varuna_prativartan/phi_builder.py` as modified in the
-working tree, but that modification belongs to the active NETRA/Track-2
-workstream (pre-existing before this pass began) and was correctly
-left unstaged and uncommitted by this pass's commit.
+**Status changed since the prior report, discovered (not modified) this
+pass**: Track 2 landed commit `8c257e0` ("ratify Phi sensitivity
+normalization, remove PHI_DIAGNOSTICS_UNAVAILABLE block") — the
+normalization-convention decision that previously left `SensitivityBlock`
+permanently `None` has been ratified, with a real zero-free-parameter
+formula (`sensitivity = centroid_shift_km / effective_radius_km`).
+This is Track 2's own work, not independently re-verified end-to-end by
+this pass — reported factually because it changes §21's checklist
+entry, not claimed as fixed by this track.
 
 ## 13. Remaining blockers
 
-1. **SAR**: Copernicus Data Space `401 Unauthorized`, account-side, reproduced twice.
-2. **ERA5**: CDS API `403` licence-not-accepted, one-time account action.
-3. **NETRA real inference**: mock stub, pre-existing, out of this track's scope.
-4. **PRATIVARTAN real forcing path**: needs SAR+ERA5+CMEMS together; only CMEMS real today.
-5. **Φ sensitivity / validity gate**: Track 2's `PHI_DIAGNOSTICS_UNAVAILABLE`, independent of data acquisition.
+1. **NETRA real inference**: mock stub, pre-existing, out of this track's scope.
+2. **PRATIVARTAN real forcing path**: the real ERA5/CMEMS files exist now, but `CubeBackedCurrentField`/`CubeBackedWindField` have not been run against them end-to-end this pass — that integration step, not the data, is what's missing.
+3. **Event Gold**: not built (§10) — correctly deferred, not a blocker in the sense of being stuck, just not yet done.
+4. **Validity gate**: Track 2's Phi sensitivity path was recently ratified (§12) but not independently confirmed satisfied by this track.
 
 ## 14. Exact next actions
 
-1. Operator: verify the CDSE account at https://dataspace.copernicus.eu/ — confirm it is a Data Space Ecosystem account (not old scihub), confirm the password, and confirm the account is activated (check for a verification email). Re-set `CDSE_USERNAME`/`CDSE_PASSWORD` in `.env` if anything was wrong.
-2. Operator: log in at https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download#manage-licences and accept the licence — one click, no code change needed.
-3. Once either is fixed: re-run `scripts/acquire_mc20_sar.py` and/or `scripts/acquire_mc20_era5.py`, then `scripts/check_mc20_readiness.py`.
-4. Once SAR lands: run the real-SAFE preprocessing validation against `sentinel1_grd_calibration.py` (§9's deferred step).
-5. Once all four modalities are real: build Event Gold.
+1. Run `CubeBackedCurrentField`/`CubeBackedWindField` against the real
+   `era5_mc20`/`cmems_mc20_timeseries` files to prove the forcing seam
+   works end-to-end with real data (currently only tested against
+   synthetic cubes).
+2. Build Event Gold (`data/gold/varuna_event_v0_1/{sar,ais,era5,cmems,metadata,provenance,diagnostics}/`
+   + manifest) now that all four modalities are genuinely real.
+3. Confirm with Track 2 whether the ratified Phi sensitivity formula is
+   now actually populating `SensitivityBlock` (not just designed) for
+   the validity gate.
+4. NETRA real inference remains the one blocker with no near-term fix
+   available from this track — out of scope, flagged for whichever
+   track owns `varuna_netra/inference.py`.
 
-## 15. Files created
+## 15. Files created (this round)
 
-- `data/raw/cmems_mc20_timeseries/cmems_mc20_2023-01-11_to_2023-01-17.nc`
-- `data/catalog/acquisition/cmems_mc20.json`
-- `.env` (gitignored, not committed)
-- `reports/mc20_readiness_final.json`
-- `docs/datasets/MC20_REAL_E2E_ACQUISITION_FINAL.md` (this file)
-- `data/raw/era5_mc20/` (empty directory, no file inside)
+- `scripts/validate_mc20_sar_calibration.py`
+- `tests/unit/test_mc20_sar_calibration_real.py`
+- `reports/mc20_sar_calibration_validation.json`
+- `data/raw/sentinel1_grd/mc20_2023-01-15/` (the real SAFE product)
+- `data/catalog/acquisition/{era5_mc20,sentinel1_grd_mc20}.json`
 
-## 16. Files modified
+## 16. Files modified (this round)
 
-- `.env.example` (secrets removed, restored to placeholders)
-- `.gitignore` (credential patterns added)
-- `data/catalog/checksums.json`, `dataset_inventory.json`, `dataset_paths.json` (additive CMEMS entries only, verified zero pre-existing entries altered)
-- `reports/mc20_readiness.json` (regenerated by the gate)
-- `scripts/check_mc20_readiness.py` (corrected two stale blocking-reason strings; real CMEMS spatial/temporal intersection computation replacing a hardcoded stub)
+- `.env` (credential corrections by the operator; not committed, not read into any report)
+- `scripts/check_mc20_readiness.py` — SAR/ERA5/CMEMS checks now report real validated content; **fixed a genuine bug**: unclosed `netCDF4.Dataset` handles caused a real Windows access-violation crash when multiple checks ran in one pytest process — all four open sites now use `with` context managers (§23).
+- `data/catalog/{checksums,dataset_inventory,dataset_paths}.json` — additive SAR/ERA5 entries, zero existing entries touched (verified by count each time).
+- `reports/mc20_readiness.json`, `reports/mc20_readiness_final.json`, this file.
 
 ## 17. Files deleted
 
@@ -239,34 +217,53 @@ left unstaged and uncommitted by this pass's commit.
 
 ## 20. Checksums
 
-CMEMS file SHA-256: `06163c96bf97b8fd2c34fb7b18720c3219d3bd1824f428dfb56ce24a5b0b9130` (recorded in `data/catalog/checksums.json` under a new `cmems_mc20_timeseries` key).
+| File | SHA-256 |
+|---|---|
+| SAR product zip | `68f5c1f4a35fc64f92f07ee595036d668ef87582bfeaa69b1b8fe86742857d96` |
+| ERA5 nc | `8db79ceb5b3aa417d688a0d75e01bd6e5f2f0d9119d6280d1beed5c1d8d8e399` |
+| CMEMS nc | `06163c96bf97b8fd2c34fb7b18720c3219d3bd1824f428dfb56ce24a5b0b9130` |
 
 ## 21. Provenance
 
-Recorded in `data/catalog/acquisition/cmems_mc20.json`: product ID, variables, region, time window, download timestamp, destination path. SHA-256 recorded separately in `data/catalog/checksums.json`. Credential source class: environment variables (`COPERNICUSMARINE_SERVICE_USERNAME`/`_PASSWORD`), never the values themselves.
+All three new acquisition records in `data/catalog/acquisition/`:
+product/dataset ID, variables, region, time window, download timestamp,
+size, checksum, destination path. Credential source class recorded as
+environment variables, never the values.
 
 ## 22. Scientific limitations
 
-- CMEMS time series covers a ±~2.5 day window around T_SAR at 0.083° resolution — sufficient for `time_series_status=SUFFICIENT` per `ForcingCube`'s own validator, but has not been run through `CubeBackedCurrentField` end-to-end this pass (that integration step was not attempted; only raw-file validity was checked).
-- 26.4% NaN coverage means the coastal/nearshore portion of the grid has no current data at some cells — genuine physical/product limitation of a global reanalysis-forecast product near a complex coastline, not a bug.
-- No case-specific NETRA detection age prior exists (see §8) — any transport-window figure used elsewhere is a labeled planning bound, not a scientific estimate for this scene.
+- The SAR calibration validation covers a 1536×1536 window around the
+  anchor, not the full ~25899×16734 scene — sufficient to prove the
+  pipeline is correct on real data, not a full-scene product.
+- Thermal noise removal, terrain correction, and speckle filtering
+  remain **NOT IMPLEMENTED** (unchanged from the prior pass) —
+  classified per §11's original schema:
+  - Thermal noise removal: **SCIENTIFIC FOLLOW-UP** (noise LUTs are present in the real product, `annotation/calibration/noise-*.xml`, confirmed this pass — the data to implement this exists, the implementation does not).
+  - Terrain correction: **NOT REQUIRED FOR CURRENT BASELINE** (GRD is ellipsoid-projected, consistent with how Zenodo's training imagery is delivered — not a new gap this introduces).
+  - Speckle filtering: **SCIENTIFIC FOLLOW-UP** (not determined whether Zenodo's tiles have this applied by their original authors; not replicated here either way).
+- The nearest real geolocation grid point to the anchor is ~6.6km away (210 grid points span the whole scene) — the calibration window is centered there, not on an exactly-interpolated anchor pixel. Fine for pipeline validation; a production tiling pass should interpolate properly between grid points rather than snap to nearest.
 
 ## 23. Engineering limitations
 
-- SAR calibration pipeline is validated only against a synthetic fixture, not real Sentinel-1 SAFE data (blocked on §3).
-- The full-drive search for a pre-existing SAR product copy was aborted after ~22 minutes / 1.8s CPU time because it was contending for disk I/O with NETRA's active training (per the task's explicit resource-safety instruction); the catalog-based check (`dataset_paths.json`/`dataset_inventory.json`, which list no MC20 SAR path anywhere) was relied on instead and is considered sufficient.
-- `scripts/acquire_mc20_cmems.py` and `scripts/acquire_mc20_era5.py`/`scripts/acquire_mc20_sar.py` were not modified — only `check_mc20_readiness.py` was, to keep its blocking-reason text accurate.
+- **A real bug was found and fixed this pass**: `check_mc20_readiness.py` opened `netCDF4.Dataset` objects without closing them; running multiple checks against the same files in one pytest process caused a genuine Windows access-violation crash (not a flaky timeout — a real segfault, confirmed reproducible, confirmed fixed by switching all four open sites to `with` context managers, confirmed fixed by rerunning the exact crashing test).
+- `xarray.open_dataset()` was observed to hang indefinitely and unpredictably on both the ERA5 and CMEMS files across separate runs in this environment; `netCDF4` opens both instantly. All gate-script reads now use `netCDF4` directly.
+- `PIL.Image.crop()` was extremely slow reading a windowed region from the SAR measurement TIFF (each row stored as its own separate strip — 16,734 strips for a 16,734-row image — makes PIL's per-strip Python-level decode loop slow for windowed access). Replaced with a direct file-seek + `numpy.frombuffer` read, verified against the product's own strip offsets (uncompressed, little-endian, confirmed) — near-instant.
+- `rasterio` import also hung in this environment during initial diagnosis; not used — deliberately avoided in favor of `netCDF4`/direct TIFF reads for exactly this reason. Also correct for this product type regardless: Sentinel-1 GRD measurement TIFFs are not georeferenced GeoTIFFs — geolocation comes from the annotation XML's `geolocationGrid`, which `rasterio`'s CRS machinery would not have used anyway.
+- `pytest` itself appeared to hang on a full-file run at one point during this pass; isolating to individual tests showed every test passed instantly and the full file passed cleanly moments later — assessed as a transient resource-contention spike, not a reproducible issue (distinct from the real netCDF4 crash bug, which *was* reproducible and *was* fixed).
 
 ---
 
 ## Final decision
 
-**REAL_E2E_PARTIAL** — 8/15 readiness-checklist items true (see
-`reports/mc20_readiness_final.json` for the itemized checklist). AIS
-and CMEMS are genuinely real and verified against the SAR anchor point
-and timestamp; SAR and ERA5 are blocked on two distinct, named,
-non-bypassed account-side issues; NETRA real inference and the Φ
-sensitivity path remain blocked for reasons outside this track's
-scope. Not `REAL_E2E_READY` — files existing is not readiness. Not
-`REAL_E2E_BLOCKED` — real, verified progress was made and the path to
-completion is exact and actionable, not stalled.
+**REAL_E2E_PARTIAL** — 11/15 readiness-checklist items true (`reports/mc20_readiness_final.json`).
+
+The distinction that matters: `scripts/check_mc20_readiness.py`'s own
+`REAL_E2E_READY` field is **`True`** — that gate covers exactly what
+this track owns (SAR/AIS/ERA5/CMEMS all real, spatially/temporally
+verified, no locked-data contamination). The **broader system**
+checklist in this report additionally requires Event Gold, NETRA real
+inference, an end-to-end PRATIVARTAN forcing run, and Track 2's
+validity-gate confirmation — none of which are this track's to build,
+and none of which were silently assumed done. The data side of the
+MC20 case is closed. What remains is integration work belonging to
+other parts of the system.

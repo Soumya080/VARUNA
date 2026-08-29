@@ -127666,6 +127666,29 @@
         "sha256": "8db79ceb5b3aa417d688a0d75e01bd6e5f2f0d9119d6280d1beed5c1d8d8e399",
         "sha256_note": null
       }
+    ],
+    "sentinel1_grd_mc20": [
+      {
+        "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE\\manifest.safe",
+        "size_bytes": 24007,
+        "mtime": "2026-08-29T17:34:16.391208+00:00",
+        "sha256": null,
+        "sha256_note": null
+      },
+      {
+        "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE\\measurement\\s1a-iw-grd-vv-20230115t000206-20230115t000231-046787-059bff-001.tiff",
+        "size_bytes": 867066336,
+        "mtime": "2026-08-29T17:34:42.997197+00:00",
+        "sha256": null,
+        "sha256_note": "not computed: file exceeds 2097152 byte threshold"
+      },
+      {
+        "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE\\measurement\\s1a-iw-grd-vh-20230115t000206-20230115t000231-046787-059bff-002.tiff",
+        "size_bytes": 867066336,
+        "mtime": "2026-08-29T17:34:26.273783+00:00",
+        "sha256": null,
+        "sha256_note": "not computed: file exceeds 2097152 byte threshold"
+      }
     ]
   }
 }

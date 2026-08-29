@@ -154,6 +154,20 @@
         "Acquired via scripts/acquire_mc20_era5.py; variables u10/v10; no NaN.",
         "xarray hangs indefinitely opening this file (engine-detection issue) -- use netCDF4 directly, see scripts/check_mc20_readiness.py::_real_era5_facts()."
       ]
+    },
+    "sentinel1_grd_mc20": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15",
+      "exists": true,
+      "n_files": 26,
+      "total_bytes": 1741446990,
+      "status": "present",
+      "caveats": [
+        "REAL Sentinel-1 IW GRD SAFE product, S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE, UUID 6fc676ba-b961-5bfc-9211-8076f8f1481c.",
+        "Full 1,741,458,044 bytes, size and SHA-256 verified against the downloaded zip (data/catalog/acquisition/sentinel1_grd_mc20.json).",
+        "Real annotation geolocationGrid azimuthTime (2023-01-15T00:02:06.898342) independently confirms T_SAR used throughout MC20 reports.",
+        "Calibration pipeline (sentinel1_grd_calibration.py) validated against this real product -- see reports/mc20_sar_calibration_validation.json.",
+        "Thermal noise removal, terrain correction, speckle filtering NOT implemented -- documented, not silently omitted."
+      ]
     }
   }
 }

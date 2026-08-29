@@ -17,6 +17,7 @@
     "oil_external": "D:\\ROUTER(DATASETS)\\Oil",
     "netra_gold_v0_1": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\netra",
     "cmems_mc20_timeseries": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems_mc20_timeseries",
-    "era5_mc20": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\era5_mc20"
+    "era5_mc20": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\era5_mc20",
+    "sentinel1_grd_mc20": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15"
   }
 }
