@@ -6,30 +6,37 @@ These services accept domain inputs and return contract types.
 They do NOT call FastAPI, Postgres, Redis, or MinIO.
 """
 import time
-import numpy as np
-from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from varuna_contracts.schemas import VesselTrack
+import numpy as np
+
 from varuna_contracts.decision import (
-    AttributionResultV2, CandidateScore, DecisionState,
-    LatentFinding, PriorContribution, ValidityGateResult,
+    AttributionResultV2,
+    CandidateScore,
+    LatentFinding,
+    ValidityGateResult,
 )
 from varuna_contracts.evidence import (
-    EvidenceEnvelope, EvidenceMode, ValidityState, Provenance,
+    EvidenceEnvelope,
+    EvidenceMode,
+    Provenance,
 )
 from varuna_contracts.phi import PhiField
-
+from varuna_contracts.schemas import VesselTrack
+from varuna_geospatial.utils import haversine_km_vec
+from varuna_nyaya.likelihoods import compute_density_likelihoods
+from varuna_nyaya.posterior import compute_posterior
+from varuna_nyaya.prior import compute_prior
+from varuna_nyaya.validity_gate import evaluate_validity_gate
 from varuna_prativartan.config import PratiConfig
-from varuna_prativartan.current_field import SyntheticModelCurrentField, SyntheticWindField
+from varuna_prativartan.current_field import (
+    AbstractCurrentField,
+    AbstractWindField,
+    SyntheticModelCurrentField,
+    SyntheticWindField,
+)
 from varuna_prativartan.ensemble import run_backward_ensemble
 from varuna_prativartan.phi_builder import build_phi_field
-
-from varuna_nyaya.likelihoods import compute_density_likelihoods
-from varuna_nyaya.prior import compute_prior
-from varuna_nyaya.posterior import compute_posterior
-from varuna_nyaya.validity_gate import evaluate_validity_gate
-from varuna_geospatial.utils import haversine_km_vec
 
 
 class PrativartanService:
@@ -47,22 +54,39 @@ class PrativartanService:
         n_particles: int = 500,
         n_ensemble: int = 20,
         seed: int = 42,
-        input_envelope: Optional[EvidenceEnvelope] = None,
+        input_envelope: EvidenceEnvelope | None = None,
+        current: AbstractCurrentField | None = None,
+        wind: AbstractWindField | None = None,
     ) -> PhiField:
         """
         `input_envelope`, when supplied, carries the real forcing/evidence
         provenance (mode, trust, quality) into the resulting PhiField via
-        `.derive()`. No real forcing pipeline exists yet (ERA5/CMEMS ->
-        ForcingCube -> AbstractCurrentField/AbstractWindField is Tranche 2),
-        so every call site today omits it and gets the explicit default
-        below instead.
+        `.derive()`.
 
-        That default is `mode=EvidenceMode.SIMULATED` — a plain Python
-        default reflecting current systemic reality (there is nothing else
-        this call path could honestly be), not a value read from settings
-        or config. It replaces the previous unconditional
-        `Provenance(source_id="synthetic")`, which asserted synthetic
-        *lineage* but never declared *mode* at all — see ADR-0006.
+        `current`/`wind`, when supplied, are the real forcing boundary:
+        pass a `CubeBackedCurrentField`/`CubeBackedWindField`
+        (`packages/varuna_prativartan/cube_field.py`) built from a real
+        ForcingCube to run the ensemble against real ERA5/CMEMS data
+        instead of the synthetic fields. Both default to `None`, in which
+        case the existing `SyntheticModelCurrentField`/`SyntheticWindField`
+        are used — every pre-existing call site is unaffected. This is a
+        boundary injection point only; `run_backward_ensemble`'s advection
+        mathematics are untouched regardless of which field implementation
+        is passed in.
+
+        When `current`/`wind` are supplied but `input_envelope` is not, the
+        default envelope below still applies (`mode=EvidenceMode.SIMULATED`)
+        — passing a real forcing field does not by itself upgrade
+        provenance; the caller must also supply an envelope carrying the
+        real `mode`, exactly as ADR-0006 requires (mode is never inferred,
+        only ever passed through explicitly).
+
+        The `mode=EvidenceMode.SIMULATED` default reflects current systemic
+        reality (there is nothing else the fully-default call path could
+        honestly be), not a value read from settings or config. It replaces
+        the previous unconditional `Provenance(source_id="synthetic")`,
+        which asserted synthetic *lineage* but never declared *mode* at all
+        — see ADR-0006.
         """
         config = PratiConfig(
             n_particles=n_particles,
@@ -79,8 +103,8 @@ class PrativartanService:
                 provenance=Provenance(source_id="synthetic"),
                 mode=EvidenceMode.SIMULATED,
             )
-        current = SyntheticModelCurrentField()
-        wind = SyntheticWindField()
+        current = current if current is not None else SyntheticModelCurrentField()
+        wind = wind if wind is not None else SyntheticWindField()
 
         t0 = time.perf_counter()
         ensemble_res = run_backward_ensemble(
@@ -109,13 +133,13 @@ class NyayaService:
     def attribute(
         self,
         phi: PhiField,
-        tracks: List[VesselTrack],
+        tracks: list[VesselTrack],
         case_id: str,
         slick_lons: np.ndarray,
         slick_lats: np.ndarray,
         corridor_width_km: float = 5.0,
         latent_prior: float = 0.5,
-        tracks_envelope: Optional[EvidenceEnvelope] = None,
+        tracks_envelope: EvidenceEnvelope | None = None,
     ) -> AttributionResultV2:
         """
         `tracks_envelope`, when supplied, carries the AIS source's own
@@ -152,7 +176,7 @@ class NyayaService:
 
         slick_center_lon = float(np.mean(slick_lons))
         slick_center_lat = float(np.mean(slick_lats))
-        base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        base_time = datetime(2026, 1, 1, tzinfo=UTC)
 
         raw_candidates = []
         for mmsi in posterior:
@@ -231,7 +255,6 @@ class ValidityService:
         that is a starting condition to close in a later tranche, not a
         promotion of this call site).
         """
-        from varuna_nyaya.validity_gate import evaluate_validity_gate
         return evaluate_validity_gate(
             phi=phi, attribution=attribution,
             source_trust=attribution.envelope.trust,

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T00:27:25.875465+00:00",
+  "generated_at": "2026-08-29T09:12:57.029859+00:00",
   "datasets": {
     "zenodo_part1": {
       "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\extracted\\part1",
@@ -49,10 +49,12 @@
     "ais": {
       "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\ais",
       "exists": true,
-      "n_files": 0,
-      "total_bytes": 0,
-      "status": "missing",
-      "caveats": []
+      "n_files": 1,
+      "total_bytes": 868779805,
+      "status": "present",
+      "caveats": [
+        "Single day (2023-01-15), Gulf of Mexico region within a national file. Anchor case (zenodo_p1_00073) has no real timestamp, so temporal_join_status will be 'unavailable' for any real join against it \u2014 see docs/datasets/AIS_ACQUISITION_RECORD.md."
+      ]
     },
     "essd": {
       "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\essd",

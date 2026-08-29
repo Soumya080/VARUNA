@@ -1,0 +1,24 @@
+{
+  "generated_at": "2026-08-29T09:00:00+00:00",
+  "adr_reference": "docs/adr/CHHAYA-ARCHITECTURE-DECISION.md",
+  "current_architecture": {
+    "decision": "option_C_ais_coverage_gap_heuristic",
+    "wired_implementation": "packages/varuna_chhaya/{protocol,service,mock}.py",
+    "description": "AIS-coverage-gap heuristic: classifies a scene bbox into INSUFFICIENT_COVERAGE / RADAR_CONTACT_WITHOUT_AIS / VISIBLE_SOURCES_EXIST_BUT_WEAK from AIS position density alone. Does not read the SAR raster.",
+    "data_dependency": "AIS positions within the scene bbox (same AIS source as NYAYA) — no separate CHHAYA-specific dataset required for this architecture.",
+    "orphaned_alternative": "packages/varuna_chhaya/model/factory.py::create_chhaya_model() — an untrained, unwired LSTM trajectory regressor. Not in use. Not deleted (out of scope for a data-acquisition pass)."
+  },
+  "xview3_requirement": {
+    "required_now": false,
+    "reason": "ADR recommends keeping the wired AIS-coverage-gap heuristic (option C) until NETRA's baseline is complete and GPU/attention budget frees up. xView3 is only required if the architecture decision is revisited toward option A (real SAR pixel-detector CNN).",
+    "not_downloaded": true
+  },
+  "future_acquisition": {
+    "dataset": "xView3-SAR",
+    "source": "AllenAI / xView3 challenge (https://iuu.xview.us/)",
+    "trigger_condition": "ADR revisited AND explicitly resourced as its own project phase, per ADR's 'staged path' recommendation — not folded into a data-reconciliation or acquisition pass.",
+    "expected_scale": "~900GB (SAR scenes + vessel labels + ancillary bathymetry/wind layers, per xView3 challenge specs)",
+    "expected_effort": "comparable to NETRA's training program: new architecture, new training pipeline, GPU time comparable to NETRA baseline",
+    "action_if_triggered": "acquire only after an explicit operator decision; do not download speculatively"
+  }
+}

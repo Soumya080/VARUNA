@@ -130,15 +130,22 @@ MASTER_SPECS: dict[str, dict[str, Any]] = {
         ),
     },
     "ais": {
-        "display_name": "AIS vessel tracking data",
-        "source": None,
-        "source_product": None,
-        "product_level": None,
-        "format": None,
+        "display_name": "AIS vessel tracking data (NOAA MarineCadastre, Gulf of Mexico, 2023-01-15)",
+        "source": "NOAA MarineCadastre AIS Data Handler",
+        "source_product": "AIS_2023_01_15 (national daily file)",
+        "product_level": "raw CSV",
+        "format": "CSV",
         "role": "attribution_evidence",
         "varuna_engine": "NYAYA",
         "required": True,
-        "notes": "Genuinely absent. See docs/datasets/AIS_ACQUISITION_SPEC.md for the acquisition plan.",
+        "notes": (
+            "Acquired 2026-08-29. One national daily file, Gulf-of-Mexico "
+            "region extracted at the bronze stage (see data/bronze/ais/). "
+            "Anchored to zenodo_p1_00073 spatially only — the anchor case "
+            "has no real timestamp, so temporal_join_status is "
+            "'unavailable' for any real join against it. See "
+            "docs/datasets/AIS_ACQUISITION_RECORD.md."
+        ),
     },
     "essd": {
         "display_name": "ESSD 2025 Eastern Mediterranean oil spill dataset",
@@ -252,6 +259,54 @@ MASTER_SPECS: dict[str, dict[str, Any]] = {
             "Owned by the parallel NETRA workstream, currently mid-rebuild "
             "(v0.2). Not touched by this reconciliation pass."
         ),
+    },
+}
+
+
+# Additional per-dataset fields (variables / spatial_coverage /
+# temporal_coverage / completeness) requested for the fuller catalog
+# schema. Kept as a separate dict rather than folded into MASTER_SPECS
+# above so the original spec block stays exactly as previously reviewed —
+# this only adds fields, never changes an existing one. Values here are
+# either verified facts (ERA5/CMEMS variables and coverage, confirmed via
+# cfgrib/xarray reads) or explicit None where genuinely unknown/not
+# applicable — never a guess.
+EXTRA_FIELDS: dict[str, dict[str, Any]] = {
+    "zenodo_part1": {
+        "variables": ["VV", "VH"],
+        "spatial_coverage": "Multiple regions: Gulf of Mexico, North Sea, Mediterranean, Red Sea (verified per-scene via rasterio bounds)",
+        "temporal_coverage": "Unavailable — acquisition_date is a substituted dummy (2000-01-01), timestamp_status=unavailable",
+        "completeness": "1200 scenes present; 374 in current Gold manifest after a dedup pass later found to be a bug (~69% wrongly discarded)",
+    },
+    "zenodo_part2": {
+        "variables": ["VV", "VH"],
+        "spatial_coverage": "Same region set as Part I (shared acquisition campaign)",
+        "temporal_coverage": "Unavailable — same dummy-timestamp issue as Part I",
+        "completeness": "1370 scenes present (685 Lookalike + 685 No_Oil); no Gold built yet; masks all-zero (no lookalike class labels)",
+    },
+    "era5": {
+        "variables": ["u10", "v10"],
+        "spatial_coverage": "Union across 3 files: 5-20N/70-88E (Arabian Sea/W. Bay of Bengal); usable intersection per docs/datasets/ERA5_DOMAIN_POLICY.md: 8-20N/70-85E",
+        "temporal_coverage": "Hourly, 2010-01-01 to 2026-08-17 (continuous, per file; not merged into one series)",
+        "completeness": "u10/v10 present in all 3 files; no other ERA5 variables (e.g. mslp, t2m) present",
+    },
+    "cmems": {
+        "variables": ["uo", "vo", "zos", "thetao", "so"],
+        "spatial_coverage": "Global grid, 0.083deg",
+        "temporal_coverage": "Single timestep per file (anfc: 2026-08-31T23; my: 2026-06-23) — not a time series",
+        "completeness": "uo/vo present but time_series_status=INSUFFICIENT; cannot drive advection",
+    },
+    "ais": {
+        "variables": ["MMSI", "BaseDateTime", "LAT", "LON", "SOG", "COG", "Heading", "VesselType"],
+        "spatial_coverage": "US coastal AIS receiver network (national file, not pre-filtered); Gulf of Mexico region extracted at bronze stage",
+        "temporal_coverage": "2023-01-15 (single day) — see docs/datasets/AIS_ACQUISITION_RECORD.md",
+        "completeness": "Acquired this pass; see acquisition record for scope and why the date is scientifically arbitrary here",
+    },
+    "asf_sentinel1_raw": {
+        "variables": None,
+        "spatial_coverage": "Indian waters (footprint not yet extracted per-archive)",
+        "temporal_coverage": "2026-05-11 to 2026-07-01 (46 distinct dates, per filename)",
+        "completeness": "251 Level-0 RAW archives; 0 GRD archives (wrong product for current pipeline)",
     },
 }
 

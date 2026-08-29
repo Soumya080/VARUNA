@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T08:32:56.516388+00:00",
+  "generated_at": "2026-08-29T09:12:57.276278+00:00",
   "datasets": {
     "zenodo_part1": {
       "dataset_id": "zenodo_part1",
@@ -113,24 +113,26 @@
     },
     "ais": {
       "dataset_id": "ais",
-      "display_name": "AIS vessel tracking data",
+      "display_name": "AIS vessel tracking data (NOAA MarineCadastre, Gulf of Mexico, 2023-01-15)",
       "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\ais",
-      "source": null,
-      "source_product": null,
-      "product_level": null,
-      "format": null,
-      "size_bytes": 0,
-      "file_count": 0,
-      "checksum_status": "not_applicable",
+      "source": "NOAA MarineCadastre AIS Data Handler",
+      "source_product": "AIS_2023_01_15 (national daily file)",
+      "product_level": "raw CSV",
+      "format": "CSV",
+      "size_bytes": 868779805,
+      "file_count": 1,
+      "checksum_status": "partial_sha256_size_gated_see_checksums_json",
       "coverage": null,
       "time_coverage": null,
       "spatial_coverage": null,
       "role": "attribution_evidence",
-      "status": "MISSING",
+      "status": "READY",
       "varuna_engine": "NYAYA",
       "required": true,
-      "notes": "Genuinely absent. See docs/datasets/AIS_ACQUISITION_SPEC.md for the acquisition plan.",
-      "inventory_caveats": []
+      "notes": "Acquired 2026-08-29. One national daily file, Gulf-of-Mexico region extracted at the bronze stage (see data/bronze/ais/). Anchored to zenodo_p1_00073 spatially only \u2014 the anchor case has no real timestamp, so temporal_join_status is 'unavailable' for any real join against it. See docs/datasets/AIS_ACQUISITION_RECORD.md.",
+      "inventory_caveats": [
+        "Single day (2023-01-15), Gulf of Mexico region within a national file. Anchor case (zenodo_p1_00073) has no real timestamp, so temporal_join_status will be 'unavailable' for any real join against it \u2014 see docs/datasets/AIS_ACQUISITION_RECORD.md."
+      ]
     },
     "essd": {
       "dataset_id": "essd",

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T08:38:28.593327+00:00",
+  "generated_at": "2026-08-29T09:13:01.969448+00:00",
   "required_datasets": {
     "Zenodo Part I": {
       "dataset_id": "zenodo_part1",
@@ -44,12 +44,12 @@
     },
     "AIS": {
       "dataset_id": "ais",
-      "state": "MISSING",
-      "size_bytes": 0,
-      "file_count": 0,
+      "state": "READY",
+      "size_bytes": 868779805,
+      "file_count": 1,
       "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\ais",
       "varuna_engine": "NYAYA",
-      "notes": "Genuinely absent. See docs/datasets/AIS_ACQUISITION_SPEC.md for the acquisition plan."
+      "notes": "Acquired 2026-08-29. One national daily file, Gulf-of-Mexico region extracted at the bronze stage (see data/bronze/ais/). Anchored to zenodo_p1_00073 spatially only \u2014 the anchor case has no real timestamp, so temporal_join_status is 'unavailable' for any real join against it. See docs/datasets/AIS_ACQUISITION_RECORD.md."
     },
     "ERA5": {
       "dataset_id": "era5",

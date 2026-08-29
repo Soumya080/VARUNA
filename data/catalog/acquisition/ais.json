@@ -1,0 +1,17 @@
+{
+  "dataset_id": "ais",
+  "source": "NOAA MarineCadastre AIS Data Handler",
+  "provider": "NOAA Office for Coastal Management",
+  "url": "https://coast.noaa.gov/htdata/CMSP/AISDataHandler/2023/AIS_2023_01_15.zip",
+  "access_date": "2026-08-29",
+  "version": "AIS_2023_01_15 (national daily file)",
+  "archive_name": "AIS_2023_01_15.zip",
+  "archive_size_bytes": 316717207,
+  "archive_checksum_sha256": "a532f129535f62e3064ca0f3cb3b6f755718f405f6655ff4e2dd10c94646df89",
+  "downloaded_to": "D:\\ROUTER(DATASETS)\\_downloads\\ais\\AIS_2023_01_15.zip",
+  "extraction_location": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\ais\\2023-01-15\\",
+  "license": "Public domain (17 U.S.C. section 105, US government work)",
+  "acquisition_record": "docs/datasets/AIS_ACQUISITION_RECORD.md",
+  "anchor_case": "zenodo_p1_00073 (Gulf of Mexico, lon [-92.141,-91.957], lat [19.371,19.554])",
+  "notes": "Anchor case has no real acquisition timestamp (dummy 2000-01-01, timestamp_status=unavailable per data/manifests/zenodo_part1_manifest.json), so the exact AIS date is a pipeline-validation choice, not a temporal-attribution match. See acquisition record for the full reasoning and for why AIS_2024_01_15 (initially preferred as more recent) 404'd against the live index at request time."
+}

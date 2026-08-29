@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T00:27:25.875465+00:00",
+  "generated_at": "2026-08-29T09:12:56.943646+00:00",
   "hash_size_limit_bytes": 2097152,
   "files": {
     "zenodo_part1": [
@@ -40864,7 +40864,15 @@
         "sha256_note": "not computed: file exceeds 2097152 byte threshold"
       }
     ],
-    "ais": [],
+    "ais": [
+      {
+        "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\ais\\2023-01-15\\AIS_2023_01_15.csv",
+        "size_bytes": 868779805,
+        "mtime": "2023-05-26T04:38:38+00:00",
+        "sha256": null,
+        "sha256_note": "not computed: file exceeds 2097152 byte threshold; see data/catalog/acquisition/ais.json for the archive's sha256"
+      }
+    ],
     "essd": [],
     "xview3": [],
     "bhoonidhi": [],
