@@ -303,6 +303,21 @@ def load_era5_wind_arrays(cube: ForcingCube) -> tuple[np.ndarray, np.ndarray]:
     stored (`cube.lat_coords`/`cube.lon_coords`) — this is what
     `CubeBackedWindField.load_arrays()` requires. Read-only; opens the same
     file `read_era5_grib` already validated, does not fabricate or resample.
+
+    KNOWN ENVIRONMENT RISK (unconfirmed here, reported by a parallel session
+    working the same MC20 files — router-datasets-ca, 2026-08-30): xarray's
+    `open_dataset()` was observed to hang unpredictably against these same
+    two real MC20 .nc files on this machine, attributed to a Windows
+    netCDF4/HDF5 DLL-load-order interaction, not a logic bug. Re-tested
+    directly against the real MC20 era5/cmems files multiple times while
+    investigating this report (varied import order, cold and warm) and did
+    not reproduce it here — every call completed in under a second to ~12s.
+    If this ever hangs for you, `packages/varuna_data_eng/preprocessing/
+    mc20_forcing_netcdf4.py` has an additive netCDF4-backed equivalent
+    (`_load_era5_arrays_netcdf4`/`_load_cmems_arrays_netcdf4` analogues) that
+    reportedly avoids it — not merged into this function since the failure
+    mode does not reproduce against the code path actually used here
+    (`engine="netcdf4"` is already explicit, not autodetected).
     """
     ds = xr.open_dataset(cube.data_path, engine="netcdf4")
     try:
