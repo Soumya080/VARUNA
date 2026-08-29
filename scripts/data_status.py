@@ -31,6 +31,7 @@ POLICY_LABEL: dict[str, str] = {
     "ais": "OPERATIONAL",
     "essd": "LOCKED_EVALUATION",
     "xview3": "NOT_REQUIRED_YET",
+    "ossdd": "IDENTITY_VERIFIED_DEFERRED",
     "bhoonidhi": "FUTURE_EVALUATION",
     "nisar": "FUTURE_EVALUATION",
     "risat": "FUTURE_EVALUATION",

@@ -1,5 +1,5 @@
 VARUNA GRID v2 — Data Reconciliation Report
-Generated: 2026-08-29T09:13:01.969448+00:00
+Generated: 2026-08-29T11:17:22.646021+00:00
 ============================================================
 Zenodo Part I        PRESENT BUT INCOMPLETE
   Verified by direct rasterio read: 2-band float32, EPSG:4326, real bounds. Prior dedup pass discarded ~69% via a bbox-overlap bug (not true duplicates) — see docs/datasets/NETRA_GOLD_V0_1.md. NETRA Gold rebuild is a separate, already-owned workstream; not touched by this reconciliation pass.

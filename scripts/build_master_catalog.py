@@ -217,6 +217,26 @@ MASTER_SPECS: dict[str, dict[str, Any]] = {
         "required": False,
         "notes": "Empty staging directory (.gitkeep only); superseded by the external ASF directory.",
     },
+    "ossdd": {
+        "display_name": "OpenSARShip-Ship Detection Dataset (OSSDD)",
+        "source": "Hugging Face (sylviaHoch/OpenSARShip-Ship-Detection-Dataset)",
+        "source_product": "Sentinel-1 GRD ship-detection chips, AABB+RBB+binary mask",
+        "product_level": "L1 GRD, float32",
+        "format": "TIFF chips + CSV metadata, or WebDataset .tar shards",
+        "role": "chhaya_training_candidate",
+        "varuna_engine": "CHHAYA",
+        "required": False,
+        "notes": (
+            "Identity VERIFIED (via its own paper's data-availability "
+            "statement + direct Hugging Face repo confirmation — not a "
+            "filename guess): 15,197 patches, 55,759 ships, 72.3GB, "
+            "CC-BY-NC-SA-4.0. NOT downloaded — deferred per "
+            "data/catalog/acquisition/ossdd.json (CHHAYA's current "
+            "architecture, ADR option C, does not require it; a 72GB "
+            "concurrent download was avoided while NETRA trains). See "
+            "docs/datasets/OSSDD_CHHAYA_COMPATIBILITY.md."
+        ),
+    },
     "asf_sentinel1_raw": {
         "display_name": "ASF Sentinel-1 archive (D:\\ROUTER(DATASETS)\\ASF)",
         "source": "Alaska Satellite Facility (ASF)",

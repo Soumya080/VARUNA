@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T09:12:57.276278+00:00",
+  "generated_at": "2026-08-29T11:16:57.416073+00:00",
   "datasets": {
     "zenodo_part1": {
       "dataset_id": "zenodo_part1",
@@ -258,6 +258,27 @@
       "varuna_engine": null,
       "required": false,
       "notes": "Empty staging directory (.gitkeep only); superseded by the external ASF directory.",
+      "inventory_caveats": []
+    },
+    "ossdd": {
+      "dataset_id": "ossdd",
+      "display_name": "OpenSARShip-Ship Detection Dataset (OSSDD)",
+      "physical_path": null,
+      "source": "Hugging Face (sylviaHoch/OpenSARShip-Ship-Detection-Dataset)",
+      "source_product": "Sentinel-1 GRD ship-detection chips, AABB+RBB+binary mask",
+      "product_level": "L1 GRD, float32",
+      "format": "TIFF chips + CSV metadata, or WebDataset .tar shards",
+      "size_bytes": 0,
+      "file_count": 0,
+      "checksum_status": "not_applicable",
+      "coverage": null,
+      "time_coverage": null,
+      "spatial_coverage": null,
+      "role": "chhaya_training_candidate",
+      "status": "MISSING",
+      "varuna_engine": "CHHAYA",
+      "required": false,
+      "notes": "Identity VERIFIED (via its own paper's data-availability statement + direct Hugging Face repo confirmation \u2014 not a filename guess): 15,197 patches, 55,759 ships, 72.3GB, CC-BY-NC-SA-4.0. NOT downloaded \u2014 deferred per data/catalog/acquisition/ossdd.json (CHHAYA's current architecture, ADR option C, does not require it; a 72GB concurrent download was avoided while NETRA trains). See docs/datasets/OSSDD_CHHAYA_COMPATIBILITY.md.",
       "inventory_caveats": []
     },
     "asf_sentinel1_raw": {
