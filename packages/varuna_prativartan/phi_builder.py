@@ -55,7 +55,29 @@ def build_phi_field(
             "completed members."
         )
 
-    # ── Honest particle-loss accounting, before anything else ──
+    # ── Honest particle-count accounting, before anything else ──
+    # PhiField.n_particles must report what was actually advected, not the
+    # requested config value: run_backward_ensemble() draws
+    # min(config.n_particles, n_obs) particles per member, so a seed with
+    # fewer observation points than config.n_particles silently caps below
+    # the requested count with nothing to say so (found in this same pass —
+    # both this session and a parallel one hit it independently against a
+    # too-small placeholder). Every member is sampled from the same
+    # config.n_particles/n_obs decision, so their per-member counts must
+    # all agree; that is asserted, not assumed, so a real disagreement
+    # raises instead of silently picking one member's count.
+    per_member_counts = {hist_lons.shape[0] for hist_lons, _, _ in ensemble_results}
+    if len(per_member_counts) != 1:
+        raise ValueError(
+            f"Ensemble members advected different particle counts {sorted(per_member_counts)} — "
+            "run_backward_ensemble() is expected to apply the same "
+            "min(config.n_particles, n_obs) decision to every member. "
+            "Refusing to report a single n_particles value for a field that "
+            "isn't actually uniform across members."
+        )
+    measured_n_particles = per_member_counts.pop()
+
+    # ── Honest particle-loss accounting ──
     # "Lost" = simulated but not finite at the backward-time endpoint (the
     # position actually used as the origin estimate). A member that failed
     # outright is already excluded from ensemble_results by ensemble.py and
@@ -246,15 +268,16 @@ def build_phi_field(
         runtime_seconds=runtime_seconds,
     )
 
-    # TODO(P1): Implement genuine sensitivity analysis by re-running the
-    # ensemble under controlled perturbations of forcing and age
-    # assumptions, and populate a real SensitivityBlock from the resulting
-    # displacement. Until that sweep exists, sensitivity is honestly None
-    # rather than a fabricated placeholder (the previous code returned
-    # age_sensitivity=forcing_sensitivity=0.1 unconditionally, which is a
-    # lie: no perturbation was ever run). The validity gate treats a None
-    # sensitivity as GateReason.PHI_DIAGNOSTICS_UNAVAILABLE and fails
-    # closed rather than trusting a manufactured number.
+    # This single (cheap, 1-ensemble-run) build path never computes
+    # sensitivity — that requires re-running the ensemble at perturbed
+    # age/forcing/diffusivity settings, which costs 7x this function's
+    # runtime. See varuna_prativartan.sensitivity.run_sensitivity_sweep()
+    # + build_sensitivity_block() (ADR-0007, ratified) for the real,
+    # non-fabricated computation, invoked separately by callers that
+    # explicitly want it. Leaving sensitivity=None here (rather than
+    # silently running the expensive sweep on every case) is deliberate;
+    # the validity gate treats None as GateReason.PHI_DIAGNOSTICS_UNAVAILABLE
+    # and fails closed rather than trusting a manufactured number.
     sensitivity = None
 
     # ── TimeDistribution ──
@@ -320,7 +343,7 @@ def build_phi_field(
         spatial_modes=[],
         diagnostics=diagnostics,
         sensitivity=sensitivity,
-        n_particles=config.n_particles,
+        n_particles=measured_n_particles,
         n_ensemble=config.n_ensemble,
         backward_duration_hours=config.backward_duration_hours,
         dt_seconds=config.dt_seconds,

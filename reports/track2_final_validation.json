@@ -1,0 +1,405 @@
+{
+  "date": "2026-08-30",
+  "ais_source_adapter": {
+    "status": "REAL, complete",
+    "implementation": "varuna_integration.ais_source.EventAISAdapter, re-exported at varuna_source_adapters.ais",
+    "tests_added": 11,
+    "tests_file": "tests/unit/test_ais_source_adapter.py",
+    "tests_passed": 11,
+    "evidence_mode_real_condition": "is_simulated=False -> EvidenceMode.REAL via fetch_with_mode()",
+    "evidence_mode_unavailable_condition": "health_check() False, or fetch() raises -> EvidenceMode.UNAVAILABLE",
+    "no_config_upgrade_path": true,
+    "legacy_stub_status": "superseded, annotated, zero call sites, left in place (no-delete constraint)"
+  },
+  "production_phi": {
+    "particles": 500,
+    "particles_measurement_note": "measured from ensemble_results, not config-echoed (see n_particles_fix)",
+    "ensemble": 20,
+    "ensemble_members_completed_per_run": "20/20 on all 7 runs",
+    "runs": 7,
+    "run_labels": [
+      "baseline",
+      "age_minus",
+      "age_plus",
+      "forcing_minus",
+      "forcing_plus",
+      "diffusivity_minus",
+      "diffusivity_plus"
+    ],
+    "per_run_detail": {
+      "baseline": {
+        "label": "baseline",
+        "phi_id": "phi-mc20_2023-01-15-87e70752",
+        "particle_count": 500,
+        "ensemble_count": 20,
+        "ensemble_members_completed": 20,
+        "ensemble_members_requested": 20,
+        "runtime_seconds": 38.749916999950074,
+        "particles_lost": 4273,
+        "particles_seeded": 10000,
+        "convergence": 0.049630794704611764,
+        "convergence_flag": "converged",
+        "n_modes": 2,
+        "centroid_lon": -89.68921554951812,
+        "centroid_lat": 28.991453796175108,
+        "effective_support_km2": 33274.82998282801
+      },
+      "age_minus": {
+        "label": "age_minus",
+        "phi_id": "phi-mc20_2023-01-15-d23bced3",
+        "particle_count": 500,
+        "ensemble_count": 20,
+        "ensemble_members_completed": 20,
+        "ensemble_members_requested": 20,
+        "runtime_seconds": 39.61774500005413,
+        "particles_lost": 4273,
+        "particles_seeded": 10000,
+        "convergence": 0.049630794704611764,
+        "convergence_flag": "converged",
+        "n_modes": 8,
+        "centroid_lon": -89.69390334759397,
+        "centroid_lat": 28.95744445841764,
+        "effective_support_km2": 35252.93300917394
+      },
+      "age_plus": {
+        "label": "age_plus",
+        "phi_id": "phi-mc20_2023-01-15-c0115b21",
+        "particle_count": 500,
+        "ensemble_count": 20,
+        "ensemble_members_completed": 20,
+        "ensemble_members_requested": 20,
+        "runtime_seconds": 40.02201910002623,
+        "particles_lost": 4273,
+        "particles_seeded": 10000,
+        "convergence": 0.049630794704611764,
+        "convergence_flag": "converged",
+        "n_modes": 1,
+        "centroid_lon": -89.68835819404258,
+        "centroid_lat": 29.019578287339193,
+        "effective_support_km2": 27048.59821047483
+      },
+      "forcing_minus": {
+        "label": "forcing_minus",
+        "phi_id": "phi-mc20_2023-01-15-67430332",
+        "particle_count": 500,
+        "ensemble_count": 20,
+        "ensemble_members_completed": 20,
+        "ensemble_members_requested": 20,
+        "runtime_seconds": 38.86520460003521,
+        "particles_lost": 3983,
+        "particles_seeded": 10000,
+        "convergence": 0.05094805201333695,
+        "convergence_flag": "converged",
+        "n_modes": 3,
+        "centroid_lon": -89.68400670564802,
+        "centroid_lat": 28.991561059620825,
+        "effective_support_km2": 33006.61099377925
+      },
+      "forcing_plus": {
+        "label": "forcing_plus",
+        "phi_id": "phi-mc20_2023-01-15-73ab060a",
+        "particle_count": 500,
+        "ensemble_count": 20,
+        "ensemble_members_completed": 20,
+        "ensemble_members_requested": 20,
+        "runtime_seconds": 38.50294099992607,
+        "particles_lost": 4541,
+        "particles_seeded": 10000,
+        "convergence": 0.05030159692146291,
+        "convergence_flag": "converged",
+        "n_modes": 3,
+        "centroid_lon": -89.69463552987268,
+        "centroid_lat": 28.991220977480598,
+        "effective_support_km2": 32990.2442606183
+      },
+      "diffusivity_minus": {
+        "label": "diffusivity_minus",
+        "phi_id": "phi-mc20_2023-01-15-3bfe01d9",
+        "particle_count": 500,
+        "ensemble_count": 20,
+        "ensemble_members_completed": 20,
+        "ensemble_members_requested": 20,
+        "runtime_seconds": 37.0212302999571,
+        "particles_lost": 4254,
+        "particles_seeded": 10000,
+        "convergence": 0.04403461185570807,
+        "convergence_flag": "converged",
+        "n_modes": 3,
+        "centroid_lon": -89.6895510957711,
+        "centroid_lat": 28.99240189181466,
+        "effective_support_km2": 30940.6396929839
+      },
+      "diffusivity_plus": {
+        "label": "diffusivity_plus",
+        "phi_id": "phi-mc20_2023-01-15-89171876",
+        "particle_count": 500,
+        "ensemble_count": 20,
+        "ensemble_members_completed": 20,
+        "ensemble_members_requested": 20,
+        "runtime_seconds": 36.93200429994613,
+        "particles_lost": 4296,
+        "particles_seeded": 10000,
+        "convergence": 0.05176293326560461,
+        "convergence_flag": "converged",
+        "n_modes": 3,
+        "centroid_lon": -89.68945944239925,
+        "centroid_lat": 28.990825668756152,
+        "effective_support_km2": 34320.855750377465
+      }
+    },
+    "total_sweep_runtime_seconds": 274.3320105000166,
+    "convergence_range": [
+      0.044,
+      0.0518
+    ],
+    "convergence_flag": "converged on all 7 runs",
+    "particle_loss_range_pct": [
+      39.8,
+      45.4
+    ],
+    "particle_loss_explanation": {
+      "classification": "HYPOTHESIS, consistent with a direct measurement",
+      "cmems_current_grid_nan_fraction": 0.2645,
+      "era5_wind_grid_nan_fraction": 0.0,
+      "reasoning": "CMEMS ocean current is NaN over land (land mask); ERA5 wind is defined everywhere. MC20 sits near the Louisiana coast; particles backward-advected up to 48h plausibly cross land-masked cells, and NaN propagates through the rest of a contaminated particle's trajectory once encountered, explaining a final-loss fraction higher than the grid's own NaN fraction.",
+      "not_remediated": "Land-mask handling in PRATIVARTAN would be a scoped enhancement, out of this task's bounds."
+    },
+    "n_particles_fix": {
+      "defect_found": "run_backward_ensemble() computes min(config.n_particles, n_obs); a 12-point synthetic placeholder silently capped the configured n_particles=500 at 12.",
+      "cross_session_corroboration": "router-datasets-ca independently hit an identical instance at a different call site (packages/varuna_integration/pipeline.py).",
+      "root_cause_fixed": "packages/varuna_prativartan/phi_builder.py set PhiField.n_particles from config.n_particles (a config echo, never measured). Fixed to measure the real per-member particle count from ensemble_results, asserting all members agree.",
+      "semantic_change_disclosed": "PhiField.n_particles now answers 'what was advected', not 'what was configured' -- same field, same schema, different question. Documented explicitly in docs/science/TRACK_2_FINAL_VALIDATION.md section 3.",
+      "verification": "reconstruct_origin() with 5 real obs points and n_particles=500 in config now correctly reports phi.n_particles=5, not 500."
+    }
+  },
+  "sensitivity": {
+    "age_sensitivity": 0.03701135327709217,
+    "forcing_sensitivity": 0.005128358984903239,
+    "diffusivity_sensitivity": 0.0010723238413676815,
+    "weathering_sensitivity": null,
+    "dominant_assumption": "age"
+  },
+  "effective_radius_km": 102.91602083552866,
+  "centroid_shifts_km": {
+    "age": 3.8090612050163295,
+    "forcing": 0.5277903001423724,
+    "diffusivity": 0.11035930280063043
+  },
+  "validity": {
+    "state": "degraded",
+    "allows_operational_action": true,
+    "source_trust": "trusted",
+    "blocking_reasons": [],
+    "officer_visible_caveats": [
+      "43% of particles lost to boundaries",
+      "Evidence is SIMULATED \u2014 not a real-world observation"
+    ],
+    "checks": [
+      {
+        "name": "source_trust",
+        "passed": true,
+        "observed": null,
+        "threshold": null,
+        "detail": "trust=trusted",
+        "reason_code": null
+      },
+      {
+        "name": "phi_convergence",
+        "passed": true,
+        "observed": 0.049630794704611764,
+        "threshold": 0.15,
+        "detail": "flag=converged",
+        "reason_code": null
+      },
+      {
+        "name": "phi_entropy",
+        "passed": true,
+        "observed": 0.818675976772759,
+        "threshold": 0.95,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "ensemble_completeness",
+        "passed": true,
+        "observed": 1.0,
+        "threshold": 0.8,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "particle_loss",
+        "passed": false,
+        "observed": 0.4273,
+        "threshold": 0.2,
+        "detail": "",
+        "reason_code": "evidence_insufficient"
+      },
+      {
+        "name": "age_sensitivity",
+        "passed": true,
+        "observed": 0.03701135327709217,
+        "threshold": 0.7,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "forcing_sensitivity",
+        "passed": true,
+        "observed": 0.005128358984903239,
+        "threshold": 0.7,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "posterior_entropy",
+        "passed": true,
+        "observed": 0.20231933150884676,
+        "threshold": 0.9,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "distinguishability",
+        "passed": true,
+        "observed": 0.4588449971369034,
+        "threshold": 0.1,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "evidence_mode",
+        "passed": true,
+        "observed": null,
+        "threshold": null,
+        "detail": "mode=simulated",
+        "reason_code": "evidence_simulated"
+      }
+    ],
+    "no_threshold_changed": true
+  },
+  "real_analytical_chain": {
+    "ais": {
+      "mode": "REAL",
+      "n_tracks_returned": 5,
+      "n_tracks_total": 530,
+      "n_spatially_matched": 425,
+      "n_temporally_matched": 320,
+      "closest_temporally_matched": {
+        "distance_km": 3.2554040397444735,
+        "time_delta_seconds": 1017.1019999980927,
+        "track_id": "368181750_1673740805_1673765975",
+        "mmsi": "368181750",
+        "timestamp": "2023-01-15T00:19:04+00:00"
+      },
+      "cross_session_reproduction_note": "independently reproduces router-datasets-ca's Track 4 figure for the same real join"
+    },
+    "era5": {
+      "mode": "REAL",
+      "time_series_status": "sufficient"
+    },
+    "cmems": {
+      "mode": "REAL",
+      "time_series_status": "sufficient"
+    },
+    "prativartan": {
+      "forcing_mode": "REAL",
+      "seed_mode": "SIMULATED",
+      "seed_note": "bounded synthetic placeholder point cluster at the real SAR footprint centroid; no real NETRA detection exists for MC20 yet (Training Track blocker); substituting a fabricated detection was explicitly disallowed by this task"
+    },
+    "phi": {
+      "mode": "simulated",
+      "monotonic_check": "REAL forcing + SIMULATED seed -> SIMULATED, verified"
+    },
+    "nyaya": {
+      "mode": "simulated",
+      "decision_state": "latent_source",
+      "monotonic_check": "REAL AIS did not upgrade already-SIMULATED Phi lineage -- verified"
+    },
+    "validity": {
+      "mode": "simulated"
+    }
+  },
+  "regression": {
+    "pre_fix": {
+      "collected": 438,
+      "passed": 427,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 10,
+      "runtime_seconds": 240.3
+    },
+    "post_fix_final": {
+      "collected": 440,
+      "passed": 429,
+      "failed": 1,
+      "errors": 0,
+      "skipped": 10,
+      "runtime_seconds": 229.3
+    },
+    "failures": [
+      {
+        "test": "tests/unit/test_netra_training.py::test_netra_training_loop",
+        "error": "TypeError: 'NetraSample' object is not subscriptable",
+        "location": "packages/varuna_netra/training/trainer.py:250",
+        "classification": "PRE_EXISTING",
+        "note": "NETRA-track-owned, explicitly off-limits path, unrelated to any Track 2 change, not touched."
+      }
+    ],
+    "track_2_regressions": 0
+  },
+  "real_synthetic_matrix_summary": {
+    "silent_mock_fallback_found": false,
+    "disclosed_non_fallback_gaps": [
+      {
+        "gap": "AdapterRegistry.create_live() does not exist",
+        "consequence": "apps/api/dependencies.py::get_adapter_registry() hardcodes create_mock(); /health and /readiness always report on mock adapters"
+      },
+      {
+        "gap": "CaseWorkflow.reconstruct() never passes current/wind/input_envelope",
+        "consequence": "production API case-processing path always uses synthetic forcing and never computes sensitivity; real data reachable only via standalone orchestration scripts"
+      }
+    ],
+    "full_matrix_location": "docs/science/TRACK_2_FINAL_VALIDATION.md section 5"
+  },
+  "scientific_limitations": [
+    "No real NETRA detection exists for MC20 (Training Track blocker, not a Track 2 defect).",
+    "weathering_sensitivity is permanently None -- no weathering model exists.",
+    "Forcing/diffusivity sensitivity axes reuse existing uniform-sampling ranges, not a literal 1-sigma perturbation.",
+    "CaseWorkflow is not wired to any real adapter.",
+    "No AdapterRegistry.create_live() exists.",
+    "n_particles/n_obs interaction was a structural footgun, now fixed at two independent call sites; PhiField.n_particles's meaning changed as a result.",
+    "~40-45% particle loss near the real MC20 coastline, explained (not confirmed) by CMEMS land-mask NaN propagation."
+  ],
+  "safety": {
+    "deleted": 0,
+    "moved": 0,
+    "renamed": 0,
+    "overwritten": 0
+  },
+  "files_changed": [
+    "packages/varuna_prativartan/phi_builder.py",
+    "packages/varuna_source_adapters/ais.py"
+  ],
+  "files_created": [
+    "tests/unit/test_ais_source_adapter.py",
+    "scripts/mc20_production_phi_sensitivity.py",
+    "scripts/mc20_production_validity_gate.py",
+    "docs/science/TRACK_2_FINAL_VALIDATION.md",
+    "reports/track2_final_validation.md",
+    "reports/track2_final_validation.json",
+    "reports/mc20_production_phi_sensitivity.json",
+    "reports/mc20_production_phi_field.json",
+    "reports/mc20_production_phi_baseline.npz",
+    "reports/mc20_production_validity_gate.json",
+    "reports/track2_final/full_regression_raw.log"
+  ],
+  "final_status": "TRACK_2_COMPLETE_WITH_SCIENTIFIC_LIMITATIONS",
+  "final_status_rationale": "All three P0 tasks genuinely executed and verified: real AIS SourceAdapter (tested), production-scale (500x20x7) Phi sensitivity against real ERA5/CMEMS forcing (real, non-fabricated SensitivityBlock), full regression run twice with zero Track-2 regressions. ValidityGate consumed real diagnostics unmodified, returned a real DEGRADED result with honest reasons. Stops short of TRACK_2_PRODUCTION_VALIDATED because: the real analytical chain necessarily terminates in SIMULATED mode (no real NETRA detection exists yet -- a Training Track blocker); the production CaseWorkflow/API path has never been wired to any real adapter; one pre-existing NETRA-owned regression remains in the shared suite (unrelated, not touched).",
+  "final_next_action": [
+    "NETRA domain/preprocessing decision (Training Track, already in progress).",
+    "Wire CaseWorkflow.reconstruct() to accept real current/wind/input_envelope.",
+    "Add AdapterRegistry.create_live().",
+    "Do not retrain, redesign PRATIVARTAN's core mathematics, or expand Track 2 architecture without a new explicit mandate."
+  ]
+}
