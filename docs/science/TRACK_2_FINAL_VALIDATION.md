@@ -100,19 +100,51 @@ members completed on every one of the 7 runs, all `convergence_flag=converged`:
 three real axes sit well under the gate's unmodified 0.7 threshold — the reconstructed origin field
 is not an artefact of the age/forcing/diffusivity priors at this real forcing/location combination.
 
-**The ~40-45% particle loss is explained, not just measured.** A direct check of the real forcing
-grids found the CMEMS current field is **26.4% NaN** (`load_cmems_current_arrays` — a land mask;
-ocean current is undefined over land), while the real ERA5 wind field is **0% NaN** (wind is defined
-everywhere). MC20 sits close to the Louisiana coast; particles backward-advecting for up to 48h
-plausibly cross into or near land-masked CMEMS cells, and once a particle's interpolated velocity
-goes NaN it stays NaN for the rest of its trajectory — a higher final-loss fraction than the
-grid's own NaN fraction is expected from that accumulation over many timesteps. This is reported as
-a `HYPOTHESIS` consistent with a direct, cheap measurement (the 26.4% NaN fraction), not confirmed by
-tracing individual particle paths — and it is a genuine property of using a real, land-masked
-regional ocean current product near a coastline, not a PRATIVARTAN defect. No fix is proposed here:
-handling land-masked cells explicitly (e.g. clamping, nearest-valid-cell fallback, or an explicit
-land flag) would be a real, scoped PRATIVARTAN enhancement, and is out of this task's "do not
-redesign the scientific architecture" boundary.
+**The ~40-45% particle loss is partially explained, and a follow-up sweep corrected an initial
+hypothesis rather than letting it stand.** A direct check of the real forcing grids found the CMEMS
+current field is **26.4% NaN** (`load_cmems_current_arrays` — a land mask; ocean current is undefined
+over land), while the real ERA5 wind field is **0% NaN**. MC20 sits close to the Louisiana coast, so
+a NaN-propagation mechanism (a particle's velocity going NaN near a land-masked cell, then staying
+NaN for the rest of its trajectory) is physically plausible.
+
+`router-datasets-ca` reported **not** reproducing this loss in their own Track 4 run against the same
+real CMEMS field (`particles_lost=0`) and hypothesized the difference was `backward_duration_hours`
+(this session's production run guessed to be ~84h via `age_prior_mean + 2σ`, vs. their 24h default).
+**A duration sweep was run to test this directly** (`scripts/mc20_particle_loss_duration_sweep.py`,
+same real forcing, same seed=42, same 550-point centroid placeholder, `n_ensemble=5` for speed):
+
+| Duration (h) | Loss fraction | Convergence |
+|---|---|---|
+| 12 | 0.079 | 0.149 |
+| 24 | 0.427 | 0.129 |
+| 36 | 0.613 | 0.116 |
+| 48 | 0.800 | 0.097 |
+| 60 | 0.967 | 0.096 |
+| 72 | 0.852 | 0.094 |
+| 84 | 0.950 | 0.124 |
+
+Two findings, one confirming and one correcting the working hypothesis:
+
+1. **Duration is a real, strong driver in general** — loss rises from 8% at 12h to 80-97% by 48-60h.
+   Not perfectly monotonic (a dip at 72h vs. 60h/84h) — real, measured, unexplained; plausibly the
+   specific real time-varying current field routing backward trajectories through a locally
+   less-NaN-dense region at that particular horizon, not an artefact, but not traced particle-by-
+   particle to confirm.
+2. **Duration does NOT explain the ca/this-session discrepancy.** This session's actual production
+   script used `backward_duration_hours=24.0` (checked directly, not ~84h as guessed) — the *same*
+   duration as `router-datasets-ca`'s default. At that same 24h duration, this sweep measured 42.7%
+   loss — matching this session's original production figure almost exactly, and contradicting the
+   duration hypothesis as the explanation for why `router-datasets-ca`'s run saw zero loss under
+   nominally the same conditions. **The real differentiator between the two runs is unresolved** —
+   remaining candidates are particle count per member, ensemble size, or the exact `obs_time_hours`
+   used, not backward duration. This is reported as an open, unreconciled discrepancy rather than
+   resolved by the more convenient (but factually incorrect) explanation.
+
+This is a genuine property of using a real, land-masked regional ocean current product near a
+coastline, worsened at longer backward horizons — not a PRATIVARTAN defect. No fix is proposed:
+handling land-masked cells explicitly (clamping, nearest-valid-cell fallback, an explicit land flag)
+or tightening the age prior to reduce horizon would both be real, scoped follow-ups, out of this
+task's "do not redesign the scientific architecture" boundary.
 
 `SensitivityBlock`: `age_sensitivity`, `forcing_sensitivity`, `diffusivity_sensitivity` — all real,
 computed values (see JSON). **`weathering_sensitivity` is `None`** — PRATIVARTAN implements no
