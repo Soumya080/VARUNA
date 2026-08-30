@@ -130,21 +130,41 @@ Two findings, one confirming and one correcting the working hypothesis:
    specific real time-varying current field routing backward trajectories through a locally
    less-NaN-dense region at that particular horizon, not an artefact, but not traced particle-by-
    particle to confirm.
-2. **Duration does NOT explain the ca/this-session discrepancy.** This session's actual production
-   script used `backward_duration_hours=24.0` (checked directly, not ~84h as guessed) — the *same*
-   duration as `router-datasets-ca`'s default. At that same 24h duration, this sweep measured 42.7%
-   loss — matching this session's original production figure almost exactly, and contradicting the
-   duration hypothesis as the explanation for why `router-datasets-ca`'s run saw zero loss under
-   nominally the same conditions. **The real differentiator between the two runs is unresolved** —
-   remaining candidates are particle count per member, ensemble size, or the exact `obs_time_hours`
-   used, not backward duration. This is reported as an open, unreconciled discrepancy rather than
-   resolved by the more convenient (but factually incorrect) explanation.
+2. **Duration does NOT explain the ca/this-session discrepancy** — confirmed by `router-datasets-ca`'s
+   own follow-up. This session's production script used `backward_duration_hours=24.0` (checked
+   directly, not ~84h as first guessed) — the *same* duration as their default. The real
+   differentiator turned out to be `obs_time_hours`: their zero-loss run had silently landed on the
+   forcing window's edge via `clamp_time()` (a `SimulatedSlickProvider` defaulting to
+   `datetime.now()` against 2023 forcing, clamped ~47h from the real 2023-01-15 SAR acquisition —
+   correctly labelled `was_clamped=True`, but the boolean alone didn't communicate the *magnitude* of
+   the relocation). At the *true*, unclamped acquisition time, their run reproduces **70.2% loss** —
+   this session's effect, and then some. A direct sweep of `obs_time` alone (same seed/duration/
+   forcing) showed the effect is sharp and unimodal — near-zero loss a day either side of a ~48h-wide
+   high-loss window centered near the true acquisition time.
 
-This is a genuine property of using a real, land-masked regional ocean current product near a
-coastline, worsened at longer backward horizons — not a PRATIVARTAN defect. No fix is proposed:
-handling land-masked cells explicitly (clamping, nearest-valid-cell fallback, an explicit land flag)
-or tightening the age prior to reduce horizon would both be real, scoped follow-ups, out of this
-task's "do not redesign the scientific architecture" boundary.
+   **This session's own 42.7% figure was independently checked and is NOT a clamping artifact**:
+   `reports/mc20_production_phi_sensitivity.json` records `obs_time_hours=-25967.96`,
+   `obs_time_clamped_from_real_sar_timestamp=False` — essentially exactly the true SAR acquisition
+   time (`-25968.0`). A further check ruled out ensemble size as the source of the remaining gap
+   between this session's 42.7% and `router-datasets-ca`'s reproduced 70.2% (both now claimed at
+   essentially the same true, unclamped time): re-running at `n_ensemble ∈ {4, 5, 20}`, same seed,
+   same duration, same true `obs_time_hours`, gave 42.35% / 43.16% / 42.73% — consistent with each
+   other, not with 70.2%. **The residual ~42.7%-vs-70.2% gap between the two sessions' independent
+   measurements at the same nominal true time remains genuinely open** — most likely explained by a
+   difference in the exact seed point-cloud (this session: 550 points, Gaussian-scattered at 5% of
+   the SAR bbox span around its centroid; `router-datasets-ca`'s exact seed shape not compared here),
+   not by anything this session tested and ruled out.
+
+**Generalizable conclusion, adopted from this exchange:** particle loss on MC20 is not a fixed
+property of the event — it is sharply sensitive to the exact observation time used, and any
+single-point loss figure (including both sessions' own point figures above) should be read as "loss
+at this specific time/seed combination," not as a general characterization of the event. This is
+reported as a sensitivity curve, not a point estimate, precisely because a point estimate would be
+more confident than the evidence supports. It is a genuine property of using a real, land-masked
+regional ocean current product near a coastline, sharply time-dependent — not a PRATIVARTAN defect.
+No fix is proposed: handling land-masked cells explicitly, tightening the age prior, or validating
+`clamp_time()`'s relocation *magnitude* (not just its boolean) before a SCIENTIFIC run are all real,
+scoped follow-ups, out of this task's "do not redesign the scientific architecture" boundary.
 
 `SensitivityBlock`: `age_sensitivity`, `forcing_sensitivity`, `diffusivity_sensitivity` — all real,
 computed values (see JSON). **`weathering_sensitivity` is `None`** — PRATIVARTAN implements no
