@@ -294,11 +294,37 @@
     },
     "discrepancy_flagged": {
       "description": "A prior cross-session measurement reported random-noise max probability as ~6.3e-2, roughly four orders of magnitude higher than this audit's own measurement (~1.4e-6 to 3.0e-6) across four different noise distributions tried here.",
-      "classification": "DERIVED -- explained (2026-08-30, via router-datasets-ca/router-datasets-98)",
-      "resolution": "The earlier ~6.3e-2 measurement used out-of-range N(0,1) noise fed directly to a model expecting [0,1]-normalized input -- an input-scale bug in that test, not a property of the model or of MC20.",
-      "impact_on_this_audit_conclusion": "None. This audit's own four noise conditions were all correctly scaled to [0,1] and land in the same very-low range as MC20, so the qualitative conclusion (MC20 output is saturated/OOD, not a confident negative) is unaffected and now has one fewer open question."
+      "classification": "DERIVED -- explained (2026-08-30, root cause confirmed directly by the reporting session, router-datasets-ca)",
+      "resolution": "The earlier ~6.3e-2 measurement used torch.randn (N(0,1), range ~[-4,+4]) fed directly to a model expecting [0,1]-normalized input -- an input-scale bug in that test. Re-measured with correctly in-range inputs on the same checkpoint: U[0,1]=1.39e-6, N(train mean/std)=8.75e-7, N(MC20 mean/std)=2.53e-6 -- all consistent with this audit's own figures.",
+      "impact_on_this_audit_conclusion": "None on the qualitative conclusion; if anything strengthens it. Real MC20 (3.07e-6) sits alongside correctly-scaled noise (0.9e-6-2.5e-6) -- the model's output magnitude does not distinguish real SAR from noise. The retracted claim ('model responds more to noise than real SAR') is not carried into this audit."
     },
-    "conclusion": "MC20 output classified as SATURATED / OOD, not WEAK and not evidence of a preprocessing-invalid pipeline (the pipeline is confirmed to share the same normalization function and frozen statistics as training, per Phase 5)."
+    "conclusion": "MC20 output classified as SATURATED / OOD, not WEAK and not evidence of a preprocessing-invalid pipeline (the pipeline is confirmed to share the same normalization function and frozen statistics as training, per Phase 5).",
+    "narrow_high_activation_probe_addendum": {
+      "classification": "MEASURED (numbers, independently replicated this session) / HYPOTHESIS (operational implication)",
+      "source": "Cross-session probe by router-datasets-ca, independently replicated by this session before inclusion",
+      "measured": {
+        "unsmoothed_uniform_noise_seed0_max_prob": 1.06e-06,
+        "smoothed_k9_uniform_noise_max_prob_by_seed": {
+          "seed0": 0.977,
+          "seed1": 0.9864,
+          "seed2": 0.9714
+        },
+        "constant_VV0.5_VH0.5_max_prob": 0.0,
+        "constant_VV0.717_VH0.157_MC20_means_max_prob": 0.0,
+        "constant_VV0.362_VH0.506_train_means_max_prob": 0.0,
+        "constant_VV0.7_VH0.7_max_prob": 0.0
+      },
+      "refined_characterization_joint_finding": "Combining this session's constant-fill test (0.0 at (0.5,0.5) flat) with the peer's k=1 unsmoothed-noise result (0.0) and their k=9 textured channel-separation grid (std~0.042, confirming the zero-scoring rows were genuinely textured, not flat): the trigger is BAND-LIMITED TEXTURE, not smoothness -- dies at both too-high-frequency (unsmoothed noise) and zero-structure (constant fill) extremes.",
+      "channel_mean_specificity_confirmed": "Constant-value probes at MC20's and training's actual channel means both score 0.0, and the peer's textured channel-separation grid at those same means also scores 0.0 -- specificity holds at both ends of the frequency band, consistent with only the (0.5,0.5)-mean region being live.",
+      "cross_session_agreement": "Two independent replications converge on the core numbers: this session 0.977/0.986/0.971 (3 seeds), peer 0.947-0.994 (5 seeds).",
+      "explicitly_not_concluded": [
+        "This does not explain MC20's null result -- MC20's own channel means (0.717, 0.157) score 0.0 in this exact test.",
+        "This is not a measured false-positive rate on real data -- it is a synthetic-input behavioral probe.",
+        "Whether any real SAR scene's channel means land near (0.5, 0.5) has not been checked."
+      ],
+      "context": "Test-set FP-pixel-rate (Phase 2) is 0.00187 overall and 0.00509 on the lookalike hard negative -- low. This blind spot may be unreachable by real SAR content, but that is unconfirmed, not established.",
+      "scope_caveats": "Single kernel family (box blur/avg_pool), one architecture (Unet/resnet34), one checkpoint (epoch 32 baseline). Not generalized beyond this."
+    }
   },
   "channel_order": {
     "classification": "MEASURED (this audit) + reported (cross-session)",
@@ -327,9 +353,9 @@
     "hypothesis": "The measured contrast/variance gap (Phase 6) is consistent with NETRA-GOLD-v0.2 being a narrower, likely curator-processed distribution (possibly contrast-enhanced or resampled by Zenodo's original authors, unverifiable -- Phase 5) relative to raw-calibrated operational GRD scenes like MC20. This would mean the training domain is narrower than the deployment domain, which is the textbook precondition for the OOD behavior observed in Phase 7. This is a hypothesis, not a proven mechanism -- Phase 5's blocked items (resolution, resampling, raw signal representation) are exactly the missing evidence that would confirm or refute it."
   },
   "noise_discrepancy_resolution": {
-    "classification": "EXPLAINED -- confirmed by both router-datasets-ca (originator) and router-datasets-e7 (author of this audit, reclassified their own copy from HYPOTHESIS-unreconciled to DERIVED-explained)",
+    "classification": "DERIVED -- explained (2026-08-30, root cause confirmed directly by the reporting session, router-datasets-ca)",
     "reported_by": "router-datasets-ca",
-    "explanation": "The prior ~6.3e-2 random-noise max-probability figure came from torch.randn(1,2,512,512) (N(0,1), range roughly [-4,+4]) fed to a model whose Gold-v0.2 inputs are normalized to [0,1] -- an out-of-range input, not a fair reference point. In-range noise (as used in this audit's own four-distribution test) produces max probabilities in the same very-low regime as MC20 (1.4e-6-3.0e-6). router-datasets-ca was independently re-testing with in-range noise to formally close this out at time of writing.",
+    "explanation": "The earlier ~6.3e-2 measurement used torch.randn (N(0,1), range ~[-4,+4]) fed directly to a model expecting [0,1]-normalized input -- an input-scale bug in that test. Re-measured with correctly in-range inputs on the same checkpoint: U[0,1]=1.39e-6, N(train mean/std)=8.75e-7, N(MC20 mean/std)=2.53e-6 -- all consistent with this audit's own figures.",
     "effect_on_conclusion": "None -- MC20 output is saturated/OOD either way."
   },
   "primary_diagnosis": {

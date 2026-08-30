@@ -111,6 +111,30 @@ outside the model's discriminative range (see Distribution Shift below), not a c
 finding. The channel-order swap test (below) rules out one alternative explanation but does not by
 itself prove OOD is the *sole* mechanism — see Preprocessing section for what remains unverified.
 
+**Addendum — narrow high-activation probe `[MEASURED (numbers) / HYPOTHESIS (operational
+implication)]`, added post-finalization (2026-08-30), independently replicated across two
+sessions:** a synthetic-input probe (`router-datasets-ca`, independently replicated by
+`router-datasets-e7`) found the model is **not** uniformly saturated-low on every out-of-range
+input. Unsmoothed uniform noise still scores ~1.06×10⁻⁶ (consistent with the table above), but
+**smoothed** (box-blur, kernel≥9) in-range uniform noise centered near VV≈VH≈0.5 scores **0.947–0.994**
+— near-certain "oil" — across 8 total seeds between the two sessions (0.977/0.986/0.971 this
+session's replication; 0.947–0.994 the originating probe). A perfectly constant (zero-variance)
+fill at (0.5, 0.5) scores **0.0**, as does the same test at MC20's and training's actual channel
+means (0.717/0.157 and 0.362/0.506 respectively, both textured and flat). **Refined
+characterization (joint finding):** the trigger is **band-limited texture, not smoothness** — it
+needs spatial structure in a specific frequency band, dying at both too-high-frequency (unsmoothed
+noise) and zero-structure (constant fill) extremes, and is specific to inputs whose channel means
+sit near (0.5, 0.5) — neither MC20's nor training's real channel means reproduce it.
+
+**Explicitly not concluded:** this does **not** explain MC20's null result (MC20's own channel
+means score 0.0 in this exact test) and is **not** a measured false-positive rate on real data — it
+is a synthetic-input behavioral probe of one checkpoint, one architecture, one kernel family.
+Whether any real SAR scene's channel means land near (0.5, 0.5) has not been checked. Test-set
+FP-pixel-rate remains low (0.00187 overall, 0.00509 on the lookalike hard negative), so this blind
+spot may be unreachable by real SAR content — unconfirmed, not established. Recorded as a known
+model limitation, not an operational risk finding, and does not change the diagnosis or final
+status below.
+
 ---
 
 ## Distribution Shift
