@@ -25,12 +25,19 @@
   `ForcingCube`s
 - **runtime:** 36.9–40.0s per run (~269s total sweep)
 - **convergence:** 0.0440–0.0518 across all 7 runs, `convergence_flag=converged` on every run
-- **particle loss:** 39.8%–45.4% (baseline 42.7%) — explained, not just measured: the real CMEMS
-  current grid is **26.4% NaN** (land mask), ERA5 wind is 0% NaN; MC20 sits near the Louisiana coast,
-  and backward-advected particles plausibly cross land-masked cells over the 24–48h window, with NaN
-  propagating for the rest of a contaminated particle's trajectory. Reported as `HYPOTHESIS`
-  consistent with a direct grid measurement, not traced particle-by-particle. Not "fixed" —
-  land-mask handling in PRATIVARTAN would be a real, scoped enhancement, out of this task's bounds.
+- **particle loss:** 39.8%–45.4% (baseline 42.7%) — root cause fully characterized through
+  cross-session collaboration with `router-datasets-ca` (full trace in
+  `docs/science/TRACK_2_FINAL_VALIDATION.md` §3): the real CMEMS current grid is **26.4% NaN** (land
+  mask near the Louisiana coast; ERA5 wind is 0% NaN); loss is sharply dependent on both
+  **observation time** (near-zero a day either side of a ~48h-wide high-loss window centered on the
+  true acquisition time — this run correctly used the true, unclamped time) and **seed-cloud width**
+  (monotonic decay from ~75% loss for a near-point seed to a **~45% asymptote** for a wide seed —
+  this run's 42.7% sits at the wide end). The asymptote (~45%) is a genuine physical property
+  (land-blocked fraction of origin-space); a tighter-seed point value is largely a configuration
+  artefact of the synthetic placeholder's arbitrary width, not a data-quality measurement — this
+  materially qualifies how the gate's `particle_loss` failure below should be read (see Validity
+  section). Not "fixed" — land-mask handling in PRATIVARTAN would be a real, scoped enhancement, out
+  of this task's bounds.
 
 **A real defect was found and fixed mid-task, not glossed over:** the first sensitivity attempt used
 a 12-point synthetic placeholder seed; `run_backward_ensemble()` computes
@@ -66,6 +73,14 @@ later mistaken for a data anomaly.
   changed to obtain this or any other result.
 - **operational action:** `allows_operational_action=True`, with officer-visible caveats: *"43% of
   particles lost to boundaries"*, *"Evidence is SIMULATED — not a real-world observation."*
+- **Important caveat on reading `particle_loss` here:** this check partly measures the synthetic
+  placeholder seed's arbitrary width, not purely data quality (see "Production Phi" above) — with a
+  real NETRA detection, seed width would be the actual physical slick footprint and this check would
+  be a clean quality signal. The verdict is stable across the full measured range in this instance
+  (every point from the ~45% asymptote up fails the gate's 0.2 threshold), so the conclusion doesn't
+  change, but the caveat text itself doesn't yet distinguish "physical land-blocking" from
+  "arbitrary seed width" for a future operator — a gate-messaging refinement flagged, not
+  implemented, since this task's bounds exclude adding a new scoring mechanism or changing thresholds.
 
 ## Real Analytical Chain
 - **AIS:** REAL — `EventAISAdapter`, 5 temporally-matched real vessels, closest MMSI `368181750` at
@@ -117,8 +132,12 @@ through standalone orchestration scripts, not a live API-created case.
 - `n_particles`/`n_obs` interaction is a structural footgun, now fixed at the `phi_builder.py` source
   and at the Track-4 orchestration layer independently — but `PhiField.n_particles`'s *meaning*
   changed as a result (see "Production Phi" above and the full doc).
-- ~40-45% particle loss near the real MC20 coastline, explained (not confirmed) by CMEMS land-mask
-  NaN propagation — not remediated, out of this task's scope.
+- Particle loss near the real MC20 coastline is CMEMS land-mask NaN propagation, fully characterized
+  (not just hypothesized) via cross-session collaboration: sharply dependent on observation time
+  (~48h-wide high-loss window) and seed-cloud width (75% for a near-point seed down to a ~45%
+  physical asymptote for a wide seed) — not remediated, out of this task's scope. A single
+  `particle_loss` figure on a synthetic-placeholder-seeded run conflates a physical measurement with
+  a configuration artefact; treat the ~45% asymptote as the defensible figure.
 
 ## Safety
 

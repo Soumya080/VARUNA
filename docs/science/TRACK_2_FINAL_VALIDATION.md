@@ -145,26 +145,64 @@ Two findings, one confirming and one correcting the working hypothesis:
    **This session's own 42.7% figure was independently checked and is NOT a clamping artifact**:
    `reports/mc20_production_phi_sensitivity.json` records `obs_time_hours=-25967.96`,
    `obs_time_clamped_from_real_sar_timestamp=False` — essentially exactly the true SAR acquisition
-   time (`-25968.0`). A further check ruled out ensemble size as the source of the remaining gap
-   between this session's 42.7% and `router-datasets-ca`'s reproduced 70.2% (both now claimed at
-   essentially the same true, unclamped time): re-running at `n_ensemble ∈ {4, 5, 20}`, same seed,
-   same duration, same true `obs_time_hours`, gave 42.35% / 43.16% / 42.73% — consistent with each
-   other, not with 70.2%. **The residual ~42.7%-vs-70.2% gap between the two sessions' independent
-   measurements at the same nominal true time remains genuinely open** — most likely explained by a
-   difference in the exact seed point-cloud (this session: 550 points, Gaussian-scattered at 5% of
-   the SAR bbox span around its centroid; `router-datasets-ca`'s exact seed shape not compared here),
-   not by anything this session tested and ruled out.
+   time (`-25968.0`). Ensemble size was ruled out as the source of the then-remaining gap:
+   `n_ensemble ∈ {4, 5, 20}`, same seed/duration/true `obs_time_hours`, gave 42.35% / 43.16% / 42.73%
+   — mutually consistent, not near 70.2%.
+
+3. **Fully reconciled: the seed point-cloud's width (σ) is the remaining variable, and it changes the
+   physical meaning of the number.** `router-datasets-ca` replicated this session's exact seed
+   geometry (550 points, Gaussian σ = 5% of the SAR bbox span ≈ 0.146°lon/0.096°lat) at the true time
+   and got 42.4% against this session's 42.7% — consistent, the residual is ordinary RNG-draw
+   variance (this session's own `n_ensemble` sweep above already showed ~1pp of exactly this kind of
+   noise). Their original 70.2% used a much tighter cloud (σ ≈ 0.0167°, clipped to ±0.05°). A σ-sweep
+   at fixed time/duration/seed (`router-datasets-ca`'s numbers; the two extremes independently
+   spot-checked in this session — tight σ=0.005° measured **72.4%** against their reported 74.6%,
+   wide σ=0.250° measured **43.7%** against their reported 45.5%, both consistent) shows a monotonic
+   decay from ~75% at σ≈0.6km to a **~45-46% asymptote** by σ≈10km and wider:
+
+   | σ (deg) | σ (km, approx) | Loss |
+   |---|---|---|
+   | 0.005 | 0.6 | 74.6% (this session: 72.4%) |
+   | 0.0167 | 1.8 | 66.1% |
+   | 0.030 | 3.3 | 54.8% |
+   | 0.050 | 5.5 | 48.8% |
+   | 0.096 | 10.6 | 46.0% |
+   | 0.250 | 27.6 | 45.5% (this session: 43.7%) |
+
+   **Mechanism** (`router-datasets-ca`'s explanation, physically sound): a tight cloud advects nearly
+   coherently as one packet — if that packet's trajectory intersects the land mask, most of it does.
+   A wide cloud samples many distinct trajectories, only some of which intersect, so loss converges
+   on the land-blocked *fraction of origin-space* rather than the fate of one packet.
+
+**Why this changes how the ValidityGate result should be read, not just a footnote:** `particles_lost`
+conflates two different quantities — (1) the land-blocked fraction of origin-space (~45%, the
+asymptote — a genuine physical property of a coastal event) and (2) an artefact of how tightly the
+*synthetic placeholder* seed cloud happened to be drawn (up to ~75% for a near-point seed). The gate
+reads particle loss as a data-quality criterion; with a real NETRA detection, seed width would be the
+detected slick's actual physical footprint and therefore meaningful. With this task's synthetic
+placeholder, the width was an arbitrary choice by whoever built the fixture, so a `DEGRADED` verdict
+driven by `particle_loss` is, on the placeholder path, partly reporting a free configuration
+parameter rather than a measurement of the real world. In this specific run the verdict is stable
+across the observed range (both the ~45% asymptote and this session's own 42.7%/σ=0.146° point fail
+the gate's 0.2 threshold either way) — but the *margin* is not, and future readers of a `DEGRADED`
+result driven by `particle_loss` on a placeholder-seeded run should treat the ~45% asymptote as the
+physically defensible figure, and any single tighter-seed point value as configuration-dependent, not
+as evidence of worse data quality.
 
 **Generalizable conclusion, adopted from this exchange:** particle loss on MC20 is not a fixed
-property of the event — it is sharply sensitive to the exact observation time used, and any
-single-point loss figure (including both sessions' own point figures above) should be read as "loss
-at this specific time/seed combination," not as a general characterization of the event. This is
-reported as a sensitivity curve, not a point estimate, precisely because a point estimate would be
-more confident than the evidence supports. It is a genuine property of using a real, land-masked
-regional ocean current product near a coastline, sharply time-dependent — not a PRATIVARTAN defect.
-No fix is proposed: handling land-masked cells explicitly, tightening the age prior, or validating
-`clamp_time()`'s relocation *magnitude* (not just its boolean) before a SCIENTIFIC run are all real,
-scoped follow-ups, out of this task's "do not redesign the scientific architecture" boundary.
+property of the event — it is sharply sensitive to both the exact observation time and the seed
+cloud's width, and any single-point loss figure should be read as "loss at this specific
+time/seed-geometry combination," not as a general characterization of the event or a pure data-quality
+score. This is reported as sensitivity curves, not point estimates, precisely because a point
+estimate would be more confident than the evidence supports. All three findings from this exchange —
+sharp `obs_time` sensitivity, the `clamp_time()` boolean-vs-magnitude blind spot, and the seed-width
+dependence — say the same thing. None of this is a PRATIVARTAN defect; it is a genuine, now
+well-characterized property of real coastal land-masked forcing interacting with a synthetic
+placeholder's arbitrary seed geometry. No fix is proposed: handling land-masked cells explicitly,
+tightening the age prior, validating `clamp_time()`'s relocation *magnitude* (not just its boolean)
+before a SCIENTIFIC run, and deriving placeholder seed width from something principled (e.g. a fixed
+physical radius) rather than an arbitrary bbox fraction are all real, scoped follow-ups, out of this
+task's "do not redesign the scientific architecture" boundary.
 
 `SensitivityBlock`: `age_sensitivity`, `forcing_sensitivity`, `diffusivity_sensitivity` — all real,
 computed values (see JSON). **`weathering_sensitivity` is `None`** — PRATIVARTAN implements no
@@ -199,11 +237,25 @@ not "broken." This is reported as measured, not adjusted to reach `VALID`:
 | evidence_mode | ✅ (caveat) | simulated | — |
 
 Officer-visible caveats: *"43% of particles lost to boundaries"*, *"Evidence is SIMULATED — not a
-real-world observation."* One check fails (`particle_loss`, explained in Section 3 as a real
-land-masked-CMEMS-grid effect near the coast) but is non-blocking by the gate's existing, unmodified
-design — it degrades the state rather than restricting it. Every other real diagnostic, including
-both populated sensitivity axes, passes comfortably. The `evidence_mode=simulated` caveat is the
-correct, honest reflection of the placeholder seed (Section 3) — not a defect.
+real-world observation."* One check fails (`particle_loss`) but is non-blocking by the gate's
+existing, unmodified design — it degrades the state rather than restricting it. Every other real
+diagnostic, including both populated sensitivity axes, passes comfortably. The
+`evidence_mode=simulated` caveat is the correct, honest reflection of the placeholder seed — not a
+defect.
+
+**Read this specific `particle_loss` failure with Section 3's fully-worked-out caveat, not as a plain
+data-quality signal.** Section 3 traces `particles_lost` on this real coastal event to two conflated
+causes: a genuine land-blocked-origin-space fraction (~45%, asymptotic, physical) and an artefact of
+this task's *synthetic placeholder* seed cloud's arbitrary width (up to ~75% for a tight cloud, down
+to ~45% for a wide one — this run's 42.7% sits at the wide, low-loss end). With a real NETRA
+detection, seed width would be the actual physical slick footprint and this check would be a
+meaningful quality signal; on the placeholder path used here, it is partly measuring a configuration
+choice. The verdict (`DEGRADED`, `particle_loss` failing) is stable across the full measured σ-range
+in this instance — both the ~45% asymptote and every point in between fail the gate's 0.2 threshold
+— so the *conclusion* does not change. The *caveat text itself* would benefit from saying so
+explicitly to a real operator; that is a gate-messaging refinement, not a threshold change, and is
+flagged here rather than implemented (out of this task's "do not add a new scoring mechanism" and
+"do not alter thresholds" bounds).
 
 ## 5. Real/Synthetic Path Matrix
 
