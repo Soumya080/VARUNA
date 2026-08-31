@@ -149,6 +149,15 @@ failed before the fix and pass after it. This was not introduced by this
 task — it predates this session and was simply never exercised by an
 existing test until now.
 
+Worth naming explicitly (credit to `router-datasets-ca` for the framing):
+this bug was reachable only by a code path nobody had written yet.
+`RealE2EPipeline._mission()` deliberately creates missions PROPOSED-only and
+never calls `approve_and_assign()` — a conservative, fail-closed design
+choice — so the pipeline's own fail-closed conservatism is exactly what hid
+the defect from every test that exercised the pipeline end to end. It took
+a test that exercised `MissionService` on its own, off the pipeline, to
+surface it.
+
 ## Alerts
 
 **Severity policy gap — resolved exactly as the task instructed.**
