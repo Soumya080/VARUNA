@@ -143,6 +143,30 @@ mission, alerts — confirmed via `reports/mc20_track4_operator_case.json`'s rea
 (`status="not_yet_produced"` with a concrete `reason` string at every stage, never an empty
 silent success).
 
+**Qualifier (raised by router-datasets-ca, verified here):** the artifact above validates the
+*structural* claim, not a content one — `reports/mc20_track4_operator_case.json` is from the real
+MC20 run, where only `ais` is actually populated; every downstream section is legitimately empty
+with a named reason (NETRA returned no detection). This is in fact the more important case to
+prove — the schema holding when producers correctly return nothing is exactly the fail-closed
+property Task 6/9 require — but it does not by itself demonstrate populated content flowing
+through every section simultaneously. The wording above was written to make only the structural
+claim ("sections serialize," "missing states remain explicit") and was checked against this
+qualifier before this report was finalized; no change to the finding was needed.
+
+**Real provenance-rollup gap found and fixed by router-datasets-ca in response, credited here**
+because it directly concerns this section's own subject: the same real-run artifact's top-level
+`provenance` block (`artifact_ids`, `source_ids`, `model_versions`) was entirely empty — a
+CaseWorkflow-produced case is unaffected (it registers PRAMAN artifacts), but a case produced by
+the Track 4 pipeline shipped blank lineage despite each stage knowing its own source/version.
+Fixed by having `case_bridge.py` collect `model_versions`/`source_ids` from what stages actually
+reported and merging that into `_provenance()` rather than relying on the registry alone; absent
+data stays empty rather than being invented (the simulated path correctly reports
+`netra_detection: SIMULATED-no-model`, not a fabricated version string).
+`processing_versions` remains deliberately `{}` — no code today versions how MC20 inputs were
+normalized, a known, named, disclosed gap rather than a filled-in guess. Verified after the fix:
+`tests/contract/test_operator_case.py` + `tests/integration/test_track4_mc20_e2e.py`, 46/46
+passing.
+
 ## 11. Final MC20 Downstream Run
 
 `reports/mc20_track4_e2e_run.json` (real, not re-run this pass — source and result unchanged):
