@@ -7,6 +7,8 @@ from enum import Enum
 
 
 class CaseStatus(str, Enum):
+    # Original CaseWorkflow (v1) lifecycle -- kept verbatim, unchanged, so every
+    # existing caller/test that compares against these values keeps working.
     CREATED = "created"
     INGESTING = "ingesting"
     GUARDING = "guarding"
@@ -16,6 +18,30 @@ class CaseStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     QUARANTINED = "quarantined"
+
+    # Golden Case Engine lifecycle (packages/varuna_domain/golden_case_engine.py) --
+    # the full Observation->Alerts chain the v1 lifecycle above never modeled.
+    # Additive only: nothing above was renamed or removed. CASE_CREATED and
+    # COMPLETED->COMPLETE are two names for "the same idea at two different
+    # levels of granularity", not a conflict -- the golden engine picks one
+    # vocabulary and uses it consistently for its own transitions.
+    CASE_CREATED = "case_created"
+    INGESTED = "ingested"
+    DETECTING = "detecting"
+    VALIDATING = "validating"
+    FORECASTING = "forecasting"
+    DECIDING = "deciding"
+    MISSION = "mission"
+    ALERTING = "alerting"
+    COMPLETE = "complete"
+    # Operational/scientific outcomes distinct from FAILED (a genuine break):
+    # BLOCKED = a stage ran and a precondition stopped the case (fail-closed,
+    # not broken); UNAVAILABLE = a producer could not run at all (no data, no
+    # checkpoint); OOD = the model ran and reported input outside its trained
+    # distribution (a specific, honest UNAVAILABLE variant worth naming).
+    BLOCKED = "blocked"
+    UNAVAILABLE = "unavailable"
+    OOD = "ood"
 
 
 class ScientificStatus(str, Enum):
