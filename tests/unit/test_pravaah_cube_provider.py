@@ -109,6 +109,35 @@ def test_forecast_produces_trajectory_and_lands_landfall_check():
     assert np.mean(data["lons"][:, -1]) > np.mean(data["lons"][:, 0])
 
 
+def test_real_forecast_propagates_real_evidence_mode_and_provenance():
+    """
+    ADR-0009 / Track 2 Task 7: a real current field driving PRAVAAH must
+    surface evidence_mode/provenance/case_id on the resulting
+    ForwardForecast, unlike CubeBackedPravaahProvider previously accepting
+    (and silently dropping) the `envelope` parameter entirely.
+    """
+    cube = _make_cube(n_time=5)
+    u_grid = np.ones((5, 2, 2)) * 0.5
+    v_grid = np.ones((5, 2, 2)) * 0.2
+    provider = CubeBackedPravaahProvider(cube, u_grid, v_grid)
+
+    slick = _make_slick(lon=75.0, lat=15.0, obs_time=datetime(2026, 1, 1, 0, 30, tzinfo=UTC))
+    real_env = EvidenceEnvelope(
+        artifact_id="forcing-env-01", case_id="case-real-01", produced_by="cube_field",
+        provenance=Provenance(source_id="cmems.glorys12v1"), mode=EvidenceMode.REAL,
+    )
+    forecast = provider.forecast_drift(slick, None, horizon_hours=2.0, envelope=real_env)
+
+    assert forecast.envelope.mode is EvidenceMode.REAL
+    assert forecast.envelope.case_id == "case-real-01"
+    # .derive()'s own convention (unrelated to this change): provenance.source_id
+    # names the immediate producer of THIS artifact, not the upstream source --
+    # lineage back to the real forcing input travels via parent_artifact_ids.
+    assert forecast.envelope.provenance.source_id == "pravaah_cube_provider"
+    assert "forcing-env-01" in forecast.envelope.parent_artifact_ids
+    assert forecast.envelope.model_version == provider.get_model_version()
+
+
 def test_out_of_domain_mid_trajectory_freezes_not_crashes():
     cube = _make_cube(n_time=5)
     u_grid = np.ones((5, 2, 2)) * 50.0  # unrealistically large current, pushes particles out of domain fast

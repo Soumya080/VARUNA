@@ -46,6 +46,27 @@ def test_forecast_returns_valid_forward_forecast():
     assert forecast.horizon_hours == 48.0
     assert Path(forecast.trajectory_path).exists()
 
+def test_forecast_envelope_is_simulated_even_when_input_envelope_claims_real():
+    """
+    ADR-0009. MockPravaahProvider fabricates trajectories from a fixed
+    drift+noise model, not from real forcing -- its output must be
+    SIMULATED regardless of what mode the caller's input envelope carries.
+    `.derive()` can only ever worsen mode, so if this provider naively
+    derived from a REAL-mode input, the fabricated forecast would
+    incorrectly inherit a REAL claim. This is the regression this test
+    guards against.
+    """
+    slick = _make_test_slick()
+    real_env = EvidenceEnvelope(
+        artifact_id="real-env-01", produced_by="test",
+        provenance=_make_test_envelope().provenance, mode=EvidenceMode.REAL,
+    )
+    forecast = MockPravaahProvider().forecast_drift(slick, None, 24.0, real_env)
+    assert forecast.envelope.mode is EvidenceMode.SIMULATED
+    assert forecast.envelope.case_id == real_env.case_id
+    assert real_env.artifact_id in forecast.envelope.parent_artifact_ids
+
+
 def test_landfall_is_interval_not_point():
     # Place slick near Gujarat coast
     slick = _make_test_slick(lon=72.0, lat=21.0)

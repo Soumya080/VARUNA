@@ -109,6 +109,35 @@ def evaluate_validity_gate(
         ))
         if not force_ok:
             caveats.append("Result sensitive to forcing choice")
+
+        # Check 7b: Diffusivity sensitivity (ADR-0008). diffusivity_sensitivity
+        # is a required, non-Optional SensitivityBlock field (Field(..., ge=0),
+        # not float|None like weathering_sensitivity) computed by the exact
+        # same procedure as forcing_sensitivity -- ADR-0007 perturbs
+        # PratiConfig.diffusivity_range at its existing low/high bounds "the
+        # same treatment as forcing" and normalizes on the identical
+        # centroid_shift_km / effective_radius_km scale. It is therefore not
+        # diagnostic-only: phi.sensitivity.dominant_assumption already treats
+        # it as a first-class candidate for "what is driving this origin
+        # field", and a validity gate that reads age/forcing but silently
+        # ignores diffusivity would miss exactly the case where diffusivity
+        # is the dominant, unreported driver. Reusing the 0.7 threshold is
+        # not inventing one: it is the same scale, same derivation, same
+        # per-axis low/high sweep as forcing_sensitivity, which already uses
+        # 0.7. reason_code reuses EVIDENCE_INSUFFICIENT (not
+        # FORCING_INSUFFICIENT) because diffusivity is a transport parameter,
+        # not a forcing input -- mislabeling it as a forcing problem would
+        # send an operator to audit the wrong thing.
+        diff_ok = phi.sensitivity.diffusivity_sensitivity < 0.7
+        checks.append(GateCheck(
+            name="diffusivity_sensitivity",
+            passed=diff_ok,
+            observed=phi.sensitivity.diffusivity_sensitivity,
+            threshold=0.7,
+            reason_code=None if diff_ok else GateReason.EVIDENCE_INSUFFICIENT,
+        ))
+        if not diff_ok:
+            caveats.append("Origin driven by diffusivity assumption, not data")
     else:
         # Do NOT fabricate a passing (or failing) sensitivity number just to
         # keep the gate's shape unchanged. Missing diagnostics that the gate

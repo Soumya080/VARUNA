@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-30T10:55:51.232959+00:00",
+  "generated_at": "2026-08-31T12:35:52.544414+00:00",
   "phi_id": "phi-mc20_2023-01-15-87e70752",
   "ais_stage": {
     "status": "produced",
@@ -106,6 +106,14 @@
         "name": "forcing_sensitivity",
         "passed": true,
         "observed": 0.005128358984903239,
+        "threshold": 0.7,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "diffusivity_sensitivity",
+        "passed": true,
+        "observed": 0.0010723238413676815,
         "threshold": 0.7,
         "detail": "",
         "reason_code": null

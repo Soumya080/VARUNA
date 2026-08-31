@@ -1,6 +1,7 @@
 import pytest
 from varuna_domain.whatif.simulator import WhatIfSimulator
 from varuna_contracts.schemas import ForwardForecast, SlickDetection, SlickClass
+from varuna_contracts.evidence import EvidenceEnvelope, EvidenceMode, Provenance
 from datetime import datetime, timezone
 import uuid
 from varuna_chhaya.inference import ChhayaInferenceService
@@ -38,7 +39,11 @@ def test_whatif_simulator():
         forecast_id="f1",
         slick_id=detection.slick_id,
         horizon_hours=24.0,
-        trajectory_path="path/f1"
+        trajectory_path="path/f1",
+        envelope=EvidenceEnvelope(
+            artifact_id="f1", produced_by="test",
+            provenance=Provenance(source_id="test"), mode=EvidenceMode.SIMULATED,
+        ),
     )
     
     new_forecast = sim.simulate_wind_change(forecast, detection, 1.5)

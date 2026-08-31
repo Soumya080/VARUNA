@@ -74,10 +74,10 @@ def _diagnostics(
     )
 
 
-def _sensitivity(age: float = 0.1, forcing: float = 0.1) -> SensitivityBlock:
+def _sensitivity(age: float = 0.1, forcing: float = 0.1, diffusivity: float = 0.1) -> SensitivityBlock:
     return SensitivityBlock(
         age_sensitivity=age, forcing_sensitivity=forcing,
-        diffusivity_sensitivity=0.1, weathering_sensitivity=0.1,
+        diffusivity_sensitivity=diffusivity, weathering_sensitivity=0.1,
     )
 
 
@@ -244,6 +244,32 @@ def test_high_forcing_sensitivity_maps_to_forcing_insufficient():
     assert check.passed is False
     assert check.reason_code is GateReason.FORCING_INSUFFICIENT
     assert result.state is ValidityState.DEGRADED
+
+
+def test_high_diffusivity_sensitivity_is_a_caveat_with_evidence_insufficient(): # ADR-0008
+    phi = _phi(sensitivity=_sensitivity(age=0.1, forcing=0.1, diffusivity=0.9))
+    attribution = _attribution(phi=phi)
+    result = evaluate_validity_gate(phi, attribution, source_trust=TrustState.TRUSTED)
+
+    check = _names(result)["diffusivity_sensitivity"]
+    assert check.passed is False
+    # Reuses EVIDENCE_INSUFFICIENT, not FORCING_INSUFFICIENT: diffusivity is
+    # a transport parameter, not a forcing input (see ADR-0008).
+    assert check.reason_code is GateReason.EVIDENCE_INSUFFICIENT
+    assert result.state is ValidityState.DEGRADED  # caveat, not blocking
+    assert result.allows_operational_action is True
+    assert any("diffusivity" in c.lower() for c in result.officer_visible_caveats)
+
+
+def test_low_diffusivity_sensitivity_passes_and_is_silent():
+    phi = _phi(sensitivity=_sensitivity(age=0.1, forcing=0.1, diffusivity=0.05))
+    attribution = _attribution(phi=phi)
+    result = evaluate_validity_gate(phi, attribution, source_trust=TrustState.TRUSTED)
+
+    check = _names(result)["diffusivity_sensitivity"]
+    assert check.passed is True
+    assert check.reason_code is None
+    assert result.state is ValidityState.VALID
 
 
 # ───────────────────────── Missing SensitivityBlock: fail closed ─────────────────────────

@@ -84,12 +84,19 @@ class CubeBackedPravaahProvider(PravaahProvider):
 
         landfalls = check_landfall(lons[:, -1], lats[:, -1])
 
+        forecast_id = f"fcast-cube-{slick.slick_id}"
+        out_envelope = envelope.derive(
+            artifact_id=forecast_id,
+            produced_by="pravaah_cube_provider",
+            model_version=self.get_model_version(),
+        )
         return ForwardForecast(
-            forecast_id=f"fcast-cube-{slick.slick_id}",
+            forecast_id=forecast_id,
             slick_id=slick.slick_id,
             horizon_hours=horizon_hours,
             landfalls=landfalls,
             trajectory_path=str(traj_path),
+            envelope=out_envelope,
         )
 
     def get_model_version(self) -> str:

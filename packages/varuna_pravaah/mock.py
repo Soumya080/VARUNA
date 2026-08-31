@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from varuna_contracts.schemas import SlickDetection, ForwardForecast
-from varuna_contracts.evidence import EvidenceEnvelope
+from varuna_contracts.evidence import EvidenceEnvelope, EvidenceMode, Provenance
 from varuna_pravaah.protocol import PravaahProvider
 from varuna_pravaah.coastline import check_landfall
 
@@ -37,12 +37,34 @@ class MockPravaahProvider(PravaahProvider):
         # Check landfall using final positions
         landfalls = check_landfall(lons[:, -1], lats[:, -1])
 
+        forecast_id = f"fcast-{slick.slick_id}"
+        # ADR-0009: do NOT `envelope.derive(...)` from the caller's envelope
+        # here. derive() only ever worsens mode -- it has no mechanism to
+        # force a *better* input down to SIMULATED, so if a caller ever
+        # passed a REAL-mode envelope into this Mock provider, derive()
+        # would let entirely fabricated trajectory positions (fixed
+        # northeast-drift + noise, no physics) inherit a REAL claim. A mock
+        # provider is itself the originating producer of synthetic data --
+        # the same class of case ADR-0006 already handles at the
+        # SourceAdapter boundary by hardcoding SIMULATED rather than
+        # deriving it. Build a fresh envelope instead, unconditionally
+        # SIMULATED, regardless of what the caller supplied.
+        out_envelope = EvidenceEnvelope(
+            artifact_id=forecast_id,
+            case_id=envelope.case_id,
+            parent_artifact_ids=[envelope.artifact_id],
+            produced_by="pravaah_mock",
+            model_version=self.get_model_version(),
+            provenance=Provenance(source_id="pravaah.mock", notes="fabricated drift, no real forcing"),
+            mode=EvidenceMode.SIMULATED,
+        )
         return ForwardForecast(
-            forecast_id=f"fcast-{slick.slick_id}",
+            forecast_id=forecast_id,
             slick_id=slick.slick_id,
             horizon_hours=horizon_hours,
             landfalls=landfalls,
             trajectory_path=str(traj_path),
+            envelope=out_envelope,
         )
 
     def get_model_version(self) -> str:
