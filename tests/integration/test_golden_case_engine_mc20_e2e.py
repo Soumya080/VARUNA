@@ -111,3 +111,41 @@ def test_operator_case_projection_builds_without_error(workflow_and_result):
     # is exactly the documented mixed-provenance scenario.
     assert oc.ais.evidence_mode == EvidenceMode.REAL
     assert oc.detection.evidence_mode == EvidenceMode.SIMULATED
+
+
+def test_pravaah_forecast_runs_on_real_mc20_forcing_via_the_canonical_pipeline(workflow_and_result):
+    """
+    PRAVAAH canonical integration: SimulatedSlickProvider produces a detection
+    (unlike the real frozen checkpoint on this same corpus, which currently
+    finds nothing -- see reports/mc20_track4_e2e_run.json), so this is the one
+    non-GPU way to exercise `pipeline._forecast()`'s PRODUCED path against
+    real MC20 CMEMS forcing without waiting on NETRA v0.3 or running GPU
+    inference. Real forcing + a simulated detection must worsen to SIMULATED
+    overall (ADR-0006), never claim REAL just because the current field was
+    real -- this is the "never infer REAL from provider class name" rule
+    checked concretely.
+    """
+    from varuna_contracts.schemas import ForwardForecast
+    from varuna_integration.stage import StageStatus
+
+    _wf, result = workflow_and_result
+    forecast_stage = result.run.stages["forecast"]
+    assert forecast_stage.status is StageStatus.PRODUCED
+    forecast = forecast_stage.value
+    assert isinstance(forecast, ForwardForecast)
+
+    # Real PRAVAAH computation, not a fabricated value: a real trajectory file
+    # was written, and the horizon matches the config that was actually used.
+    assert Path(forecast.trajectory_path).exists()
+    assert forecast.horizon_hours == pytest.approx(24.0)
+
+    # Evidence: forcing is REAL but detection is SIMULATED -- the forecast's
+    # own envelope must report the worsened mode, not the forcing's.
+    assert forecast.envelope.mode == EvidenceMode.SIMULATED
+    assert forecast_stage.evidence_mode == EvidenceMode.SIMULATED
+
+    # case_id must survive onto PRAVAAH's own envelope, not just onto the
+    # outer OperatorCase wrapper -- this is the gap this task's integration
+    # pass closed (forcing.envelope.case_id was None; see pipeline.py::_forecast).
+    assert forecast.envelope.case_id == "MC20-GOLDEN-TEST"
+    assert forecast.envelope.provenance is not None
