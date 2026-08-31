@@ -23,6 +23,7 @@ from varuna_contracts.operator_case import (
     EvidenceComponentView,
     EvidenceHealthView,
     ObservationView,
+    OperationalDecisionState,
     OperatorCase,
     ProducerStatus,
     ProvenanceView,
@@ -69,22 +70,60 @@ def _observation_section(case: Case) -> SectionEnvelope[ObservationView]:
     return SectionEnvelope(status=ProducerStatus.PRODUCED, value=view, evidence_mode=None)
 
 
+def _section_payload(case: Case, key: str) -> dict | None:
+    """The `{status, evidence_mode, reason, value}` envelope written by
+    `varuna_integration.case_bridge.apply_run_to_case()`, if the pipeline ran.
+
+    Absent for cases built by the older `CaseWorkflow.ingest/reconstruct/
+    attribute` path, which predates the bridge — callers fall back to reading
+    the bare metadata key in that case.
+    """
+    payload = case.metadata.get(f"{key}_section")
+    return payload if isinstance(payload, dict) else None
+
+
+def _mode_of(payload: dict | None) -> EvidenceMode | None:
+    """Read a section's provenance. Never defaults to REAL.
+
+    A missing mode means "honestly unknown", which is a different claim from
+    "real" — defaulting here is how a simulated placeholder would silently be
+    relabelled as real evidence.
+    """
+    if not payload:
+        return None
+    raw = payload.get("evidence_mode")
+    return EvidenceMode(raw) if raw else None
+
+
+def _status_of(payload: dict | None, default: ProducerStatus) -> ProducerStatus:
+    if not payload:
+        return default
+    raw = str(payload.get("status", "")).lower()
+    if raw == "produced":
+        return ProducerStatus.PRODUCED
+    if raw == "blocked":
+        return ProducerStatus.BLOCKED
+    if raw == "not_yet_produced":
+        return ProducerStatus.NOT_YET_PRODUCED
+    return default
+
+
 def _detection_section(case: Case) -> SectionEnvelope:
-    # NETRA scene inference is not wired into CaseWorkflow (case.metadata
-    # never gains a "detection" key produced by NETRA) — the pipeline starts
-    # from already-known slick points. This is a real, named gap, not a
-    # silent omission: see docs/api/OPERATOR_CASE_CONTRACT_V1.md, "Missing
-    # Backend Producers".
+    payload = _section_payload(case, "detection")
     detection = case.metadata.get("detection")
     if detection is None:
         return SectionEnvelope(
-            status=ProducerStatus.NOT_YET_PRODUCED,
-            reason="NETRA_INFERENCE_NOT_WIRED_INTO_CASE_PIPELINE",
+            status=_status_of(payload, ProducerStatus.NOT_YET_PRODUCED),
+            reason=(payload or {}).get("reason")
+            or "NETRA_INFERENCE_NOT_WIRED_INTO_CASE_PIPELINE",
         )
     from varuna_contracts.schemas import SlickDetection
     value = SlickDetection.model_validate(detection)
+    # Provenance comes from the stage that produced the detection. It used to
+    # be hardcoded to REAL here, which would have promoted an explicitly
+    # simulated placeholder to real evidence the moment NETRA was wired in.
     return SectionEnvelope(
-        status=ProducerStatus.PRODUCED, value=value, evidence_mode=EvidenceMode.REAL,
+        status=ProducerStatus.PRODUCED, value=value, evidence_mode=_mode_of(payload),
     )
 
 
@@ -118,12 +157,15 @@ def _ais_section(case: Case) -> SectionEnvelope[list[AISCandidateView]]:
         )
         for t in tracks
     ]
-    # Track-level provenance/EvidenceMode is not currently attached to
-    # VesselTrack itself (no envelope field on that contract) — honestly
-    # unknown here rather than assumed REAL. Real AIS ingestion exists only
-    # as a standalone script (scripts/ingest_real_ais*.py), not yet wired
-    # through varuna_source_adapters.fetch_with_mode() into this pipeline.
-    return SectionEnvelope(status=ProducerStatus.PRODUCED, value=views, evidence_mode=None)
+    # `VesselTrack` still carries no per-track envelope, so track-level
+    # provenance is not readable off the contract itself. What IS available now
+    # is the ingest stage's own mode: real AIS reaches this pipeline through
+    # `varuna_integration.ais_source.EventAISAdapter` via
+    # `fetch_with_mode()`, so a case built by that path records REAL here.
+    # Cases built by the older ingest path have no such record and stay None
+    # (honestly unknown) rather than being assumed real.
+    return SectionEnvelope(status=ProducerStatus.PRODUCED, value=views,
+                           evidence_mode=_mode_of(_section_payload(case, "ais")))
 
 
 def _attribution_section(case: Case) -> SectionEnvelope[AttributionResultV2]:
@@ -152,58 +194,122 @@ def _validity_section(case: Case) -> SectionEnvelope[ValidityGateResult]:
 
 
 def _forecast_section(case: Case) -> SectionEnvelope:
-    # PRAVAAH (varuna_pravaah.service.PravaahService) is a real, wired
-    # subsystem — but CaseWorkflow never calls it, so no case ever carries
-    # a "forecast" metadata key today. NOT_YET_PRODUCED reports that
-    # workflow-integration gap honestly rather than fabricating a horizon.
-    forecast_raw = case.metadata.get("forecast")
-    if forecast_raw is None:
+    payload = _section_payload(case, "forecast")
+    # `is None`, not truthiness: a legitimately empty-but-produced list must not
+    # be swallowed into "never ran". Dormant today (producers report an empty
+    # result as NOT_YET_PRODUCED with a reason) but the pattern is fragile.
+    raw = (payload or {}).get("value")
+    if raw is None:
+        raw = case.metadata.get("forecast")
+    if raw is None:
         return SectionEnvelope(
-            status=ProducerStatus.NOT_YET_PRODUCED,
-            reason="PRAVAAH forecast is not yet wired into CaseWorkflow.",
+            status=_status_of(payload, ProducerStatus.NOT_YET_PRODUCED),
+            reason=(payload or {}).get("reason")
+            or "PRAVAAH forecast is not yet wired into CaseWorkflow.",
         )
     from varuna_contracts.schemas import ForwardForecast
-    value = ForwardForecast.model_validate(forecast_raw)
-    return SectionEnvelope(status=ProducerStatus.PRODUCED, value=value, evidence_mode=None)
+    value = ForwardForecast.model_validate(raw)
+    return SectionEnvelope(status=ProducerStatus.PRODUCED, value=value,
+                           evidence_mode=_mode_of(payload))
 
 
 def _decision_section(case: Case) -> SectionEnvelope:
-    # ABHIYAN (varuna_abhiyan.service.AbhiyanService) likewise exists but is
-    # not called from CaseWorkflow.
-    decision_raw = case.metadata.get("decision")
-    if decision_raw is None:
+    payload = _section_payload(case, "decision")
+    raw = (payload or {}).get("value")
+    if raw is None:
+        raw = case.metadata.get("decision")
+    if raw is None:
+        # ABHIYAN returning zero taskings because the validity gate restricted
+        # action is a real, correct outcome — the reason string carries that
+        # distinction rather than looking like "never ran".
         return SectionEnvelope(
-            status=ProducerStatus.NOT_YET_PRODUCED,
-            reason="ABHIYAN tasking is not yet wired into CaseWorkflow.",
+            status=_status_of(payload, ProducerStatus.NOT_YET_PRODUCED),
+            reason=(payload or {}).get("reason")
+            or "ABHIYAN tasking is not yet wired into CaseWorkflow.",
         )
     from varuna_contracts.schemas import AssetTasking
-    value = [AssetTasking.model_validate(t) for t in decision_raw]
-    return SectionEnvelope(status=ProducerStatus.PRODUCED, value=value, evidence_mode=None)
+    value = [AssetTasking.model_validate(t) for t in raw]
+    return SectionEnvelope(status=ProducerStatus.PRODUCED, value=value,
+                           evidence_mode=_mode_of(payload))
 
 
 def _mission_section(case: Case, workflow: CaseWorkflow) -> SectionEnvelope:
-    # MissionService (varuna_missions.service) is a real, separately callable
-    # subsystem but is not invoked as part of CaseWorkflow, and CaseWorkflow
-    # holds no reference to a MissionRepository — so there is no honest way
-    # to look up missions "for this case" from here without a caller
-    # supplying that repository, which the read-only operator-view endpoint
-    # does not currently do. Reporting NOT_YET_PRODUCED rather than
-    # guessing at an empty list that would look identical to "checked, none
-    # exist".
-    return SectionEnvelope(
-        status=ProducerStatus.NOT_YET_PRODUCED,
-        reason="Mission FSM is not yet wired into CaseWorkflow/operator-view lookup.",
-    )
+    payload = _section_payload(case, "mission")
+    raw = (payload or {}).get("value")   # `is None` below, not truthiness
+    if raw is None:
+        return SectionEnvelope(
+            status=_status_of(payload, ProducerStatus.NOT_YET_PRODUCED),
+            reason=(payload or {}).get("reason")
+            or "Mission FSM is not yet wired into CaseWorkflow/operator-view lookup.",
+        )
+    from varuna_contracts.states import MissionRecord
+    value = [MissionRecord.model_validate(m) for m in raw]
+    return SectionEnvelope(status=ProducerStatus.PRODUCED, value=value,
+                           evidence_mode=_mode_of(payload))
 
 
 def _alerts_section(case: Case) -> SectionEnvelope:
-    # Same gap as mission: AlertService keeps its delivery log in its own
-    # process-local instance, not on the case, and CaseWorkflow never routes
-    # alerts. NOT_YET_PRODUCED, not an empty list.
-    return SectionEnvelope(
-        status=ProducerStatus.NOT_YET_PRODUCED,
-        reason="Alert routing is not yet wired into CaseWorkflow.",
-    )
+    payload = _section_payload(case, "alerts")
+    raw = (payload or {}).get("value")   # `is None` below, not truthiness
+    if raw is None:
+        return SectionEnvelope(
+            status=_status_of(payload, ProducerStatus.NOT_YET_PRODUCED),
+            reason=(payload or {}).get("reason")
+            or "Alert routing is not yet wired into CaseWorkflow.",
+        )
+    # DeliveryResult is a dataclass, not a pydantic contract, and `AlertView`
+    # is the operator-facing shape — map the fields that exist rather than
+    # inventing a delivery claim. `is_simulated` is carried through verbatim:
+    # a simulated channel must never read as a delivered alert.
+    from varuna_contracts.operator_case import AlertDeliveryStatus, AlertView
+
+    def _delivery_status(r: dict) -> AlertDeliveryStatus:
+        """`DeliveryResult.status` is "sent"/"suppressed"/"simulated"/"expired".
+
+        A "sent" result on a simulated channel is NOT a delivery — `is_simulated`
+        wins, exactly as AlertDeliveryStatus's own docstring requires. An
+        unrecognised status degrades to UNAVAILABLE rather than DELIVERED.
+        """
+        raw_status = str(r.get("status", "")).lower()
+        if bool(r.get("is_simulated", True)):
+            return AlertDeliveryStatus.SIMULATED
+        return {
+            "sent": AlertDeliveryStatus.DELIVERED,
+            "delivered": AlertDeliveryStatus.DELIVERED,
+            "queued": AlertDeliveryStatus.QUEUED,
+            "generated": AlertDeliveryStatus.GENERATED,
+            "suppressed": AlertDeliveryStatus.SUPPRESSED,
+            "expired": AlertDeliveryStatus.EXPIRED,
+            "failed": AlertDeliveryStatus.FAILED,
+        }.get(raw_status, AlertDeliveryStatus.UNAVAILABLE)
+
+    from varuna_alerts.severity import infer_severity
+
+    # `detail.event_type` is written by the alerts pipeline stage
+    # (varuna_integration.pipeline._alerts) — honestly None for alerts
+    # assembled without that detail available. Not read off the
+    # channel-specific idempotency_key, whose format varies per channel.
+    category = ((payload or {}).get("detail") or {}).get("event_type")
+
+    views = [
+        AlertView(
+            channel=r.get("channel", "unknown"),
+            recipient=r.get("recipient", "unknown"),
+            category=category,
+            delivery_status=_delivery_status(r),
+            severity=infer_severity(
+                suppressed=str(r.get("status", "")).lower() in ("suppressed", "expired"),
+                is_simulated=bool(r.get("is_simulated", True)),
+            ),
+            reason=r.get("reason") or "",
+            is_simulated=bool(r.get("is_simulated", True)),
+            idempotency_key=r.get("idempotency_key", ""),
+            timestamp=r.get("timestamp") or datetime.now(timezone.utc),
+        )
+        for r in raw
+    ]
+    return SectionEnvelope(status=ProducerStatus.PRODUCED, value=views,
+                           evidence_mode=_mode_of(payload))
 
 
 def _evidence_health(
@@ -280,6 +386,31 @@ def _provenance(case: Case, workflow: CaseWorkflow, generated_at: datetime) -> P
     )
 
 
+def _recommendation(case: Case, validity: SectionEnvelope[ValidityGateResult]) -> OperationalDecisionState:
+    """
+    `OperationalDecisionState` — a derived, lossy VIEW over `validity`, never
+    a second gate. See `varuna_abhiyan.decision_state.
+    derive_operational_decision_state` and `OperationalDecisionState`'s own
+    docstring for the full mapping and rationale.
+
+    `validity_stage_failed` must come from the pipeline's own raw
+    `StageStatus` (via `_section_payload`), NOT from `validity.status`
+    (`ProducerStatus`): this module deliberately maps a RESTRICTED gate to
+    `ProducerStatus.BLOCKED` on the `validity` SectionEnvelope (a
+    successful, restrictive evaluation — see `_validity_section`), which is
+    a completely different claim from `StageStatus.BLOCKED` (the gate
+    crashed). Reading `validity.status` here would silently relabel every
+    RESTRICTED case as a pipeline failure.
+    """
+    from varuna_abhiyan.decision_state import derive_operational_decision_state
+
+    payload = _section_payload(case, "validity")
+    stage_status = (payload or {}).get("status")
+    return derive_operational_decision_state(
+        validity.value, validity_stage_failed=(stage_status == "blocked"),
+    )
+
+
 def build_operator_case(case: Case, workflow: CaseWorkflow) -> OperatorCase:
     """The single entry point: real `Case` -> read-only `OperatorCase`."""
     generated_at = datetime.now(timezone.utc)
@@ -313,6 +444,7 @@ def build_operator_case(case: Case, workflow: CaseWorkflow) -> OperatorCase:
         decision=decision,
         mission=mission,
         alerts=alerts,
+        recommendation=_recommendation(case, validity),
         evidence=_evidence_health(observation, detection, origin, attribution, ais),
         provenance=_provenance(case, workflow, generated_at),
     )

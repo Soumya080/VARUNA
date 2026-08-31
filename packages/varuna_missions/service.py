@@ -28,10 +28,21 @@ class MissionService:
         return m
 
     def approve_and_assign(self, mission_id: str, approved_by: str) -> MissionRecord:
-        """Human authorization gate. approved_by MUST be set."""
+        """Human authorization gate. approved_by MUST be set.
+
+        MISSION_TRANSITIONS (varuna_contracts/states.py) has no direct
+        AVAILABLE -> ASSIGNED edge; a freshly-created (PROPOSED) mission is
+        AVAILABLE and must pass through RESERVED first. Calling
+        `m.transition(ASSIGNED)` straight from AVAILABLE was previously
+        illegal and raised on every first-time approval. For a mission
+        already RESERVED (e.g. re-approval after a prior release), the
+        reserve step is skipped rather than attempted twice.
+        """
         m = self._repo.get(mission_id)
         if m is None:
             raise ValueError(f"Mission {mission_id} not found")
+        if m.state is MissionState.AVAILABLE:
+            m.transition(MissionState.RESERVED)
         m.human_approved_by = approved_by
         m.transition(MissionState.ASSIGNED)
         m.assigned_at = datetime.now(timezone.utc)

@@ -51,10 +51,12 @@ __all__ = [
     "OPERATOR_CASE_SCHEMA_VERSION",
     "AISCandidateView",
     "AlertDeliveryStatus",
+    "AlertSeverity",
     "AlertView",
     "EvidenceComponentView",
     "EvidenceHealthView",
     "ObservationView",
+    "OperationalDecisionState",
     "OperatorCase",
     "ProducerStatus",
     "ProvenanceView",
@@ -97,6 +99,69 @@ class AlertDeliveryStatus(StrEnum):
     SUPPRESSED = "suppressed"
     EXPIRED = "expired"
     FAILED = "failed"
+    UNAVAILABLE = "unavailable"
+
+
+class AlertSeverity(StrEnum):
+    """
+    Structural severity, NOT an urgency judgment. INFO/WARNING/BLOCKED are
+    derived purely from facts already computed elsewhere (was the send
+    suppressed, did it reach a simulated channel). CRITICAL exists in this
+    enum because the operator-case-contract task requires the vocabulary,
+    but nothing in this codebase ever assigns it: there is no repository
+    policy anywhere (varuna_alerts.materiality/freshness/role_router) that
+    scores how urgent a real spill event is (proximity to shore, asset
+    availability, volume, ...). Inventing that scoring here would be
+    exactly the kind of fabricated safety-critical rule the task
+    prohibits. See `varuna_alerts.severity.infer_severity()` and
+    reports/mission/ABHIYAN_MISSION_ALERTS_REPORT.md, "Alert severity policy
+    gap", for the explicit gap this leaves.
+    """
+    INFO = "info"
+    WARNING = "warning"
+    BLOCKED = "blocked"
+    CRITICAL = "critical"
+
+
+class OperationalDecisionState(StrEnum):
+    """
+    A DERIVED, LOSSY view over three already-canonical vocabularies —
+    `ValidityState` (did the gate run, what did it conclude),
+    `varuna_integration.stage.StageStatus` (did the stage execute), and
+    `EvidenceMode` (was there real evidence to run on) — collapsed into the
+    four labels an external "decision state" requirement asks for. It is
+    NOT a fourth, independent state machine and never overrides any of the
+    three it derives from; those remain the source of truth and stay fully
+    visible via `OperatorCase.validity`.
+
+    Mapping (see `varuna_abhiyan.decision_state.derive_operational_decision_state`
+    for the implementation):
+
+        ValidityState.VALID, ValidityState.DEGRADED  -> VALID
+            Both allow operational action per `ValidityState.
+            allows_operational_action`. DEGRADED is NOT folded into
+            RESTRICTED: it means "actionable with caveats shown to the
+            officer", which is operationally VALID, just qualified — the
+            caveats themselves are untouched, in `ValidityGateResult.
+            officer_visible_caveats`, not summarised away here.
+        ValidityState.RESTRICTED                      -> RESTRICTED
+        ValidityState.INCONCLUSIVE, gate is None       -> UNAVAILABLE
+            INCONCLUSIVE is evidence that was insufficient to reach a
+            conclusion — the same operational answer as "no gate result
+            exists yet", so both map to UNAVAILABLE rather than BLOCKED.
+        an actual StageStatus.BLOCKED (ABHIYAN/validity/upstream crashed
+        or an integration break occurred)  -> BLOCKED
+            Reserved for genuine execution failures, never for a
+            successful gate that answered "no".
+
+    `ValidityState.INCONCLUSIVE` and `ValidityState.DEGRADED` are real,
+    first-class outcomes and are never hidden by this enum — this is a
+    SUBSET view for a caller that only wants the four-way operational
+    bucket, not a replacement for the full gate result.
+    """
+    VALID = "valid"
+    RESTRICTED = "restricted"
+    BLOCKED = "blocked"
     UNAVAILABLE = "unavailable"
 
 
@@ -165,10 +230,23 @@ class AISCandidateView(_Base):
 
 
 class AlertView(_Base):
-    """Adapter over `varuna_alerts.protocol.DeliveryResult` (a dataclass)."""
+    """
+    Case-scoped adapter over `varuna_alerts.protocol.DeliveryResult` (a
+    dataclass). `idempotency_key` doubles as the deterministic dedupe
+    identifier the same case+event+recipient always produces — reused
+    verbatim from `varuna_alerts.dedupe.DedupeWindow`'s own key scheme
+    rather than inventing a second ID.
+    """
     channel: str
     recipient: str
+    # The routed event_type (e.g. "validity.evaluated"), read from the
+    # alerts stage's own detail. `None` for alerts assembled without that
+    # detail available (DeliveryResult itself carries no event_type) —
+    # honestly unknown, not guessed by parsing a channel-specific
+    # idempotency_key format.
+    category: str | None = None
     delivery_status: AlertDeliveryStatus
+    severity: AlertSeverity
     reason: str
     is_simulated: bool
     idempotency_key: str
@@ -253,6 +331,12 @@ class OperatorCase(_Base):
     decision: SectionEnvelope[list[AssetTasking]]
     mission: SectionEnvelope[list[MissionRecord]]
     alerts: SectionEnvelope[list[AlertView]]
+
+    # Always computable — even "the gate never ran" is a defined answer
+    # (UNAVAILABLE), so this is not wrapped in a SectionEnvelope like the
+    # sections above. See `OperationalDecisionState` for what this is and
+    # is not: a derived, lossy VIEW over `validity` (never a second gate).
+    recommendation: OperationalDecisionState
 
     evidence: EvidenceHealthView
     provenance: ProvenanceView

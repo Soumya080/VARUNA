@@ -22,6 +22,7 @@ from varuna_contracts.evidence import (
     ValidityState,
 )
 from varuna_contracts.operator_case import (
+    OperationalDecisionState,
     OperatorCase,
     ProducerStatus,
     ProvenanceView,
@@ -76,6 +77,7 @@ def _minimal_operator_case(**overrides) -> OperatorCase:
         decision=_not_produced(),
         mission=_not_produced(),
         alerts=_not_produced(),
+        recommendation=OperationalDecisionState.UNAVAILABLE,
         evidence={"components": []},
         provenance=ProvenanceView(case_id="MIN-1", generated_at=datetime.now(timezone.utc)),
     )
