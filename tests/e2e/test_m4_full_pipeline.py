@@ -12,6 +12,7 @@ stubbed here with `_DummyGateResult` rather than actually run (see the
 comment at that class). A real, non-stubbed attribution chain test is a
 later-tranche deliverable (see the parallel core-system hardening plan).
 """
+from varuna_infra.authorization import Principal
 import pytest
 from datetime import datetime, timezone
 
@@ -102,7 +103,9 @@ def test_m4_full_pipeline():
     if gate_result.allows_operational_action and taskings:
         m = mission_svc.create_mission("CASE-E2E", "DORNIER-01", taskings[0])
         mission_svc.reserve(m.mission_id)
-        mission_svc.approve_and_assign(m.mission_id, approved_by="test_officer")
+        mission_svc.approve_and_assign(
+            m.mission_id, approved_by="test_officer",
+            principal=Principal(principal_id="test_officer", role="duty_officer"))
         assert m.state == MissionState.ASSIGNED
 
     # 11. Alerts

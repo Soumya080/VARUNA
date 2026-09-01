@@ -1,3 +1,4 @@
+from varuna_infra.authorization import Principal
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from varuna_contracts.schemas import AssetTasking
@@ -9,7 +10,8 @@ class MissionRuntime(ABC):
         pass
         
     @abstractmethod
-    def approve_and_assign(self, mission_id: str, approved_by: str) -> MissionRecord:
+    def approve_and_assign(self, mission_id: str, approved_by: str, *,
+                           principal: "Principal") -> MissionRecord:
         pass
         
     @abstractmethod

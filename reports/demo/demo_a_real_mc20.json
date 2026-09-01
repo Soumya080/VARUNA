@@ -1,0 +1,358 @@
+{
+  "demo": "A",
+  "kind": "REAL",
+  "status": "completed",
+  "case_id": "DEMO-A-MC20-REAL",
+  "run_id": "RUN-20260901T193130Z-62e177",
+  "pipeline": {
+    "run_id": "RUN-20260901T193130Z-62e177",
+    "case_id": "DEMO-A-MC20-REAL",
+    "run_class": "INTEGRATION_SMOKE",
+    "scientific_result": false,
+    "started_at": "2026-09-01T19:31:30.857028+00:00",
+    "finished_at": "2026-09-01T19:31:57.906339+00:00",
+    "total_seconds": 27.049311,
+    "evidence_mode": "real",
+    "blocked_at": null,
+    "config": {
+      "gold_dir": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\events\\mc20_v0_1",
+      "n_particles": 20,
+      "n_ensemble": 4,
+      "backward_duration_hours": 24.0,
+      "forecast_horizon_hours": 24.0,
+      "seed": 42,
+      "ais_status": "temporally_matched"
+    },
+    "stages": {
+      "forcing": {
+        "stage": "forcing",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": 0.6513453000225127,
+        "detail": {
+          "era5_cube_id": "era5-mc20-era5_mc20_2023-01-11_to_2023-01-17",
+          "cmems_cube_id": "cmems-mc20-cmems_mc20_2023-01-11_to_2023-01-17",
+          "era5_time_series_status": "sufficient",
+          "cmems_time_series_status": "sufficient",
+          "era5_grid_shape": [
+            168,
+            17,
+            17
+          ],
+          "cmems_grid_shape": [
+            133,
+            49,
+            49
+          ],
+          "overlap_hours": 132.0
+        }
+      },
+      "netra_detection": {
+        "stage": "netra_detection",
+        "status": "not_yet_produced",
+        "evidence_mode": null,
+        "reason": "NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+        "runtime_seconds": 5.160704799927771,
+        "detail": {
+          "n_tiles": 9,
+          "model_version": "netra-v0.2-baseline",
+          "scientific_status": "EXPERIMENTAL / UNVALIDATED",
+          "model_metrics": {
+            "epoch": 32,
+            "iou_oil": 0.614925,
+            "dice_oil": 0.7615526063403129,
+            "precision_oil": 0.6834434108608659,
+            "recall_oil": 0.8598194147992351,
+            "f1_oil_at_thr_0.5": 0.7615526063403129,
+            "pr_auc": 0.8424321168629041,
+            "best_f1": 0.7885,
+            "best_f1_threshold": 0.806
+          },
+          "decision_threshold": 0.806,
+          "max_probability": 3.06828883367416e-06
+        }
+      },
+      "ais_ingest": {
+        "stage": "ais_ingest",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": 17.418558900011703,
+        "detail": {
+          "requested_status": "temporally_matched",
+          "n_returned": 5,
+          "n_tracks_total": 530,
+          "n_spatially_matched": 425,
+          "n_temporally_matched": 320,
+          "n_temporally_unavailable": 210,
+          "closest_temporally_matched": {
+            "distance_km": 3.2554040397444735,
+            "time_delta_seconds": 1017.1019999980927,
+            "track_id": "368181750_1673740805_1673765975",
+            "mmsi": "368181750",
+            "timestamp": "2023-01-15T00:19:04+00:00"
+          },
+          "t_sar": "2023-01-15T00:02:06.898000+00:00",
+          "window_before_hours": 48.0,
+          "window_after_hours": 6.0,
+          "track_join_status": {
+            "367640910": "temporally_matched",
+            "368181750": "temporally_matched",
+            "367123550": "temporally_matched",
+            "367492110": "temporally_matched",
+            "366847780": "temporally_matched"
+          },
+          "source_id": "ais.marinecadastre.event_gold"
+        }
+      },
+      "phi_reconstruction": {
+        "stage": "phi_reconstruction",
+        "status": "not_yet_produced",
+        "evidence_mode": null,
+        "reason": "NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+        "runtime_seconds": null,
+        "detail": {}
+      },
+      "attribution": {
+        "stage": "attribution",
+        "status": "not_yet_produced",
+        "evidence_mode": null,
+        "reason": "UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+        "runtime_seconds": null,
+        "detail": {}
+      },
+      "validity": {
+        "stage": "validity",
+        "status": "not_yet_produced",
+        "evidence_mode": null,
+        "reason": "UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+        "runtime_seconds": null,
+        "detail": {}
+      },
+      "forecast": {
+        "stage": "forecast",
+        "status": "not_yet_produced",
+        "evidence_mode": null,
+        "reason": "NO_SLICK_TO_FORECAST: forward drift needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+        "runtime_seconds": null,
+        "detail": {}
+      },
+      "decision": {
+        "stage": "decision",
+        "status": "not_yet_produced",
+        "evidence_mode": null,
+        "reason": "UPSTREAM_VALIDITY_UNAVAILABLE: UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+        "runtime_seconds": null,
+        "detail": {}
+      },
+      "mission": {
+        "stage": "mission",
+        "status": "not_yet_produced",
+        "evidence_mode": null,
+        "reason": "NO_TASKING_TO_PROPOSE: a mission requires an ABHIYAN tasking. Decision stage says: UPSTREAM_VALIDITY_UNAVAILABLE: UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+        "runtime_seconds": null,
+        "detail": {}
+      },
+      "alerts": {
+        "stage": "alerts",
+        "status": "not_yet_produced",
+        "evidence_mode": null,
+        "reason": "UPSTREAM_VALIDITY_UNAVAILABLE: UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+        "runtime_seconds": null,
+        "detail": {}
+      }
+    }
+  },
+  "intelligence": {
+    "case_id": "DEMO-A-MC20-REAL",
+    "evidence_mode": "real",
+    "uncertainty": {
+      "dominant_concern": "ood_risk",
+      "ood_risk": "out_of_domain",
+      "conflicts": 0,
+      "notes": {
+        "model_confidence": "No detection evidence carrying a confidence.",
+        "attribution_uncertainty": "NYAYA has not produced an attribution.",
+        "forecast_uncertainty": "No forecast evidence exists."
+      }
+    },
+    "terminal_action": "stop_insufficient_evidence",
+    "terminal_reason": "Perception produced no detection, and re-inspection did not change that. There is nothing to attribute or forecast.",
+    "iterations": 2,
+    "detection_evidence": {
+      "evidence_id": "detev-DEMO-A-MC20-REAL",
+      "case_id": "DEMO-A-MC20-REAL",
+      "run_id": "RUN-20260901T193130Z-62e177",
+      "model_id": "netra",
+      "model_version": "netra-v0.2-baseline",
+      "checkpoint_sha256": null,
+      "preprocessing_version": null,
+      "channel_binding": [],
+      "input_asset_ids": [],
+      "n_tiles": 9,
+      "classification": null,
+      "confidence": {
+        "value": null,
+        "status": "unavailable",
+        "units": null,
+        "note": null
+      },
+      "decision_threshold": {
+        "value": 0.806,
+        "status": "measured",
+        "units": null,
+        "note": null
+      },
+      "segmentation_ref": null,
+      "foreground_fraction": null,
+      "n_connected_components": null,
+      "area_km2": {
+        "value": null,
+        "status": "unavailable",
+        "units": "km^2",
+        "note": null
+      },
+      "centroid": null,
+      "bbox": null,
+      "score_max": {
+        "value": 3.06828883367416e-06,
+        "status": "measured",
+        "units": null,
+        "note": null
+      },
+      "score_mean": null,
+      "score_p99": null,
+      "ood_risk": "out_of_domain",
+      "ood_rationale": "Peak activation 3.07e-06 is more than two orders of magnitude below the decision threshold 0.806. A model operating in its training domain does not produce activations this uniformly flat; this is the signature of an input the model has no representation for. HEURISTIC, not a calibrated OOD score.",
+      "low_wind_context": {
+        "value": null,
+        "status": "unavailable",
+        "units": "m/s",
+        "note": null
+      },
+      "limitations": [
+        "No detection produced: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+        "Model scientific status: EXPERIMENTAL / UNVALIDATED",
+        "Detector is operating out-of-domain; its confidence must not be treated as a calibrated probability."
+      ],
+      "observed_at": null,
+      "created_at": "2026-09-01T19:31:57.910338Z",
+      "envelope": {
+        "artifact_id": "detev-DEMO-A-MC20-REAL",
+        "case_id": "DEMO-A-MC20-REAL",
+        "parent_artifact_ids": [
+          "intel-parent-DEMO-A-MC20-REAL"
+        ],
+        "produced_by": "netra.detection_evidence",
+        "model_version": "netra-v0.2-baseline",
+        "processing_version": "0.1.0",
+        "created_at": "2026-09-01T19:31:57.910338Z",
+        "crs": "EPSG:4326",
+        "units": {},
+        "provenance": {
+          "source_id": "netra.detection_evidence",
+          "source_version": null,
+          "raw_artifact_refs": [],
+          "retrieved_at": null,
+          "adapter_id": null,
+          "license": null,
+          "citation": null,
+          "notes": null
+        },
+        "mode": "real",
+        "trust": "trusted",
+        "influence_weight": 1.0,
+        "quality": {
+          "completeness": null,
+          "freshness_seconds": null,
+          "spatial_coverage": null,
+          "resolution_m": null,
+          "ood_score": null,
+          "model_confidence": null,
+          "extra": {}
+        },
+        "uncertainty": {
+          "representation": "none",
+          "mean": null,
+          "std": null,
+          "lower": null,
+          "upper": null,
+          "interval_confidence": null,
+          "entropy": null,
+          "n_samples": null,
+          "sensitivity": {}
+        },
+        "calibration_state": "not_applicable",
+        "validity_state": "valid",
+        "degradation_state": "nominal",
+        "anomaly_flags": [],
+        "content_hash": null
+      }
+    },
+    "hypotheses": null,
+    "memory_hits": [],
+    "audit_trail": [
+      {
+        "evidence_id": "ev-forcing-6fbd7c42",
+        "kind": "forcing",
+        "produced_by": "pipeline.forcing",
+        "summary": "forcing produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-01T19:31:57.910338+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-ais-2532f737",
+        "kind": "ais",
+        "produced_by": "pipeline.ais_ingest",
+        "summary": "ais_ingest produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-01T19:31:57.910338+00:00",
+        "depends_on": [
+          "ev-forcing-6fbd7c42"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-data_quality-8e26382d",
+        "kind": "data_quality",
+        "produced_by": "ood_assessor",
+        "summary": "OOD risk: out_of_domain",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-01T19:31:57.910338+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-data_quality-72e29fe2",
+        "kind": "data_quality",
+        "produced_by": "data_guard",
+        "summary": "Inputs accepted: real forcing loaded",
+        "mode": "real",
+        "status": "active",
+        "confidence": 0.9,
+        "revision": 0,
+        "recorded_at": "2026-09-01T19:31:57.911338+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      }
+    ],
+    "decision_trace": "Decision trace for case DEMO-A-MC20-REAL (2 iteration(s)):\n  [0] observe: 3 active evidence item(s) in the ledger.\n  [0] identify_uncertainty: dominant concern: ood_risk; conflicts: 0; ood: out_of_domain\n  [0] select_action: selected inspect_detection_quality (priority 0)\n        action=inspect_detection_quality because=No detection evidence is present for this case.\n  [0] execute: inspect_detection_quality -> executed\n        action=inspect_detection_quality because=No detection evidence is present for this case.\n        outcome=executed changed=True :: Inputs accepted: real forcing loaded\n  [0] update_evidence: evidence 3 -> 4\n  [1] observe: 4 active evidence item(s) in the ledger.\n  [1] identify_uncertainty: dominant concern: ood_risk; conflicts: 0; ood: out_of_domain\n  [1] select_action: selected stop_insufficient_evidence (priority 0)\n        action=stop_insufficient_evidence because=Perception produced no detection, and re-inspection did not change that. There is nothing to attribute or forecast.\n  [1] terminate: terminal action stop_insufficient_evidence: Perception produced no detection, and re-inspection did not change that. There is nothing to attribute or forecast.\n        action=stop_insufficient_evidence because=Perception produced no detection, and re-inspection did not change that. There is nothing to attribute or forecast.\n  TERMINAL: stop_insufficient_evidence \u2014 Perception produced no detection, and re-inspection did not change that. There is nothing to attribute or forecast.",
+    "runtime_seconds": 0.0004945998080074787
+  }
+}

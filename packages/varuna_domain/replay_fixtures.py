@@ -202,7 +202,19 @@ def _build_valid(run: PipelineRun, case_id: str) -> None:
     detection = run.record(StageResult(
         stage="netra_detection", status=StageStatus.PRODUCED, value=[det],
         evidence_mode=EvidenceMode.REAL, detail={"model_version": "netra-replay-frozen",
-                                                  "n_detections": 1, "scientific_status": "VALIDATED"},
+                                                  "n_detections": 1, "scientific_status": "VALIDATED",
+                                                  # Activation statistics, added so this fixture can
+                                                  # satisfy the OOD assessment the agentic layer now
+                                                  # requires before any case may reach a decision
+                                                  # (varuna_agentic.loop.ActionSelector step 10).
+                                                  # Without them CASE-VALID could never reach a
+                                                  # decision, which contradicts the fixture's own
+                                                  # stated purpose ("if a frozen, calibrated
+                                                  # checkpoint fired here"). Values are consistent
+                                                  # with a confident in-domain firing and are
+                                                  # SYNTHETIC like every other number in this file.
+                                                  "max_probability": 0.91,
+                                                  "decision_threshold": 0.806},
     ))
     phi = _phi(case_id, det.slick_id, EvidenceMode.REAL, with_sensitivity=True)
     phi_res = run.record(StageResult(

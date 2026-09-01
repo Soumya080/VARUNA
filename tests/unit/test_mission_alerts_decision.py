@@ -8,6 +8,7 @@ directly-constructed contract object, matching the style of
 tests/unit/test_track4_boundaries.py.
 """
 from __future__ import annotations
+from varuna_infra.authorization import Principal
 
 import pytest
 
@@ -160,7 +161,9 @@ def test_approve_and_assign_requires_named_human():
         [_real_search_box()], [AssetType.DORNIER], _envelope(),
     )[0]
     mission = svc.create_mission(case_id="C1", asset_id=tasking.base_name, tasking=tasking)
-    approved = svc.approve_and_assign(mission.mission_id, approved_by="watch_officer_1")
+    approved = svc.approve_and_assign(
+        mission.mission_id, approved_by="watch_officer_1",
+        principal=Principal(principal_id="watch_officer_1", role="duty_officer"))
     assert approved.state is MissionState.ASSIGNED
     assert approved.human_approved_by == "watch_officer_1"
     assert is_dispatchable(approved)
@@ -187,7 +190,9 @@ def test_cancel_assigned_mission_uses_reassigned_then_closed():
         [_real_search_box()], [AssetType.DORNIER], _envelope(),
     )[0]
     mission = svc.create_mission(case_id="C1", asset_id=tasking.base_name, tasking=tasking)
-    svc.approve_and_assign(mission.mission_id, approved_by="watch_officer_1")
+    svc.approve_and_assign(
+        mission.mission_id, approved_by="watch_officer_1",
+        principal=Principal(principal_id="watch_officer_1", role="duty_officer"))
     cancelled = cancel_mission(svc, mission.mission_id)
     assert cancelled.state is MissionState.CLOSED
     assert cancelled.state_history[-2][0] == MissionState.REASSIGNED.value

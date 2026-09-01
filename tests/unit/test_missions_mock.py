@@ -1,3 +1,4 @@
+from varuna_infra.authorization import Principal
 import pytest
 from datetime import datetime, timezone
 from varuna_contracts.schemas import AssetTasking, AssetType, SearchBox, BBox, GeoPoint
@@ -26,7 +27,9 @@ def test_full_fsm_happy_path():
     svc = MissionService(InMemoryMissionRepository())
     m = svc.create_mission("CASE-1", "DORNIER-01", _make_dummy_tasking())
     svc.reserve(m.mission_id)
-    svc.approve_and_assign(m.mission_id, approved_by="officer_123")
+    svc.approve_and_assign(
+        m.mission_id, approved_by="officer_123",
+        principal=Principal(principal_id="officer_123", role="duty_officer"))
     svc.transition(m.mission_id, MissionState.ACKNOWLEDGED)
     svc.transition(m.mission_id, MissionState.EN_ROUTE)
     svc.transition(m.mission_id, MissionState.ON_STATION)
