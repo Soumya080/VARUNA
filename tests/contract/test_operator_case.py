@@ -229,27 +229,50 @@ def test_evidence_component_score_is_none_not_zero_when_unmeasured():
 
 # ───────────────────────── 9. Existing API conventions remain compatible ──────
 
-def test_existing_case_endpoints_unaffected(tmp_path):
+def _authenticated_client():
+    """Case-mutation endpoints require an authenticated Principal as of
+    Phase 5 (VARUNA_PRODUCT_READY hardening). Returns a (client, cleanup)
+    pair so callers can override `get_principal` for the duration of one
+    test without leaking the override into other test files that share the
+    same `app` singleton."""
     from apps.api.main import app
+    from apps.api.security import get_principal
     from fastapi.testclient import TestClient
+    from varuna_infra.authorization import Principal
+
+    app.dependency_overrides[get_principal] = lambda: Principal(
+        principal_id="test-duty-officer", role="duty_officer")
     client = TestClient(app)
-    r = client.post("/v1/cases", json={"case_id": "COMPAT-CHECK-1"})
-    assert r.status_code == 200
-    r2 = client.get("/v1/cases/COMPAT-CHECK-1")
-    assert r2.status_code == 200
-    assert "case_id" in r2.json()
+
+    def cleanup():
+        app.dependency_overrides.pop(get_principal, None)
+
+    return client, cleanup
+
+
+def test_existing_case_endpoints_unaffected(tmp_path):
+    client, cleanup = _authenticated_client()
+    try:
+        r = client.post("/v1/cases", json={"case_id": "COMPAT-CHECK-1"})
+        assert r.status_code == 200
+        r2 = client.get("/v1/cases/COMPAT-CHECK-1")
+        assert r2.status_code == 200
+        assert "case_id" in r2.json()
+    finally:
+        cleanup()
 
 
 def test_operator_view_endpoint_is_read_only_and_additive():
-    from apps.api.main import app
-    from fastapi.testclient import TestClient
-    client = TestClient(app)
-    client.post("/v1/cases", json={"case_id": "OPVIEW-EP-1"})
-    r = client.get("/v1/cases/OPVIEW-EP-1/operator-view")
-    assert r.status_code == 200
-    body = r.json()
-    assert body["schema_version"] == "v1"
-    assert body["case_id"] == "OPVIEW-EP-1"
+    client, cleanup = _authenticated_client()
+    try:
+        client.post("/v1/cases", json={"case_id": "OPVIEW-EP-1"})
+        r = client.get("/v1/cases/OPVIEW-EP-1/operator-view")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["schema_version"] == "v1"
+        assert body["case_id"] == "OPVIEW-EP-1"
+    finally:
+        cleanup()
 
 
 def test_operator_view_404_for_unknown_case():

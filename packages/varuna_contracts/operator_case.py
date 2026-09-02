@@ -305,6 +305,13 @@ class SystemStatusView(_Base):
     case_status: str            # varuna_domain.entities.CaseStatus value
     scientific_status: str      # varuna_domain.entities.ScientificStatus value
     error: str | None = None
+    # How this case's current run was EXECUTED (real / replay / simulated) —
+    # varuna_domain.golden_case_engine.EngineMode, distinct from any
+    # section's `evidence_mode` (which answers "how real is THIS evidence,"
+    # not "how was this run produced"). None for a case produced by the
+    # legacy varuna_domain.case_workflow.CaseWorkflow path, which has no such
+    # concept. See ADR-0012.
+    engine_mode: str | None = None
 
 
 # ───────────────────────── The contract ─────────────────────────

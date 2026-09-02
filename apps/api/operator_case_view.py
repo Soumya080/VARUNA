@@ -375,12 +375,21 @@ def _evidence_health(
 def _provenance(case: Case, workflow: CaseWorkflow, generated_at: datetime) -> ProvenanceView:
     artifacts = workflow.praman.list_by_case(case.case_id)
     manifest = next((a for a in artifacts if a.artifact_type == "evidence_manifest"), None)
+
+    # A case produced by the Track 4 pipeline registers no PRAMAN artifacts, so
+    # the registry alone yields an empty lineage even though each producer
+    # reported its own version and source. `pipeline_provenance` carries what
+    # the stages actually said; it is merged with, not substituted for, the
+    # registry so a CaseWorkflow-produced case is unaffected. Absent that key
+    # the block stays empty rather than inventing a version.
+    pipeline_prov = case.metadata.get("pipeline_provenance") or {}
     return ProvenanceView(
         case_id=case.case_id,
         artifact_ids=[a.artifact_id for a in artifacts],
-        source_ids=sorted({a.produced_by for a in artifacts}),
-        model_versions={},          # no per-model version registry is queried by CaseWorkflow today
-        processing_versions={},
+        source_ids=sorted({a.produced_by for a in artifacts}
+                          | set(pipeline_prov.get("source_ids") or [])),
+        model_versions=dict(pipeline_prov.get("model_versions") or {}),
+        processing_versions=dict(pipeline_prov.get("processing_versions") or {}),
         manifest_artifact_id=manifest.artifact_id if manifest else None,
         generated_at=generated_at,
     )
@@ -433,6 +442,11 @@ def build_operator_case(case: Case, workflow: CaseWorkflow) -> OperatorCase:
             case_status=case.status.value,
             scientific_status=case.scientific_status.value,
             error=case.error,
+            # None for a case produced by the legacy CaseWorkflow path,
+            # which never writes this key. A real value for a case produced
+            # by GoldenCaseWorkflow, which writes it every _finalize() call.
+            # See ADR-0012.
+            engine_mode=case.metadata.get("engine_mode"),
         ),
         observation=observation,
         detection=detection,

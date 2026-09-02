@@ -224,6 +224,30 @@ def config_hash(config: Any) -> str:
     return hashlib.sha256(raw).hexdigest()[:16]
 
 
+def deterministic_run_id(case_id: str, engine_mode: str, cfg_hash: str,
+                          model_version: str | None, dataset_version: str | None) -> str:
+    """A run identity that is a pure function of the canonical inputs, not of
+    wall-clock time or a random draw.
+
+    `PipelineRun.run_id` (`RUN-{datetime.now()}-{uuid4()[:6]}`, in
+    `varuna_integration.pipeline`) is left exactly as it is: it identifies one
+    EXECUTION INSTANCE -- useful for correlating logs to a specific process
+    run -- and changing its format there would ripple into every existing
+    report/test that reads it. This is a second, complementary identity:
+    given the same case, mode, configuration, model and dataset version, two
+    separate executions (this process today, a different process next month)
+    compute the SAME `deterministic_run_id`, which is what idempotent replay
+    and audit deduplication actually need. `started_at`/`finished_at` on
+    `ReproducibilityRecord` remain the place wall-clock execution time lives;
+    this field deliberately carries none."""
+    payload = {
+        "case_id": case_id, "engine_mode": engine_mode, "config_hash": cfg_hash,
+        "model_version": model_version, "dataset_version": dataset_version,
+    }
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return "CRID-" + hashlib.sha256(raw).hexdigest()[:24]
+
+
 @dataclass(frozen=True)
 class ReproducibilityRecord:
     """Everything needed to reproduce or audit one run, independent of any
@@ -233,6 +257,7 @@ class ReproducibilityRecord:
 
     case_id: str
     run_id: str
+    deterministic_run_id: str
     engine_mode: str
     model_id: str | None
     model_version: str | None
@@ -248,7 +273,9 @@ class ReproducibilityRecord:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "case_id": self.case_id, "run_id": self.run_id, "engine_mode": self.engine_mode,
+            "case_id": self.case_id, "run_id": self.run_id,
+            "deterministic_run_id": self.deterministic_run_id,
+            "engine_mode": self.engine_mode,
             "model_id": self.model_id, "model_version": self.model_version,
             "checkpoint_hash": self.checkpoint_hash,
             "preprocessing_version": self.preprocessing_version,
@@ -453,7 +480,10 @@ class GoldenCaseWorkflow:
 
         info = detector_provider_info(run)
         repro = ReproducibilityRecord(
-            case_id=case.case_id, run_id=run.run_id, engine_mode=mode,
+            case_id=case.case_id, run_id=run.run_id,
+            deterministic_run_id=deterministic_run_id(
+                case.case_id, mode, cfg_hash, info["model_version"], dataset_version),
+            engine_mode=mode,
             model_id=info["model_id"], model_version=info["model_version"],
             checkpoint_hash=info["checkpoint_hash"],
             preprocessing_version=info["preprocessing_version"],
@@ -469,6 +499,14 @@ class GoldenCaseWorkflow:
             "reproducibility": repro.to_dict(),
             "case_status": case.status.value,
         }
+        # Flat, always-current key (distinct from the cfg_hash-indexed
+        # history above): "what engine mode produced this case's PRESENT
+        # state." Read by apps.api.operator_case_view.build_operator_case()
+        # to surface REAL/REPLAY/SIMULATED on OperatorCase.system_status —
+        # see ADR-0012. Overwritten on every _finalize() call, which is the
+        # correct semantics: it answers "how was the case's current run
+        # produced," not "list every mode this case was ever run under."
+        case.metadata["engine_mode"] = mode
         self.cases.save(case)
         return CaseResult(case=case, run=run, reproducibility=repro, idempotent_replay=False)
 

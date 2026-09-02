@@ -96,43 +96,46 @@ class CaseIntelligence:
         }
 
 
+_OOD_RISK_BY_LABEL = {
+    "in_domain": OODRisk.IN_DOMAIN,
+    "borderline": OODRisk.BORDERLINE,
+    "out_of_domain": OODRisk.OUT_OF_DOMAIN,
+    "unknown": OODRisk.UNKNOWN,
+}
+
+
 def assess_ood_from_detection(stage_detail: dict, produced: bool) -> tuple[OODRisk, str]:
     """
     Classify OOD risk from what the detection stage actually reported.
 
-    This is a **heuristic over reported activations**, not a calibrated OOD
-    detector, and it says so in the rationale it returns. It exists because
-    the alternative — leaving `ood_risk` permanently UNKNOWN — would make the
-    agentic loop unable to distinguish "we checked and it is fine" from "we
-    never looked", which is the distinction that stops a weak MC20-style
-    activation from being treated as a confident detection.
+    Combines two independent, no-training signals via
+    `varuna_integration.ood_energy.combine_ood_signals()`:
+
+    1. The class-probability heuristic (`max_probability` vs.
+       `decision_threshold`) — reflects only the oil-class probability.
+    2. The energy-score signal (`min_energy` vs. a reference distribution
+       built from NETRA-GOLD-v0.2 val tiles) — reflects whether the model's
+       raw, all-class representation of this input resembles its training
+       domain, independent of which class wins.
+
+    Neither is a calibrated OOD detector, and the combiner says so. When the
+    two disagree, that disagreement is reported explicitly rather than
+    resolved by preferring one signal — see `ood_energy.combine_ood_signals`.
     """
     max_prob = stage_detail.get("max_probability")
     threshold = stage_detail.get("decision_threshold")
+    min_energy = stage_detail.get("min_energy")
 
-    if not produced and max_prob is None:
+    if not produced and max_prob is None and min_energy is None:
         return (OODRisk.UNKNOWN,
                 "The detector reported no detection and no activation statistics, "
                 "so no OOD judgement is possible from this run alone.")
-    if max_prob is None:
-        return (OODRisk.UNKNOWN,
-                "No activation statistics were reported by the detection stage.")
 
-    if threshold and max_prob < threshold * 0.01:
-        return (OODRisk.OUT_OF_DOMAIN,
-                f"Peak activation {max_prob:.3g} is more than two orders of magnitude "
-                f"below the decision threshold {threshold:.3g}. A model operating in "
-                "its training domain does not produce activations this uniformly "
-                "flat; this is the signature of an input the model has no "
-                "representation for. HEURISTIC, not a calibrated OOD score.")
-    if threshold and max_prob < threshold:
-        return (OODRisk.BORDERLINE,
-                f"Peak activation {max_prob:.3g} is below the decision threshold "
-                f"{threshold:.3g} but within an order of magnitude of it. "
-                "HEURISTIC, not a calibrated OOD score.")
-    return (OODRisk.IN_DOMAIN,
-            f"Peak activation {max_prob:.3g} reached the decision threshold. "
-            "HEURISTIC, not a calibrated OOD score.")
+    from varuna_integration.ood_energy import combine_ood_signals
+    label, rationale = combine_ood_signals(
+        max_probability=max_prob, decision_threshold=threshold, min_energy=min_energy,
+    )
+    return _OOD_RISK_BY_LABEL[label], rationale
 
 
 def build_detection_evidence(case_id: str, run_id: str | None,
@@ -381,8 +384,17 @@ class CaseIntelligenceService:
         ais = run.stages.get("ais_ingest")
         ais_detail = (ais.detail or {}) if ais is not None else {}
         closest = ais_detail.get("closest_temporally_matched") or {}
+        netra_stage = run.stages.get("netra_detection")
+        raw_detection = (netra_stage.value[0]
+                        if netra_stage is not None and netra_stage.value else None)
+        phi_stage = run.stages.get("phi_reconstruction")
 
         centroid = det_ev.centroid if det_ev else None
+        # Previously computed and then discarded: `corridor` was queried on
+        # every case and never passed to `engine.assess()`, so
+        # `prior_cases_same_corridor` silently stayed at its default 0
+        # regardless of what SMRITI actually found. Found during Phase 0
+        # reconnaissance of this hardening session; fixed here.
         corridor = 0
         if self.smriti is not None and centroid is not None:
             corridor = self.smriti.corridor_case_count(centroid.lon, centroid.lat, 50.0)
@@ -394,13 +406,41 @@ class CaseIntelligenceService:
                                          region_note="Gulf of Mexico: documented persistent seepage")
                   if in_gom else self.chhaya)
 
+        # Wind speed and area come from `det_ev` (DetectionEvidenceEnvelope),
+        # which already carries them as `Measured` — pass the value only when
+        # actually measured, never a default standing in for absence.
+        wind_speed_ms = (det_ev.low_wind_context.value
+                        if det_ev and det_ev.low_wind_context
+                        and det_ev.low_wind_context.status.value == "measured"
+                        else None)
+        area_km2 = (det_ev.area_km2.value
+                   if det_ev and det_ev.area_km2
+                   and det_ev.area_km2.status.value == "measured"
+                   else None)
+        # `elongation` lives on the raw `SlickDetection`, not on
+        # `DetectionEvidenceEnvelope` (which has no such field) — read it
+        # from the stage's own value rather than fabricating it.
+        elongation = getattr(raw_detection, "elongation", None)
+
+        phi_available = phi_stage is not None and phi_stage.status.value == "produced"
+        phi_converged = None
+        if phi_available:
+            flag = (phi_stage.detail or {}).get("convergence_flag")
+            phi_converged = (flag == "converged") if flag is not None else None
+
         hyp = engine.assess(
             case_id=cid, parent_envelope=parent,
             detection_present=detection is not None,
+            elongation=elongation,
+            area_km2=area_km2,
             nearest_vessel_km=closest.get("distance_km"),
             nearest_vessel_temporally_matched=bool(closest),
             n_ais_tracks=ais_detail.get("n_returned") if ais is not None else None,
             in_known_seep_basin=in_gom,
+            wind_speed_ms=wind_speed_ms,
+            phi_available=phi_available,
+            phi_converged=phi_converged,
+            prior_cases_same_corridor=corridor,
             contradictions=[c.note or f"{c.left_summary} vs {c.right_summary}"
                             for c in ledger.contradictions(cid)],
             evidence_ids=[i.evidence_id for i in ledger.for_case(cid)],
