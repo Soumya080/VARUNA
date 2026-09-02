@@ -1,0 +1,122 @@
+{
+  "audit": "netra_v03_pre_training_integrity",
+  "date": "2026-08-31",
+  "final_decision": "TRAINING_FORMULATION_REQUIRES_CHANGE",
+  "mechanics_proven": {
+    "ignore_index_loss_invariance": "PASS (loss(A)==loss(B) to 1e-7 when targets differ only inside ignored pixels)",
+    "loss_responds_to_supervised_pixel": "PASS",
+    "ignored_pixels_zero_gradient": "PASS",
+    "all_ignore_target_yields_nan": "PASS (this is how bug 1 was found)",
+    "ignore_index_no_class_collision": "PASS",
+    "smoke_strong_loss": 0.95877,
+    "smoke_weak_loss": 0.93756,
+    "smoke_mixed_loss": 0.90098,
+    "smoke_all_finite": true,
+    "smoke_nan_grads": false,
+    "overfit_control_loss_start": 0.45722,
+    "overfit_control_loss_end": 0.01761,
+    "overfit_decreased": true,
+    "checkpoint_unchanged": true
+  },
+  "bugs_found_and_fixed": [
+    {
+      "id": "BUG1_nan_loss_tiles",
+      "severity": "CRASH",
+      "n_tiles": 6,
+      "detail": "tiles ~100% covered by an annotation box -> all-ignore target -> NaN loss -> NaN propagates through backward and destroys all weights",
+      "fix": "excluded via manifest (files retained), regression test added"
+    },
+    {
+      "id": "BUG2_normalization_mismatch",
+      "severity": "CONFOUND",
+      "detail": "v0.2 Gold stores PRE-normalized [0,1] tiles (p2/p98); v0.3 stores raw dB normalized at load with v0.3 stats. Same physical dB -> inputs differing by up to 0.296.",
+      "fix": "normalize v0.3 with v0.2 frozen train-only transform (netra-norm-v0.2-COMPAT-for-v0.3-mixed-pilot)"
+    }
+  ],
+  "physical_channel_contract": {
+    "v0_2": "ch0=VH, ch1=VV (v0.2 stat named VV is physically VH: mean -32.1 dB, the darker channel)",
+    "v0_3": "ch0=VH, ch1=VV",
+    "match": true,
+    "compatibility_layer_needed_for_channel_order": false
+  },
+  "strong_positive_coverage": {
+    "positive_pixels_total": 129900000.0,
+    "fraction_from_zenodo": 1.0,
+    "fraction_from_essd": 0.0,
+    "v0_2_train_positive_pixel_fraction": 0.014162,
+    "v0_2_train_tiles": 34992,
+    "v0_2_tiles_with_oil": 6043
+  },
+  "blockers": [
+    {
+      "id": "B1_domain_exposure_negligible",
+      "measured": "v0.3 train 213 tiles vs v0.2 train 34992 tiles = 0.62% of combined training pixels",
+      "consequence": "the experiment cannot detect its own independent variable at this mixing ratio"
+    },
+    {
+      "id": "B2_domain_label_confound",
+      "measured": "P(positive|Zenodo)=0.01416 vs P(positive|ESSD)=0.00000",
+      "consequence": "loss is reducible by learning ESSD-looking input -> background; MC20 fails by UNDER-detection in exactly this calm domain, so this risks reinforcing the target failure"
+    }
+  ],
+  "option_ranking": {
+    "A_essd_into_seg_loss": "REJECTED (is B2)",
+    "B_ignore_only_domain_exposure": "REJECTED as specified (B1 + B2)",
+    "C_MIL_at_least_one_positive_per_box": "RECOMMENDED -- box truly asserts >=1 oil pixel, so a max-over-box constraint is not fabrication; removes B2; pair with declared ESSD oversampling for B1",
+    "D_essd_evaluation_only_for_run1": "VIABLE FALLBACK"
+  },
+  "splits": {
+    "train": {
+      "tiles": 213,
+      "scenes": 8
+    },
+    "val": {
+      "tiles": 81,
+      "scenes": 3
+    },
+    "holdout": {
+      "tiles": 215,
+      "scenes": 8
+    }
+  },
+  "excluded": {
+    "EXCLUDED_PROXIMITY_TO_ZENODO": 77,
+    "EXCLUDED_DUPLICATE": 8,
+    "EXCLUDED_ALL_IGNORE": 6
+  },
+  "leakage": {
+    "exhaustive_zenodo_tiles_checked": 3020,
+    "holdout_scenes_flagged": 0,
+    "val_scenes_flagged": 3,
+    "train_scenes_flagged": 6,
+    "cross_split_duplicates": 0,
+    "val_status": "DIAGNOSTIC ONLY -- source-proximity biased",
+    "early_stopping": "DISABLED, fixed epoch budget"
+  },
+  "normalization": {
+    "version": "netra-norm-v0.2-COMPAT-for-v0.3-mixed-pilot",
+    "val_contribution": 0,
+    "holdout_contribution": 0,
+    "part3_contribution": 0,
+    "mc20_contribution": 0
+  },
+  "second_source_need": "A -- stronger pixel-level masks (decisively over geographic diversity; more geography with the same weak labels reproduces B2 at larger scale)",
+  "next_action": [
+    "choose Option C (recommended) or D",
+    "if C: implement MIL constraint + declared oversampling ratio, re-run Phase 4/5 proofs",
+    "write scripts/netra_v03/07_train_v03_pilot.py (does not exist)",
+    "launch on a GPU host -- none on this machine"
+  ],
+  "safety": {
+    "deleted": 0,
+    "moved": 0,
+    "renamed": 0,
+    "overwritten": 0,
+    "v0_2_checkpoint_modified": 0,
+    "v0_2_gold_modified": 0,
+    "part3_modified": 0,
+    "mc20_modified": 0,
+    "official_test_modified": 0,
+    "checkpoint_sha256": "9f38c690d0ef1629bdc7a59b76dbe054d45245cfccb4ba5b26f242f1d2e2cd66"
+  }
+}

@@ -27,6 +27,19 @@ class VarunaSettings(BaseSettings):
     alert_channels: list[str] = ["console"]   # "console" | "mock_sms" | "mock_sachet"
     alert_dedupe_window_seconds: int = 300
 
+    # Authentication
+    # INTERIM DEFAULT, stated plainly: this is a development secret, not a
+    # production one. No login/token-issuing service exists in this repo yet
+    # (see apps/api/security.py), so there is nothing that mints real
+    # user-attributable tokens today. Any deployment outside a trusted
+    # network MUST override this via the JWT_SECRET_KEY env var (no prefix
+    # is configured on this settings class) before accepting a Bearer token
+    # as authoritative.
+    jwt_secret_key: str = "dev-insecure-secret-change-before-any-real-deployment-32bytes-min"
+    jwt_algorithm: str = "HS256"
+    # STEP 7: bounded lifetime for tokens issued by POST /v1/auth/login.
+    access_token_expire_minutes: int = 30
+
     # Infrastructure
     database_url: Optional[str] = None
     redis_url: Optional[str] = None

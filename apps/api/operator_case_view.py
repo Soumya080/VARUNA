@@ -435,6 +435,18 @@ def build_operator_case(case: Case, workflow: CaseWorkflow) -> OperatorCase:
     mission = _mission_section(case, workflow)
     alerts = _alerts_section(case)
 
+    # Explicit starting-point contract (see varuna_geospatial.starting_point).
+    # Resolved from the SAME already-projected section values the rest of this
+    # view uses, so it can never disagree with what the operator is shown.
+    from varuna_geospatial.starting_point import resolve_starting_point
+
+    starting_point = resolve_starting_point(
+        detection.value if detection.status is ProducerStatus.PRODUCED else None,
+        origin.value if origin.status is ProducerStatus.PRODUCED else None,
+        detection_evidence_mode=detection.evidence_mode,
+        origin_evidence_mode=origin.evidence_mode,
+    )
+
     return OperatorCase(
         case_id=case.case_id,
         generated_at=generated_at,
@@ -458,6 +470,7 @@ def build_operator_case(case: Case, workflow: CaseWorkflow) -> OperatorCase:
         decision=decision,
         mission=mission,
         alerts=alerts,
+        starting_point=starting_point,
         recommendation=_recommendation(case, validity),
         evidence=_evidence_health(observation, detection, origin, attribution, ais),
         provenance=_provenance(case, workflow, generated_at),

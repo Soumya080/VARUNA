@@ -275,6 +275,28 @@ def test_operator_view_endpoint_is_read_only_and_additive():
         cleanup()
 
 
+def test_operator_view_endpoint_reports_intelligence_honestly_unavailable():
+    """STEP 3 (ADR-0013): the live /operator-view route is still backed by
+    the legacy CaseWorkflow (see docs/product/CANONICAL_WORKFLOW_POLICY.md),
+    which produces no PipelineRun for CaseIntelligenceService to consume.
+    The new `intelligence` field must therefore report NOT_YET_PRODUCED with
+    a real reason on every response from this route today -- never silently
+    omitted, and never fabricated as PRODUCED."""
+    client, cleanup = _authenticated_client()
+    try:
+        client.post("/v1/cases", json={"case_id": "OPVIEW-INTEL-1"})
+        r = client.get("/v1/cases/OPVIEW-INTEL-1/operator-view")
+        assert r.status_code == 200
+        body = r.json()
+        assert "intelligence" in body
+        assert body["intelligence"]["status"] == "not_yet_produced"
+        assert body["intelligence"]["reason"]
+        assert body["intelligence"]["hypotheses"] is None
+        assert body["intelligence"]["decision_trace"] is None
+    finally:
+        cleanup()
+
+
 def test_operator_view_404_for_unknown_case():
     from apps.api.main import app
     from fastapi.testclient import TestClient

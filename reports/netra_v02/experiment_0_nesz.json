@@ -1,0 +1,135 @@
+{
+  "experiment_id": "experiment0_nesz",
+  "date": "2026-08-30",
+  "hypothesis": "Applying MC20's existing but unused Sentinel-1 NESZ thermal-noise LUT to its calibration chain materially reduces the Zenodo<->MC20 distribution gap and/or moves the frozen NETRA v0.2 checkpoint's MC20 output out of its current numerical-floor (OOD-saturated) regime.",
+  "pre_registered_decision_criterion": {
+    "defined_before_seeing_denoised_result": true,
+    "criterion_i": "either channel's variance ratio (denoised-MC20 / Zenodo-raw-dB, floor-excluded) increases by >= 0.15 absolute versus the original (non-denoised) ratio",
+    "criterion_ii": "the frozen model's max oil probability across the 9 denoised tiles increases by >= 1000x relative to the original 3.05e-06",
+    "combination_rule": "material_effect = criterion_i OR criterion_ii"
+  },
+  "reproducibility": {
+    "git_commit": "67b16a7d4bce1db00b123a0ebe03d83dece671b1 (at experiment design time; new code added this task is uncommitted, see safety report)",
+    "source_safe_dir": "data/raw/sentinel1_grd/mc20_2023-01-15/S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+    "checksums": {
+      "vv_measurement_sha256": "ea0c4f9b7bb9798fedcc97d6d1a95d4f0eb965d45cdaf5841ea346817cac4b94",
+      "vh_measurement_sha256": "83b34de0a90020ec7d213dd7b7bb0b745bf1b5e7d75a75a017cbd1c8dda94a91",
+      "vv_calibration_xml_sha256": "9490d6dfefbf158c34eb2a3becee5ea1f2c177c2bec2fbefcbe09f7c2fe3ce3b",
+      "vh_calibration_xml_sha256": "2445fbd77105bbcbff618efb3535b2536dc9924d7de12ac5bcb5f5807c290373",
+      "vv_noise_xml_sha256": "b6b3bfde5321edaf2a86f34e07b3f201b3573d181512e7e46d96d1875dc0851b",
+      "vh_noise_xml_sha256": "98da78c41e294d8e9c93988b9e1a5362ae6810e432f155a914c9d4050fcd4299",
+      "checkpoint_sha256": "9f38c690d0ef1629bdc7a59b76dbe054d45245cfccb4ba5b26f242f1d2e2cd66",
+      "manifest_sha256": "89d3cf69d7131964f30879506a6ec0cd07cf01a5900deef89a9c6c24697ff8c4"
+    },
+    "crop_window": {"top": 7268, "left": 18657, "size": 1536},
+    "script": "scripts/netra_v02/experiment0_nesz_probe.py",
+    "new_code": "packages/varuna_data_eng/preprocessing/sentinel1_grd_calibration.py -- additive functions parse_noise_lut(), _interpolate_noise_to_grid(), calibrate_to_db_denoised(). Existing calibrate_to_db() and every existing caller (scripts/build_mc20_event_gold.py) are completely unmodified."
+  },
+  "phase1_lut_inspection": {
+    "classification": "MEASURED",
+    "noise_xml_structure": "noiseRangeVectorList (27 range vectors, same line/pixel grid convention as the calibration LUT, field name noiseRangeLut) + noiseAzimuthVectorList (3 vectors, one per IW sub-swath IW1/IW2/IW3, each a 1D function of azimuth line only, constant across its sub-swath's range-sample span)",
+    "polarizations_present": ["VV", "VH"],
+    "dimensions_relevant": {"full_scene_width_px": 25899, "full_scene_height_px": 16734, "crop_window_px": 1536},
+    "applicability": "Both VV and VH noise XMLs cover the full scene's line/pixel range and all three sub-swaths' range-sample spans; the crop window (columns 18657-20193) was verified to fall entirely within IW3's coverage before proceeding (an assertion in _interpolate_noise_to_grid would have raised otherwise)."
+  },
+  "phase2_implementation": {
+    "classification": "DERIVED",
+    "approach": "Minimal opt-in: calibrate_to_db() unchanged; new calibrate_to_db_denoised() added alongside it with an explicit noise_xml_path argument (not a boolean flag threaded through the existing function, since the existing function's callers never pass row/col offsets either -- adding a same-shape sibling function was the smaller, more auditable change than adding conditional branches inside the production function).",
+    "formula": "NoisePower(line,pixel) = noiseRangeLut(line,pixel) * noiseAzimuthLut(line); sigma0_linear = max(DN^2 - NoisePower, floor_eps) / sigmaNought^2; dB = 10*log10(sigma0_linear)",
+    "floor_eps": 1e-06,
+    "floor_eps_caveat": "Arbitrary substitute value for pixels where DN^2 < NoisePower (a real physical outcome: thermal noise exceeds true signal there). Including floored pixels in aggregate statistics lets this arbitrary floor value dominate the variance calculation -- found during this run (see phase4 below) and corrected by reporting floor-excluded statistics as the fair comparison."
+  },
+  "phase3_artifact": {
+    "classification": "MEASURED",
+    "directory": "reports/netra_v02/experiment0_nesz/",
+    "raw_output": "reports/netra_v02/experiment0_nesz/experiment0_nesz_raw.json"
+  },
+  "phase4_pre_normalization_comparison": {
+    "classification": "MEASURED",
+    "reproduction_check": {
+      "n_real_mc20_gold_tiles": 9,
+      "n_this_scripts_reconstructed_tiles": 9,
+      "max_abs_diff_vs_real_production_tiles": 0.0,
+      "verdict": "EXACT reproduction -- this script's 'original' calibration path is byte-identical to the real MC20 Event Gold v0.1 tiles on disk, confirming the experiment's fidelity before trusting the denoised comparison."
+    },
+    "original_calibration_db": {
+      "VV": {"mean": -21.77, "std": 2.22},
+      "VH": {"mean": -29.34, "std": 2.24}
+    },
+    "denoised_calibration_db_EXCLUDING_floored_pixels_FAIR_COMPARISON": {
+      "VV": {"mean": -22.74, "std": 2.89},
+      "VH": {"mean": -34.35, "std": 5.23},
+      "VV_valid_fraction": 0.9983,
+      "VH_valid_fraction": 0.5619,
+      "VH_floored_fraction_headline_finding": 0.4381,
+      "note": "Full percentile tables in reports/netra_v02/experiment0_nesz/experiment0_nesz_raw.json"
+    },
+    "variance_ratio_mc20_over_zenodo_raw_10_scenes": {
+      "original": {"VV": 0.2478, "VH": 0.6963},
+      "denoised_excluding_floored_FAIR_COMPARISON": {"VV": 0.4212, "VH": 3.8023},
+      "denoised_including_floored_CONTAMINATED_DO_NOT_USE_FOR_DECISION": {"VV": 1.1622, "VH": 226.10},
+      "interpretation": "VV moves partway toward 1.0 (0.25 -> 0.42, still undershooting). VH does NOT converge toward 1.0 -- it OVERSHOOTS past it by nearly 4x (0.70 -> 3.80). This is not a clean confirmation of the hypothesis: one channel improves modestly, the other becomes MORE different from training than before the correction, in the opposite direction."
+    },
+    "headline_finding_independent_of_variance_ratio": {
+      "description": "43.8% of this MC20 crop's VH pixels have DN^2 below the real, product-supplied thermal noise floor at this location -- i.e. cross-pol backscatter is at or below the sensor's own noise floor for nearly half the scene.",
+      "classification": "MEASURED",
+      "significance": "This alone is informative regardless of the variance-ratio result: it means VH's usable dynamic range in this specific MC20 scene is genuinely, physically limited by sensor noise, not solely a preprocessing artifact -- a fact the ORIGINAL (non-denoised) pipeline was silently absorbing into its dB values rather than surfacing."
+    }
+  },
+  "phase5_frozen_model_probe": {
+    "classification": "MEASURED",
+    "threshold": 0.806,
+    "checkpoint_unchanged": true,
+    "normalization_unchanged": true,
+    "architecture_unchanged": true,
+    "original": {"max": 3.0535006771970075e-06, "note": "matches the previously-reported and independently-reproduced MC20 max probability"},
+    "denoised": {"max": 5.113640781928552e-06},
+    "ratio": 1.6746813976876769,
+    "interpretation": "The frozen model's output is PRACTICALLY UNCHANGED by the NESZ correction -- both values are deep in the same numerical-floor / OOD-saturated regime (order 1e-6), roughly 5-6 orders of magnitude below the 0.806 operating threshold. A 1.67x change at this magnitude is not a meaningful shift in model behavior."
+  },
+  "phase6_pre_registered_decision_applied": {
+    "classification": "DERIVED, mechanically applied per the pre-registered rule",
+    "criterion_i_result": {"VV_delta": 0.1733, "VH_delta": 3.1060, "met": true},
+    "criterion_ii_result": {"ratio": 1.6747, "met": false},
+    "material_effect_per_registered_OR_rule": true,
+    "mechanical_experiment_status": "MATERIAL_EFFECT -- proceed to EXPERIMENT A (per the OR rule as literally pre-registered)",
+    "substantive_caveat_not_a_post_hoc_criterion_change": "The registered rule fired on criterion_i alone. Criterion_ii -- arguably the more decision-relevant signal, since it measures the actual practical target (does the frozen model's behavior on MC20 change) -- was NOT met, by a wide margin (1.67x vs. the 1000x bar). Additionally, criterion_i's own VH result is an OVERSHOOT past the target (ratio 3.80, not a convergence toward 1.0), which is a qualitatively different and less reassuring result than 'the gap closed.' This is reported as a genuine ambiguity in the evidence, not resolved by silently picking whichever reading is more convenient. The pre-registered mechanical rule is honored as stated (do not re-threshold after seeing results), but the interpretation below treats this as a WEAK, MIXED positive, not a clean confirmation."
+  },
+  "phase7_no_retraining": {"classification": "DERIVED", "confirmed": true, "training_launched": false, "gold_rebuilt": false, "threshold_tuned": false},
+  "phase8_decision_tree": {
+    "classification": "DERIVED",
+    "mechanical_next_step_per_registered_rule": "EXPERIMENT A -- preprocessing correction study",
+    "recommended_scope_of_experiment_A_given_the_mixed_result": "Narrower than a full retraining-adjacent study: Experiment A should specifically (a) investigate WHY VH overshoots rather than converges (candidate causes: the still-unresolved channel-semantics uncertainty from the prior audit; a possible error or missing correction term in the azimuth-noise combination used here; or a genuine, correctly-measured property of this specific MC20 scene/date), and (b) re-run the frozen-model probe after that investigation, since Phase 5 shows the current NESZ-only correction does not move the model out of saturation on its own."
+  },
+  "phase9_future_data_spec": {
+    "classification": "DERIVED -- not triggered this pass",
+    "note": "Experiment 0's mechanical result routes to Experiment A, not B, so the full data-acquisition specification from the prior reconciliation report is not repeated here. It remains valid and unchanged if Experiment A itself fails."
+  },
+  "phase10_test_protection": {
+    "classification": "DERIVED",
+    "official_test_touched": false,
+    "mc20_gold_touched": false,
+    "mc20_used_as_tuning_source": false,
+    "note": "MC20's own labels do not exist; this experiment measured distribution statistics and frozen-model output only, never selected a threshold, hyperparameter, or model based on MC20."
+  },
+  "safety_report": {
+    "deleted": 0, "moved": 0, "renamed": 0, "overwritten": 0,
+    "checkpoint_modified": 0, "gold_modified": 0, "mc20_modified": 0, "official_test_modified": 0,
+    "raw_safe_modified": 0,
+    "files_added_this_task": [
+      "packages/varuna_data_eng/preprocessing/sentinel1_grd_calibration.py (additive functions only, existing functions byte-unchanged)",
+      "scripts/netra_v02/experiment0_nesz_probe.py (new)",
+      "reports/netra_v02/experiment0_nesz/experiment0_nesz_raw.json (new)",
+      "reports/netra_v02/EXPERIMENT_0_NESZ.md (new)",
+      "reports/netra_v02/experiment_0_nesz.json (new, this file)"
+    ]
+  },
+  "final_result": {
+    "hypothesis": "NESZ correction alone materially closes the Zenodo<->MC20 gap and/or restores non-saturated model behavior on MC20.",
+    "result": "MIXED. Mechanically MATERIAL_EFFECT per the pre-registered OR-rule (criterion_i fired), but criterion_ii (frozen-model behavior) showed no meaningful change, and criterion_i's own result is an overshoot in one channel (VH) rather than a clean convergence. A genuine, independently valuable finding emerged regardless: 43.8% of MC20's VH pixels are below the sensor's real noise floor at this location.",
+    "effect_on_VV": "Variance ratio moved from 0.25 to 0.42 (partial improvement, still below 1.0)",
+    "effect_on_VH": "Variance ratio moved from 0.70 to 3.80 (overshoot past 1.0, in the opposite direction of convergence)",
+    "effect_on_NETRA_output": "Negligible -- max probability moved from 3.05e-06 to 5.11e-06 (1.67x), still 5-6 orders of magnitude below the operating threshold and indistinguishable from the original OOD-saturated regime",
+    "next": "EXPERIMENT_A_PREPROCESSING (per the mechanical decision rule), scoped narrowly to investigate the VH overshoot before any broader preprocessing-correction claim is made"
+  }
+}

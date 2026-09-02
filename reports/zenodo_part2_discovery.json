@@ -1,0 +1,30 @@
+{
+  "hashes": {
+    "01_Train_Val_Lookalike_images.7z": {
+      "size": 22993852696,
+      "sha256": "62ee4edf05abcfc08a5e78e89534e5e427d9573df0c9241d754f73b3370bd32d"
+    },
+    "01_Train_Val_Lookalike_mask.7z": {
+      "size": 426795,
+      "sha256": "ac0a6aa66005e623c39e0b562df19e69c03c802ae146d55a427e44aa0d2495e2"
+    },
+    "01_Train_Val_No_Oil_Images.7z": {
+      "size": 22931223979,
+      "sha256": "0d851e3d35cff0a87458ce1eb1d6ff50e89bf79f7108d770b3b8986d899b4de8"
+    },
+    "01_Train_Val_No_Oil_mask.7z": {
+      "size": 416694,
+      "sha256": "52a07257bf4bc608810b78094205e8e214d13be28edd1da82363adcb7e63d8cf"
+    }
+  },
+  "inventory": {
+    "Lookalike": {
+      "count": 2055,
+      "total_size_bytes": 60694656408
+    },
+    "No_Oil": {
+      "count": 1370,
+      "total_size_bytes": 31798390320
+    }
+  }
+}

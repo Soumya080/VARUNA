@@ -9,19 +9,36 @@ from tests.fixtures.case_0001 import generate_case_0001
 from apps.api.dependencies import get_workflow
 from apps.api.config import settings
 from apps.api.schemas import (
-    CreateCaseRequest, CaseResponse, IngestRequest, ReconstructRequest, 
+    CreateCaseRequest, CaseResponse, IngestRequest, ReconstructRequest,
     AttributeRequest, PhiResponse, AttributionResponse
 )
 from apps.api.errors import CaseNotFoundError
 from apps.api.operator_case_view import build_operator_case
+from apps.api.security import get_principal
 from varuna_contracts.operator_case import OperatorCase
+from varuna_infra.authorization import Principal, authorize
+from varuna_infra.rbac import Permission
+
+# Explicit allowlist of fixture generators the ingest endpoint may invoke.
+# Prior code did `importlib.import_module(f"tests.fixtures.{req.use_fixture}")`
+# with `req.use_fixture` taken directly from the request body — production
+# code performing an attacker-influenced dynamic import of any module under
+# `tests.fixtures`. This closes that: only names in this table can ever be
+# loaded, and the body value is a lookup key, never a module path.
+_FIXTURE_REGISTRY = {
+    "case_0001": generate_case_0001,
+}
 
 router = APIRouter(prefix="/v1/cases", tags=["cases"])
 
 from fastapi import HTTPException
 
 @router.post("", response_model=Dict[str, str])
-def create_case(req: CreateCaseRequest, workflow: CaseWorkflow = Depends(get_workflow)):
+def create_case(
+    req: CreateCaseRequest, workflow: CaseWorkflow = Depends(get_workflow),
+    principal: Principal = Depends(get_principal),
+):
+    authorize(principal, Permission.CREATE_CASE, "create_case")
     if workflow.cases.get(req.case_id):
         raise HTTPException(409, f"Case {req.case_id} already exists")
     case = workflow.create_case(req.case_id)
@@ -55,19 +72,19 @@ def get_case(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):
     }
 
 @router.post("/{case_id}/ingest")
-def ingest(case_id: str, req: IngestRequest, workflow: CaseWorkflow = Depends(get_workflow)):
+def ingest(
+    case_id: str, req: IngestRequest, workflow: CaseWorkflow = Depends(get_workflow),
+    principal: Principal = Depends(get_principal),
+):
+    authorize(principal, Permission.RUN_CASE_STAGE, "ingest", subject_id=case_id)
     case = workflow.cases.get(case_id)
     if not case:
         raise CaseNotFoundError(case_id)
-    
-    # Load the requested fixture dynamically
-    import importlib
-    try:
-        module = importlib.import_module(f"tests.fixtures.{req.use_fixture}")
-        fixture_gen = getattr(module, f"generate_{req.use_fixture}")
-        fixture = fixture_gen()
-    except (ImportError, AttributeError):
+
+    fixture_gen = _FIXTURE_REGISTRY.get(req.use_fixture)
+    if fixture_gen is None:
         raise HTTPException(400, f"Unknown fixture: {req.use_fixture}")
+    fixture = fixture_gen()
 
     case, guard = workflow.ingest(
         case, fixture["slick_lons"], fixture["slick_lats"],
@@ -80,7 +97,11 @@ def ingest(case_id: str, req: IngestRequest, workflow: CaseWorkflow = Depends(ge
     }
 
 @router.post("/{case_id}/reconstruct")
-def reconstruct(case_id: str, req: ReconstructRequest, workflow: CaseWorkflow = Depends(get_workflow)):
+def reconstruct(
+    case_id: str, req: ReconstructRequest, workflow: CaseWorkflow = Depends(get_workflow),
+    principal: Principal = Depends(get_principal),
+):
+    authorize(principal, Permission.RUN_CASE_STAGE, "reconstruct", subject_id=case_id)
     case = workflow.cases.get(case_id)
     if not case:
         raise CaseNotFoundError(case_id)
@@ -88,7 +109,11 @@ def reconstruct(case_id: str, req: ReconstructRequest, workflow: CaseWorkflow = 
     return {"case_id": case_id, **result}
 
 @router.post("/{case_id}/attribute")
-def attribute(case_id: str, req: AttributeRequest, workflow: CaseWorkflow = Depends(get_workflow)):
+def attribute(
+    case_id: str, req: AttributeRequest, workflow: CaseWorkflow = Depends(get_workflow),
+    principal: Principal = Depends(get_principal),
+):
+    authorize(principal, Permission.RUN_CASE_STAGE, "attribute", subject_id=case_id)
     case = workflow.cases.get(case_id)
     if not case:
         raise CaseNotFoundError(case_id)

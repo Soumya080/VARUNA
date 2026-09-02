@@ -1,0 +1,63 @@
+{
+  "task": "Integration Track STEP 5 - PRAVAAH Canonical Integration",
+  "date": "2026-09-02",
+  "status": "PRAVAAH_CANONICAL_VERIFIED",
+  "diagnosis": {
+    "previous_behavior": "RealE2EPipeline._forecast() and GoldenCaseWorkflow.run_case() already invoked the real CubeBackedPravaahProvider against real MC20 forcing (pre-existing, verified not built this task); CASE-VALID's forecast is a hand-built replay fixture by design",
+    "actual_root_cause": "build_product_case() (STEP 3's composition boundary) had never been exercised against a CaseResult carrying a genuinely-computed (non-fixture) PRAVAAH forecast; no test proved the forecast survives composition unmodified, un-duplicated, and correctly mode-labeled at that specific layer",
+    "pravaah_mathematics_modified": false,
+    "real_e2e_pipeline_modified": false,
+    "golden_case_workflow_modified": false
+  },
+  "files_changed": [
+    "tests/integration/test_pravaah_canonical_product_case.py (new, 9 tests)",
+    "frontend/VARUNA-frontend_yash/lib/operator-case-types.ts (ForwardForecastValue properly typed, LandfallPrediction added)",
+    "frontend/VARUNA-frontend_yash/components/intelligence-panels.tsx (new ForecastPanel)",
+    "frontend/VARUNA-frontend_yash/components/case-intelligence.tsx (wired ForecastPanel)",
+    "frontend/VARUNA-frontend_yash/lib/__tests__/forecast-panel-logic.test.ts (new, 5 tests)"
+  ],
+  "provider_used": "varuna_pravaah.cube_provider.CubeBackedPravaahProvider (real forward particle drift against real CMEMS current fields)",
+  "replay_behavior": {
+    "fixture": "CASE-VALID",
+    "forecast_source": "hand-built replay_fixtures.py fixture value, by design",
+    "engine_mode": "replay",
+    "evidence_mode": "real",
+    "frontend_renders_it": true
+  },
+  "real_data_behavior": {
+    "scenario": "GoldenCaseWorkflow.run_case() + real MC20 CMEMS/ERA5 forcing + SimulatedSlickProvider detection",
+    "forecast_status": "produced",
+    "trajectory_file_verified_on_disk": true,
+    "evidence_mode": "simulated",
+    "evidence_mode_correctly_worsened_from_detection_not_forcing": true,
+    "missing_forcing_scenario": "GoldenCaseWorkflow.run_case() raises, Case transitions to FAILED with a named error; no forecast fabricated"
+  },
+  "provenance_verified": ["envelope.case_id", "envelope.provenance", "envelope.mode", "horizon_hours", "trajectory_path (real file)", "computed_at"],
+  "provenance_survives_composition": true,
+  "tests": {
+    "new_backend_file": "tests/integration/test_pravaah_canonical_product_case.py",
+    "new_backend_tests": 9,
+    "new_backend_result": "9 passed",
+    "new_frontend_file": "lib/__tests__/forecast-panel-logic.test.ts",
+    "new_frontend_tests": 5,
+    "frontend_total_tests": 11,
+    "frontend_total_result": "11 passed",
+    "frontend_typecheck": "0 errors",
+    "frontend_build": "success, 14/14 routes",
+    "no_duplicate_pravaah_execution_verified": true
+  },
+  "backend_full_regression": {
+    "command": "pytest tests/ -q --ignore=tests/scientific",
+    "passed": 766,
+    "skipped": 10,
+    "failed": 1,
+    "failure": "test_netra_training_loop (pre-existing, unrelated)",
+    "baseline_before_this_task": "757 passed / 10 skipped / 1 pre-existing failure",
+    "regressions": 0
+  },
+  "remaining_limitations": [
+    "No API route currently serves a real (non-replay) PRAVAAH forecast to the frontend - only GET /v1/replay/{fixture} exists, which is replay-only; a real-case route is live-API-orchestration, out of this task's scope",
+    "MC20's frozen NETRA checkpoint still finds nothing on this corpus (unrelated, out of scope) - the SimulatedSlickProvider path is the sanctioned way to test PRAVAAH without depending on that",
+    "ForecastPanel shows the trajectory as a filename, not plotted on the map - out of scope per 'do not redesign the frontend'"
+  ]
+}

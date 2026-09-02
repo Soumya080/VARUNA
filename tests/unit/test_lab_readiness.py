@@ -43,7 +43,7 @@ from scripts.validate_data import validate_data
 from scripts.build_canonical import build_canonical_datasets
 from scripts.build_manifest import build_manifest_file
 from scripts.build_gold import build_gold_dataset
-from train_netra import train_netra
+import train_netra as train_netra_module
 from train_chhaya import train_chhaya
 
 
@@ -139,6 +139,8 @@ def test_smoke_train_netra(tmp_path):
         meta = json.load(f)
     assert meta["model_name"] == "netra"
     assert "val_iou_oil" in meta["metrics"]
+    assert res["weights_changed"] is True, "smoke run did not update any weight"
+    assert meta["scientific_status"].startswith("SYNTHETIC")
 
 
 def test_smoke_train_chhaya(tmp_path):
@@ -209,10 +211,31 @@ def test_build_gold_script():
     assert res["tracks_written"] > 0
 
 
-def test_train_netra_dry_run():
-    res = train_netra(config_path="configs/lab/netra.yaml", dry_run=True)
-    assert res["experiment_id"] is not None
-    assert Path(res["checkpoint_path"]).exists()
+def test_train_netra_refuses_to_run_without_real_gold(tmp_path, monkeypatch, capsys):
+    """The real entrypoint must fail loudly rather than fall back to synthetic data.
+
+    This replaces the former `test_train_netra_dry_run`, which asserted that a
+    pipeline succeeded while it was in fact training on `SyntheticNetraDataset`
+    and printing losses from the closed form `0.45 / sqrt(epoch)`.
+    """
+    cfg = {
+        "device": "cpu",
+        "gold_manifest": str(tmp_path / "no_such_manifest.json"),
+        "in_channels": 2,
+        "classes": 2,
+    }
+    monkeypatch.setattr(train_netra_module, "load_config", lambda p: cfg)
+    monkeypatch.setattr("sys.argv", ["train_netra.py"])
+    rc = train_netra_module.main()
+    assert rc == 2, "entrypoint must exit non-zero when Gold is absent"
+    assert "will not substitute synthetic data" in capsys.readouterr().out
+
+
+def test_train_netra_entrypoint_has_no_synthetic_path():
+    src = (Path(train_netra_module.__file__)).read_text(encoding="utf-8")
+    body = src.split('"""', 2)[-1]
+    assert "SyntheticNetraDataset" not in body
+    assert "NetraGoldDataset" in body
 
 
 def test_train_chhaya_dry_run():

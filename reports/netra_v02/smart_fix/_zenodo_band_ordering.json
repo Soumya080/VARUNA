@@ -1,0 +1,16 @@
+{
+  "part1": {
+    "n": 40,
+    "band0_mean": -31.81333351135254,
+    "band1_mean": -19.61215591430664,
+    "frac_band1_brighter": 1.0,
+    "mean_gap_b1_minus_b0": 12.201177597045898
+  },
+  "lookalike": {
+    "n": 40,
+    "band0_mean": -30.947612762451172,
+    "band1_mean": -25.946971893310547,
+    "frac_band1_brighter": 1.0,
+    "mean_gap_b1_minus_b0": 5.00063943862915
+  }
+}

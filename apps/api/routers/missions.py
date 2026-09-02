@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from apps.api.dependencies import get_mission_service
+from apps.api.security import get_principal
 from varuna_infra.authorization import AuthorizationError, Principal
 from varuna_missions.service import MissionService
 
@@ -20,6 +21,22 @@ def get_mission(mission_id: str, svc: MissionService = Depends(get_mission_servi
     return m.model_dump(mode="json")
 
 
+@router.get("/{mission_id}/audit")
+def get_mission_audit(mission_id: str, svc: MissionService = Depends(get_mission_service)):
+    """STEP 6 (docs/product/ALERT_OPERATIONAL_DIAGNOSTIC.md, item 12): the
+    authorization decisions `approve_and_assign()` already records were
+    previously discarded every request because a fresh `MissionService`
+    (and therefore a fresh, empty `AuditLog`) was constructed per call.
+    Now that `get_mission_service()` is a singleton, this is answerable:
+    who was allowed, who was denied, and when, for this mission —
+    both approvals AND denials, since `AuditLog.for_subject` records both."""
+    m = svc.get(mission_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    entries = svc.audit_log.for_subject(mission_id)
+    return {"items": [e.model_dump(mode="json") for e in entries]}
+
+
 class ApproveMissionRequest(BaseModel):
     """`approved_by` must equal the authenticated principal — MissionService
     rejects a mismatch so an authorized caller cannot record someone else as
@@ -27,37 +44,20 @@ class ApproveMissionRequest(BaseModel):
     approved_by: str = Field(..., min_length=1)
 
 
-def _principal(x_user_id: str | None, x_user_role: str | None) -> Principal:
-    """
-    Resolve the calling principal from request headers.
-
-    INTERIM MECHANISM, stated plainly rather than left to be discovered: this
-    trusts `X-User-Id`/`X-User-Role` headers. `varuna_infra.auth` already
-    implements signed JWTs (`verify_token`), and this endpoint should move to
-    them before any deployment outside a trusted network. It is wired this way
-    now because no login/token-issuing route exists yet, and shipping the
-    authorization CHECK (which was entirely absent) is the security-relevant
-    half; header spoofing is a weaker gap than having no permission check at
-    all, but it is still a gap and is tracked as one.
-    """
-    if not x_user_id or not x_user_role:
-        raise HTTPException(
-            status_code=401,
-            detail="X-User-Id and X-User-Role headers are required to approve a mission",
-        )
-    return Principal(principal_id=x_user_id, role=x_user_role)
-
-
 @router.post("/{mission_id}/approve")
 def approve_mission(
     mission_id: str,
     body: ApproveMissionRequest,
     svc: MissionService = Depends(get_mission_service),
-    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
-    x_user_role: str | None = Header(default=None, alias="X-User-Role"),
+    principal: Principal = Depends(get_principal),
 ):
-    """Two-step human authorization gate for dispatching an asset."""
-    principal = _principal(x_user_id, x_user_role)
+    """Two-step human authorization gate for dispatching an asset.
+
+    Identity now comes from `apps.api.security.get_principal` — a verified
+    JWT, or (demo_mode only) the previous unsigned header pair — rather than
+    a header-only resolver local to this router. See that module's docstring
+    for why the header path is now demo_mode-gated instead of always-on.
+    """
     try:
         mission = svc.approve_and_assign(
             mission_id, approved_by=body.approved_by, principal=principal)

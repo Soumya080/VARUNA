@@ -158,6 +158,297 @@ def calibrate_to_db(
     )
 
 
+@dataclass(frozen=True)
+class NoiseRangeLUT:
+    """Sparse (line, pixel) -> thermal-noise-power grid, same shape convention
+    as CalibrationLUT. Parsed from a real noise-*.xml; never fabricated."""
+    lines: np.ndarray
+    pixels: np.ndarray
+    noise_power: np.ndarray
+
+
+@dataclass(frozen=True)
+class NoiseAzimuthVector:
+    """One <noiseAzimuthVector> entry: a per-swath azimuth-direction noise
+    scale factor, constant across a swath's range-sample span and varying
+    only with azimuth line."""
+    swath: str
+    first_range_sample: int
+    last_range_sample: int
+    line: np.ndarray
+    noise_azimuth_lut: np.ndarray
+
+
+@dataclass(frozen=True)
+class NoiseLUT:
+    range_lut: NoiseRangeLUT
+    azimuth_vectors: tuple[NoiseAzimuthVector, ...]
+
+
+def parse_noise_lut(noise_xml_path: Path) -> NoiseLUT:
+    """Parse a Sentinel-1 GRD noise XML
+    (annotation/calibration/noise-s1?-iw-grd-{vv,vh}-*.xml) for its real
+    noiseRangeVectorList and noiseAzimuthVectorList. Same real-XML-only
+    discipline as parse_calibration_lut -- raises on malformed input,
+    never returns a fabricated/default LUT.
+
+    EXPERIMENTAL (Experiment 0, 2026-08-30): this parser and everything
+    that consumes it (calibrate_to_db's remove_thermal_noise= path below)
+    is additive and opt-in. Nothing that already calls calibrate_to_db()
+    without the new keyword arguments is affected -- default behavior is
+    byte-for-byte unchanged from before this experiment.
+    """
+    tree = ET.parse(noise_xml_path)
+    root = tree.getroot()
+
+    range_vectors = root.findall(".//noiseRangeVector")
+    if not range_vectors:
+        raise ValueError(f"No <noiseRangeVector> entries found in {noise_xml_path}")
+
+    lines, pixels_list, noise_list = [], [], []
+    for vec in range_vectors:
+        line_el = vec.find("line")
+        pixel_el = vec.find("pixel")
+        noise_el = vec.find("noiseRangeLut")
+        if line_el is None or pixel_el is None or noise_el is None:
+            raise ValueError(f"Malformed noiseRangeVector in {noise_xml_path}")
+        lines.append(int(line_el.text))
+        pixels_list.append(np.array([int(p) for p in pixel_el.text.split()]))
+        noise_list.append(np.array([float(s) for s in noise_el.text.split()]))
+
+    range_lut = NoiseRangeLUT(
+        lines=np.array(lines),
+        pixels=np.stack(pixels_list),
+        noise_power=np.stack(noise_list),
+    )
+
+    az_vectors = []
+    for az in root.findall(".//noiseAzimuthVector"):
+        def _req_text(tag: str) -> str:
+            el = az.find(tag)
+            if el is None or el.text is None:
+                raise ValueError(f"Malformed noiseAzimuthVector, missing/empty <{tag}> in {noise_xml_path}")
+            return el.text
+
+        swath_txt = _req_text("swath")
+        frs_txt = _req_text("firstRangeSample")
+        lrs_txt = _req_text("lastRangeSample")
+        line_txt = _req_text("line")
+        lut_txt = _req_text("noiseAzimuthLut")
+        az_vectors.append(NoiseAzimuthVector(
+            swath=swath_txt,
+            first_range_sample=int(frs_txt),
+            last_range_sample=int(lrs_txt),
+            line=np.array([int(v) for v in line_txt.split()]),
+            noise_azimuth_lut=np.array([float(v) for v in lut_txt.split()]),
+        ))
+    if not az_vectors:
+        raise ValueError(f"No <noiseAzimuthVector> entries found in {noise_xml_path}")
+
+    return NoiseLUT(range_lut=range_lut, azimuth_vectors=tuple(az_vectors))
+
+
+def _interpolate_noise_to_grid(
+    noise: NoiseLUT, height: int, width: int, row_offset: int = 0, col_offset: int = 0,
+) -> np.ndarray:
+    """Interpolate the combined range x azimuth noise-power LUT onto a
+    (height, width) crop window, exactly as calibrate_window() in
+    scripts/build_mc20_event_gold.py shifts the calibration LUT: the
+    LUT's own (line, pixel) coordinates are shifted by (row_offset,
+    col_offset) into the crop's local frame before interpolation, rather
+    than interpolating in full-scene coordinates and cropping afterward
+    (equivalent result, this ordering matches the existing calibration
+    code path this experiment must stay consistent with).
+
+    Per the Sentinel-1 product-format spec, total thermal noise power at
+    (line, pixel) = noiseRangeLut(line, pixel) * noiseAzimuthLut(line),
+    with the azimuth factor selected by whichever swath's range-sample
+    span contains that pixel (constant across that span, varies only
+    with line).
+    """
+    from scipy.interpolate import RegularGridInterpolator
+
+    rl = noise.range_lut
+    shifted_lines = rl.lines - row_offset
+    shifted_pixels = rl.pixels - col_offset
+    pixel_axis = shifted_pixels[0]
+    range_interp = RegularGridInterpolator(
+        (shifted_lines, pixel_axis), rl.noise_power,
+        bounds_error=False, fill_value=None,
+    )
+    line_grid, pixel_grid = np.meshgrid(np.arange(height), np.arange(width), indexing="ij")
+    points = np.stack([line_grid.ravel(), pixel_grid.ravel()], axis=-1)
+    range_grid = range_interp(points).reshape(height, width)
+
+    # Azimuth factor: per-column selection of the swath whose full-scene
+    # range-sample span contains this crop column, then 1D interpolation
+    # of that swath's line/noiseAzimuthLut at each full-scene row.
+    az_grid = np.ones((height, width), dtype=np.float64)
+    full_cols = np.arange(width) + col_offset
+    full_rows = np.arange(height) + row_offset
+    assigned = np.zeros(width, dtype=bool)
+    for vec in noise.azimuth_vectors:
+        in_span = (full_cols >= vec.first_range_sample) & (full_cols <= vec.last_range_sample)
+        if not in_span.any():
+            continue
+        az_factor_per_row = np.asarray(np.interp(full_rows, vec.line, vec.noise_azimuth_lut))
+        az_grid[:, in_span] = az_factor_per_row.reshape(-1, 1)
+        assigned |= in_span
+    if not assigned.all():
+        raise ValueError(
+            "Noise azimuth LUT does not cover the full crop width -- "
+            f"{int((~assigned).sum())} of {width} columns unassigned. "
+            "Refusing to silently fall back to the neutral factor of 1.0 "
+            "for an uncovered region."
+        )
+
+    return range_grid * az_grid
+
+
+def calibrate_to_db_denoised(
+    dn_array: np.ndarray,
+    calibration_xml_path: Path,
+    noise_xml_path: Path,
+    polarization: Polarization,
+    measurement_tiff_path: Path,
+    row_offset: int = 0,
+    col_offset: int = 0,
+    below_noise_policy: str = "floor",
+) -> tuple[CalibrationResult, int]:
+    """Experiment 0 (2026-08-30): DN -> thermal-noise-subtracted sigma-nought
+    -> dB. Additive, opt-in alternative to calibrate_to_db() -- that
+    function is completely unmodified and remains the default path used
+    by every existing caller (scripts/build_mc20_event_gold.py included).
+    This function is called ONLY from diagnostic experiment scripts.
+
+    Real ESA GRD noise-correction formula (Sentinel-1 product spec /
+    Copernicus SentiWiki S1 processing, Eq. 5-6: noise is subtracted from
+    the power-detected GRD data BEFORE the sigmaNought calibration factor
+    is applied):
+        NoisePower(line,pixel) = noiseRangeLut(line,pixel) * noiseAzimuthLut(line)
+        sigma0_linear = (DN^2 - NoisePower) / sigmaNought^2
+
+    `below_noise_policy` (Experiment A, 2026-08-30) controls what happens
+    at pixels where the real, product-supplied noise power exceeds DN^2 --
+    i.e. where the scene's backscatter is at or below the sensor's own
+    thermal-noise floor and sigma0 is therefore NOT MEASURABLE there:
+
+      "floor" (DEFAULT, unchanged Experiment-0 behavior, kept so that
+          experiment stays exactly reproducible): clamp the residual power
+          to +1e-6 before log10. This substitutes an ARBITRARY constant
+          (~-115 dB after calibration) for an unmeasurable quantity. It
+          avoids -inf, but any statistic computed over those pixels then
+          reflects the choice of epsilon rather than the scene.
+
+      "mask": set those pixels to NaN instead. Physically the honest
+          representation -- below the noise floor the true sigma0 is
+          unmeasurable, not "very small" -- and consistent with how
+          calibrate_to_db() already marks DN==0 border pixels as NaN, and
+          with how apply_netra_normalization() already forces non-finite
+          input to the 0.0 nodata sentinel. Prefer this for any
+          statistical comparison.
+
+    Returns (CalibrationResult, n_below_noise) where n_below_noise counts
+    pixels whose signal power did not exceed the noise floor, under either
+    policy.
+    """
+    if below_noise_policy not in ("floor", "mask"):
+        raise ValueError(
+            f"below_noise_policy must be 'floor' or 'mask', got {below_noise_policy!r}"
+        )
+    lut = parse_calibration_lut(calibration_xml_path)
+    noise = parse_noise_lut(noise_xml_path)
+    from dataclasses import replace as _replace
+    shifted_lut = _replace(lut, lines=lut.lines - row_offset, pixels=lut.pixels - col_offset)
+    sigma_nought_grid = _interpolate_lut_to_grid(shifted_lut, dn_array.shape[0], dn_array.shape[1])
+    noise_power_grid = _interpolate_noise_to_grid(
+        noise, dn_array.shape[0], dn_array.shape[1], row_offset, col_offset
+    )
+
+    floor_eps = 1e-6  # arbitrary constant; only used by the "floor" policy
+    with np.errstate(divide="ignore", invalid="ignore"):
+        denoised_power = dn_array.astype(np.float64) ** 2 - noise_power_grid
+        below_noise = denoised_power <= floor_eps
+        if below_noise_policy == "floor":
+            usable_power = np.maximum(denoised_power, floor_eps)
+        else:  # "mask" -- unmeasurable, not "very small"
+            usable_power = np.where(below_noise, np.nan, denoised_power)
+        sigma0_linear = usable_power / (sigma_nought_grid ** 2)
+        db = 10.0 * np.log10(sigma0_linear)
+
+    db = np.where(dn_array == 0, np.nan, db)
+    n_floored = int(below_noise.sum())
+
+    return CalibrationResult(
+        db=db.astype(np.float32),
+        polarization=polarization,
+        thermal_noise_removed=True,
+        source_measurement_path=str(measurement_tiff_path),
+        source_calibration_path=str(calibration_xml_path),
+    ), n_floored
+
+
+def resolve_frozen_v0_2_channel_binding(
+    physical_vv_db: np.ndarray, physical_vh_db: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Smart-fix investigation (2026-08-30): map REAL, correctly-labeled
+    VV/VH arrays (e.g. from a fresh Sentinel-1 .SAFE product, where the two
+    polarizations come from two separately-named, unambiguous measurement
+    files) onto the two channel SLOTS the frozen NETRA-GOLD-v0.2 model was
+    actually trained against -- which are NOT what their normalization-
+    record labels say.
+
+    THE EVIDENCE (all measured this task, reproducible from files already
+    on disk, none fabricated):
+
+    1. `array_provider.py::RealZenodoArrayProvider` assumes GeoTIFF band 1
+       = VV, band 2 = VH, "based on the Zenodo pilot" -- an unverified
+       assumption (the raw GeoTIFFs carry zero band descriptions/tags).
+
+    2. Checked directly against 120 real Zenodo scenes across all three
+       training sources (40 zenodo_part1, 40 Lookalike, 40 No_Oil): band 1
+       is brighter than band 0 in dB in **100% of scenes**, by +12.20 dB
+       (part1), +5.00 dB (Lookalike), +11.63 dB (No_Oil) on average.
+
+    3. For natural ocean surfaces, co-polarized (VV) backscatter is ALWAYS
+       brighter than cross-polarized (VH) -- cross-pol requires
+       depolarization, which weakens the return. A reversal in 100% of 120
+       independently-sampled scenes across three separately-collected
+       sub-corpora is not scene variation; it is a systematic labeling
+       error. Band 0 is physically VH; band 1 is physically VV -- the
+       OPPOSITE of what the code assumes.
+
+    4. The frozen checkpoint's `channels.VV` / `channels.VH` normalization
+       stats were fit on whatever `RealZenodoArrayProvider` actually fed
+       into channel 0 / channel 1 during Gold v0.2's build -- i.e. on
+       physical VH (labeled "VV") and physical VV (labeled "VH")
+       respectively. The model's learned channel-0/1 semantics are
+       internally coherent (verified: it fires normally, max=0.9999, on
+       real positive oil tiles built the same mislabeled way) -- they are
+       just not what the labels claim.
+
+    5. MC20's own pipeline reads REAL, unambiguous VV and VH from two
+       separately-named measurement files (polarization verified against
+       each file's own annotation XML in the Experiment-A audit) and, by
+       following the code's (wrong) assumption, feeds physical VV into
+       the "VV"-labeled normalization slot -- i.e. into channel 0, which
+       the model actually learned as physical VH. This function corrects
+       that mismatch for inference against THIS frozen checkpoint only.
+
+    THE FIX IS SCOPED NARROWLY: it does not relabel Zenodo, does not
+    touch NETRA-GOLD-v0.2, does not retrain, and does not change what
+    "VV" and "VH" mean anywhere except at this one inference-time
+    boundary, for this one checkpoint's known channel semantics. A
+    correctly-labeled NETRA-GOLD-v0.3 should fix `array_provider.py`
+    directly instead of ever needing this function again -- this is a
+    compatibility shim for a model already trained under the mislabeling,
+    not a permanent convention.
+
+    Returns (channel_0_db, channel_1_db) = (physical_vh_db, physical_vv_db).
+    """
+    return physical_vh_db, physical_vv_db
+
+
 def apply_netra_normalization(
     vv_db: np.ndarray, vh_db: np.ndarray, vv_stats: dict, vh_stats: dict,
 ) -> np.ndarray:

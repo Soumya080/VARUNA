@@ -6,6 +6,8 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from varuna_infra.authorization import AuthorizationError
+
 class CaseNotFoundError(Exception):
     def __init__(self, case_id: str):
         self.case_id = case_id
@@ -27,6 +29,18 @@ def register_error_handlers(app):
         return JSONResponse(
             status_code=400,
             content={"error": "invalid_state", "message": exc.message},
+        )
+
+    @app.exception_handler(AuthorizationError)
+    async def authorization_error_handler(request: Request, exc: AuthorizationError):
+        # 403, not 404 or a generic 400: the resource exists and the
+        # authenticated caller is simply not permitted. A single global
+        # handler means every route that calls `varuna_infra.authorization
+        # .authorize()` gets this translation for free, rather than each
+        # router needing its own try/except AuthorizationError block.
+        return JSONResponse(
+            status_code=403,
+            content={"error": "forbidden", "message": str(exc)},
         )
 
     @app.exception_handler(StarletteHTTPException)

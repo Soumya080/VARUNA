@@ -4,6 +4,27 @@ VARUNA GRID — Case Workflow Orchestrator.
 Executes the end-to-end vertical slice:
 CASE -> INGEST -> DATA GUARD -> PRATIVARTAN -> NYAYA -> VALIDITY GATE
                   -> PRAMAN -> EVENT SPINE -> API
+
+NOT THE CANONICAL CASE ENGINE (flagged, not fixed, in the
+VARUNA_PRODUCT_READY hardening session, Phase 6). `varuna_domain.
+golden_case_engine.GoldenCaseWorkflow` is canonical going forward — see
+`docs/architecture/CASE_ORCHESTRATION_RECONCILIATION.md`. This class is kept,
+unmodified, because every HTTP route in `apps/api/routers/cases.py` and
+`apps/api/operator_case_view.py` (459 lines, actively owned by another
+session at the time of this note) is still built directly against it, and
+migrating that surface is a larger, response-schema-breaking change out of
+scope for a hardening pass that must not rewrite stable code unnecessarily.
+
+The concrete, named gap this leaves open: `self.reconstruct()` below calls
+`reconstruct_origin()` with no `current`/`wind`/`input_envelope`, so the
+LIVE API's science path runs synthetic forcing under a SIMULATED envelope —
+nothing is mislabelled, but an operator hitting `POST /v1/cases/{id}/reconstruct`
+today gets weaker forcing realism than `GoldenCaseWorkflow.run_case()` would
+give the same case. See `docs/product/VARUNA_PRODUCT_CURRENT_STATE.md` §1 and
+`docs/product/VARUNA_PRODUCT_COMPLETION_REPORT.md` for the full account and
+the recommended migration path (repoint `apps/api/dependencies.py::get_workflow`
+at `GoldenCaseWorkflow`, then reconcile `operator_case_view.py` against its
+`CaseResult`/`to_operator_case()` output).
 """
 import uuid
 import time

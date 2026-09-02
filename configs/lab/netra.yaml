@@ -1,43 +1,64 @@
 # ==============================================================================
-# VARUNA GRID v2 — NETRA LAB TRAINING CONFIGURATION
-# Baseline configuration sized for typical university lab hardware:
-# Target Hardware: NVIDIA RTX (12 GB VRAM), 32 GB System RAM, 8 CPU cores.
-# Note: These values are conservative baselines for smoke/initial training runs
-# and are NOT claimed to be optimal.
+# VARUNA GRID v2 - NETRA REAL-DATA TRAINING CONFIGURATION
+#
+# Target hardware: NVIDIA RTX 3060 (12 GB VRAM), 32 GB RAM, 20 logical cores,
+# Gold on a spinning D: drive.
+#
+# Values here are a conservative measured baseline, not a tuned optimum, and
+# no claim of optimality is made. Scientific status: EXPERIMENTAL / UNVALIDATED.
 # ==============================================================================
 
-# Experiment tracking & Lineage
-experiment_name: "netra_lab_baseline_v1"
+# --- Experiment lineage ---
+experiment_name: "baseline_v02"
 model_name: "netra_segmentation"
-dataset_version: "gold_v1.0.0"
 seed: 42
 
-# Hardware & Acceleration
-device: "cuda"                  # "cuda" or "cpu" (falls back automatically if cuda unavailable)
-mixed_precision: true           # AMP (FP16/BF16) to conserve VRAM
-num_workers: 4                  # DataLoader CPU workers (conservative for 32GB RAM)
-gradient_accumulation: 2        # Effective batch size multiplier without VRAM penalty
+# --- Data (manifest-driven; a directory glob is never authoritative) ---
+gold_manifest: "data/manifests/netra_gold_v0_2.json"
+dataset_version: "NETRA-GOLD-v0.2"
+# tile_limit / val_tile_limit: leave null for the full split. Set only for smoke runs.
+tile_limit: null
+val_tile_limit: null
 
-# Model Architecture
+# --- Hardware ---
+device: "cuda"                 # fails loudly if CUDA is unavailable; never falls back
+mixed_precision: true          # AMP: measured 1.8x throughput, 35% less VRAM
+num_workers: 8                 # measured: 4 workers = 16 pairs/s, 8 workers = 22.7 pairs/s
+pin_memory: true
+
+# --- Model ---
+# 2 channels (VV, VH) and 2 classes (NOT_OIL, OIL).
+# The wind channel has no source: ERA5 covers 5-20N/70-88E while the Zenodo
+# scenes sit in the Gulf of Mexico, North Sea, Mediterranean and Red Sea, and
+# Part I carries no timestamps to join on. It is omitted rather than fabricated.
+# Lookalike is handled as a HARD NEGATIVE from Part II, not a third class: the
+# source provides no pixel-level lookalike labels.
 architecture: "unet"
 encoder_name: "resnet34"
-encoder_weights: null           # null for offline/air-gapped training without internet download
-in_channels: 3                  # VV, VH, Wind magnitude
-classes: 3                      # 0=background, 1=oil_slick, 2=lookalike
+encoder_weights: null          # from scratch (ImageNet weights need a writable cache)
+in_channels: 2
+classes: 2
 
-# Data & Tiling
-image_size: 512                 # Tile spatial dimension (512x512)
-batch_size: 4                   # Per-step batch size (conservative for 12GB VRAM)
+# --- Data shape ---
+image_size: 512
+batch_size: 16                 # measured 3.85 GB peak of 12 GB with AMP
 
-# Optimization & Schedule
-epochs: 25                      # Training epochs
-learning_rate: 0.0003           # 3e-4 AdamW baseline
+# --- Imbalance handling ---
+# Measured on v0.1 Gold: ~3.3% positive pixels, ~60% of tiles carry no oil.
+# Plain cross-entropy collapses to background at this ratio.
+loss: "dice_ce"                # 0.5 * Dice(OIL) + 0.5 * weighted CrossEntropy
+class_weights: [1.0, 10.0]     # CE term only
+positive_aware_sampling: false # membership is never reduced; this only reweights draws
+positive_weight: 3.0
+
+# --- Optimization ---
+epochs: 50
+learning_rate: 0.0003          # AdamW
 weight_decay: 0.0001
-warmup_epochs: 3
-patience: 6                     # Early stopping patience
+warmup_epochs: 3               # then cosine decay
+patience: 8                    # early stopping on the monitored metric
+monitor: "iou_oil"
 
-# Storage & Checkpoints
-checkpoint_dir: "artifacts/checkpoints/netra"
-save_top_k: 3
-save_last: true
-log_interval: 10
+# --- Storage / logging ---
+checkpoint_dir: "artifacts/checkpoints/netra_v0_2"
+log_interval: 20

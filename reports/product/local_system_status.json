@@ -1,0 +1,109 @@
+{
+  "task": "Local System Verification Track",
+  "date": "2026-09-02",
+  "status": "VARUNA_LOCAL_SYSTEM_VERIFIED",
+  "environment": {
+    "use_postgres": false,
+    "use_minio": false,
+    "demo_mode": false,
+    "infrastructure_required_for_this_surface": false
+  },
+  "services": {
+    "backend": {"port": 8000, "status": "running", "health": "ok", "command": "PYTHONPATH=packages .venv/Scripts/python.exe -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8000"},
+    "frontend": {"port": 3000, "status": "running", "command": "npm run dev (frontend/VARUNA-frontend_yash)"},
+    "postgres": {"port": 5432, "status": "not_started", "required": false},
+    "redis": {"port": 6379, "status": "not_started", "required": false},
+    "minio": {"port": 9000, "status": "not_started", "required": false}
+  },
+  "routes_verified": [
+    "GET /health", "GET /docs", "GET /openapi.json",
+    "POST /v1/auth/login", "GET /v1/auth/me",
+    "GET /v1/replay/fixtures", "GET /v1/replay/CASE-VALID", "GET /v1/replay/CASE-OOD",
+    "GET /v1/cases/{case_id}/alerts", "GET /v1/alerts/{alert_id}",
+    "POST /v1/alerts/{alert_id}/acknowledge", "POST /v1/alerts/{alert_id}/escalate", "POST /v1/alerts/{alert_id}/resolve",
+    "GET /v1/missions", "GET /v1/missions/{id}/audit"
+  ],
+  "authentication": {
+    "unauthenticated_request_401": true,
+    "login_returns_real_jwt": true,
+    "me_endpoint_resolves_principal": true,
+    "demo_roles_available": ["admin", "duty_officer", "analyst", "field_operator", "read_only"]
+  },
+  "case_flow": {
+    "fixture": "CASE-VALID",
+    "case_id": "REPLAY-CASE-VALID",
+    "schema_version": "v1",
+    "engine_mode": "replay",
+    "chain_verified": "GoldenCaseWorkflow.run_replay_case -> build_product_case -> OperatorCase -> frontend (matching NEXT_PUBLIC_VARUNA_API_URL)"
+  },
+  "product_data_surface": {
+    "observation": "produced",
+    "detection": "produced, evidence_mode=real",
+    "origin": "produced, evidence_mode=real",
+    "ais": "not_yet_produced (correct - zero AIS tracks in fixture)",
+    "attribution": "produced, evidence_mode=real",
+    "validity": "produced, evidence_mode=real",
+    "forecast": "produced, evidence_mode=real",
+    "decision": "produced, evidence_mode=real",
+    "mission": "produced, evidence_mode=real, state=available (unapproved)",
+    "alerts": "produced, evidence_mode=real",
+    "recommendation": "valid",
+    "intelligence": "produced (hypotheses, memory_hits, decision_trace, next_best_action, evidence_lineage all present)",
+    "evidence_components": "present",
+    "provenance": "present"
+  },
+  "alert_lifecycle_live_verification": {
+    "initial_state": "created",
+    "acknowledge_by_officer": "200 -> acknowledged",
+    "escalate_by_officer": "200 -> escalated",
+    "resolve_by_analyst_denied": "403, state remained escalated",
+    "resolve_by_officer": "200 -> resolved, resolved_by=officer"
+  },
+  "authorization_test": {
+    "unauthorized_alert_action": "analyst resolve on real alert -> 403, state unchanged (live-verified)",
+    "unauthorized_mission_action": "verified via automated test (no live mission-creation route exists to demo via curl)"
+  },
+  "negative_test_case_ood": {
+    "validity": "not_yet_produced, named upstream OOD reason",
+    "decision": "not_yet_produced",
+    "mission": "not_yet_produced",
+    "recommendation": "unavailable",
+    "alerts": "zero"
+  },
+  "real_replay_simulated_distinction": {
+    "engine_mode_and_evidence_mode_kept_separate": true,
+    "frontend_badges_distinct": ["EngineModeBadge", "EvidenceModeBadge"]
+  },
+  "browser_verification": {
+    "interactive_click_through_performed": false,
+    "reason": "no browser automation tool available in this environment",
+    "http_level_verification_performed": true,
+    "manual_walkthrough_doc": "docs/product/LOCAL_SYSTEM_WALKTHROUGH.md"
+  },
+  "route_diagnostics": {
+    "errors_found": "none (no 404/422/500 in primary journey)",
+    "cors": "correctly scoped to http://localhost:3000, credentials allowed",
+    "base_url_mismatch": false,
+    "dead_frontend_actions_found": "none in the primary journey"
+  },
+  "runtime_check": {
+    "startup_succeeded": true,
+    "repeated_refresh_preserves_intelligence": true,
+    "no_polling_storm_observed": true
+  },
+  "actual_fixes_this_task": [],
+  "remaining_limitations": [
+    "No API route creates a live mission",
+    "Demo login is a local/dev-only registry, not production credentials",
+    "landfall.predicted alert event remains unwired",
+    "Interactive browser click-through not performed",
+    "OperatorCase.mission (replay) and MissionService's live store remain two distinct records"
+  ],
+  "final_urls": {
+    "frontend": "http://localhost:3000",
+    "backend": "http://127.0.0.1:8000",
+    "api_docs": "http://127.0.0.1:8000/docs",
+    "demo_access_method": "profile widget top-right -> username/password -> POST /v1/auth/login",
+    "first_case_to_open": "CASE-VALID"
+  }
+}

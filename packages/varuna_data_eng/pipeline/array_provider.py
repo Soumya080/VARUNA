@@ -72,3 +72,32 @@ class FileBackedArrayProvider(TrainingArrayProvider):
                 )
             out[ch] = np.load(path)
         return out
+
+
+class RealZenodoArrayProvider(TrainingArrayProvider):
+    """Loads real VV/VH arrays directly from the original GeoTIFF.
+    
+    Expects Band 1 to be VV and Band 2 to be VH based on the Zenodo pilot.
+    """
+
+    def load_channels(self, sar: CanonicalSAR) -> Dict[str, np.ndarray]:
+        try:
+            import rasterio
+        except ImportError:
+            raise ImportError("rasterio is required to use RealZenodoArrayProvider")
+            
+        if not os.path.exists(sar.data_path):
+            raise FileNotFoundError(f"Real GeoTIFF not found at {sar.data_path}")
+            
+        out: Dict[str, np.ndarray] = {}
+        with rasterio.open(sar.data_path) as src:
+            if "VV" in sar.channels and src.count >= 1:
+                out["VV"] = src.read(1).astype(np.float32)
+            if "VH" in sar.channels and src.count >= 2:
+                out["VH"] = src.read(2).astype(np.float32)
+                
+        if not out:
+            raise ValueError(f"Failed to read any requested channels from {sar.data_path}")
+            
+        return out
+

@@ -1,0 +1,305 @@
+{
+  "audit_id": "netra_preprocessing_reconciliation",
+  "date": "2026-08-30",
+  "git_commit_at_time_of_audit": "67b16a7d4bce1db00b123a0ebe03d83dece671b1",
+  "reproducibility": {
+    "python_version": "3.12.14",
+    "torch_version": "2.6.0+cu124",
+    "cuda_version": "12.4",
+    "gpu": "NVIDIA GeForce RTX 3060",
+    "checkpoint_sha256": "9f38c690d0ef1629bdc7a59b76dbe054d45245cfccb4ba5b26f242f1d2e2cd66",
+    "manifest_hash": "89d3cf69d7131964f30879506a6ec0cd07cf01a5900deef89a9c6c24697f",
+    "diagnostic_sample_selection": "Zenodo raw dB: first 10 files sorted by filename from data/raw/zenodo/extracted/part1/*.tif. MC20: all 9 event Gold tiles (complete population, not sampled). Deterministic, no RNG involved in this pass."
+  },
+  "phase1_checkpoint_verification": {
+    "classification": "MEASURED",
+    "status": "PASS -- unchanged since prior audit",
+    "note": "Re-confirmed via reports/netra_v02/07_official_test_eval.json phase1 block (sha256 match, architecture, epoch=32, threshold=0.806) rather than re-running torch.load; no re-verification GPU work needed as the artifact is intact and was already verified this session."
+  },
+  "phase2_official_test_verification": {
+    "classification": "MEASURED",
+    "status": "CONFIRMED INTACT, NOT RE-RUN",
+    "source": "reports/netra_v02/07_official_test_eval.json",
+    "confirmed_facts": {
+      "n_scenes": 152, "n_tiles": 2432, "threshold": 0.806,
+      "iou_oil": 0.6458148100720343, "pr_auc": 0.8513183228999901,
+      "test_set_untouched_before_official_pass": true,
+      "no_test_tuning_occurred": true
+    },
+    "note": "GPU evaluation deliberately NOT duplicated per instruction -- existing artifact inspected and found sufficient."
+  },
+  "phase3_zenodo_pipeline_trace": {
+    "classification": "MIXED -- see per-item",
+    "code_path_traced": [
+      "packages/varuna_data_eng/varuna_source_adapters/zenodo_adapter.py::ZenodoAdapter.discover()",
+      "packages/varuna_data_eng/pipeline/array_provider.py::RealZenodoArrayProvider.load_channels()",
+      "scripts/netra_v02/01_source_audit.py / 02_dedup_split.py / 03_normalization.py / 04_build_gold.py"
+    ],
+    "findings": {
+      "1_quantity_stored_in_tiff": {"classification": "MEASURED (external, Zenodo record 8346860/8253899 pages)", "answer": "Sigma0 in decibels (dB) -- calibrated backscatter, per the original Zenodo dataset's own published description, fetched directly from zenodo.org this pass."},
+      "2_amplitude_intensity_power_sigma0_or_db": {"classification": "MEASURED (external)", "answer": "dB-scale Sigma0 -- confirmed by Zenodo's own documentation, not merely inferred from plausible-looking values."},
+      "3_calibration_already_performed": {"classification": "MEASURED (external)", "answer": "Yes -- Zenodo's documentation states Sigma0 calibration was applied by the dataset creators before publication."},
+      "4_db_conversion_already_performed": {"classification": "MEASURED (external)", "answer": "Yes -- confirmed by Zenodo's own documentation."},
+      "5_clipping_applied_by_source": {"classification": "UNVERIFIABLE", "answer": "Not stated in Zenodo's documentation; not determinable from file metadata (no scale/offset/tag evidence of a clip operation)."},
+      "6_resolution_used": {"classification": "MIXED", "answer": "Zenodo's OWN documentation does not state a ground resolution (only image dimensions 2048x2048x2). This session's OWN GeoTIFF metadata read [MEASURED] finds a georeferenced pixel spacing of exactly 8.983152841195215e-05 degrees on both axes -- which is precisely the standard '10m-per-degree-at-111.32km/deg' constant, evaluated at 2 sample scenes. This produces true ground spacing of ~10.00m in latitude but only ~5.7-5.8m in longitude at the sampled scenes' ~55.2-55.5N latitude, because the same DEGREE increment was applied on both axes rather than a latitude-corrected value. See Phase 8 (geometry) for the implication."},
+      "7_resampling_performed": {"classification": "UNVERIFIABLE, but see hypothesis", "answer": "Not stated by Zenodo. Native Sentinel-1 IW GRD scenes are typically ~25,000 x 17,000 pixels; Zenodo's uniform 2048x2048 chip size for every scene is circumstantially consistent with a crop-and/or-resample step having been applied, but this is a HYPOTHESIS, not a confirmed fact -- Zenodo's documentation is silent on it."},
+      "8_interpolation_used": {"classification": "UNVERIFIABLE", "answer": "Not stated anywhere available to this audit."},
+      "9_nodata_representation": {"classification": "MEASURED (this session's own pipeline convention, not verified against Zenodo's original intent)", "answer": "This project's own Gold-build pipeline treats VV==0 AND VH==0 jointly as a fill/nodata convention (03_normalization.py). Whether this matches what Zenodo's original authors intended by zero-valued pixels (true nodata vs. a real near-zero backscatter measurement) is UNVERIFIABLE from the files themselves -- no explicit nodata tag is set in the GeoTIFF (`nodata=None`, measured this session)."},
+      "10_VV_VH_band_assignment": {"classification": "UNVERIFIABLE -- confirmed unverifiable even at the SOURCE", "answer": "This project's code (array_provider.py::RealZenodoArrayProvider docstring) assumes 'Band 1 = VV, Band 2 = VH... based on the Zenodo pilot'. Checked externally this pass: Zenodo's own published documentation for both records (8346860, 8253899) states the images contain 'two polarizations (VV, VH)' but explicitly does NOT state the band ordering. This is not merely a gap in this repository's records -- it is unverifiable even from the original data provider's own documentation."},
+      "11_scale_offset_tags": {"classification": "MEASURED", "answer": "scale=(1.0, 1.0), offset=(0.0, 0.0) on both sampled scenes -- i.e. no rescaling is encoded in the GeoTIFF itself; pixel values are used as-is."},
+      "12_incidence_angle_available": {"classification": "MEASURED", "answer": "No. Zenodo's curated GeoTIFFs carry no per-scene product annotation/XML (unlike MC20's full .SAFE product, which does carry incidence-angle-bearing geolocationGridPoints). UNVERIFIABLE for any given Zenodo scene."},
+      "13_orbit_look_direction_metadata": {"classification": "MEASURED", "answer": "Not present -- same reasoning as #12."},
+      "14_original_source_documentation_available_locally": {"classification": "MEASURED", "answer": "No README, paper, or dataset card is stored in this repository for either Zenodo record. This audit fetched the live Zenodo record pages externally (this pass) to answer items 1-4 and 10 above; those answers are sourced from that external fetch, not from anything present in this repo before this task."}
+    }
+  },
+  "phase4_zenodo_source_metadata": {
+    "classification": "MEASURED",
+    "sampled_scenes": ["data/raw/zenodo/extracted/part1/00000.tif", "data/raw/zenodo/extracted/part1/00001.tif"],
+    "crs": "EPSG:4326",
+    "pixel_spacing_degrees": [8.983152841195215e-05, 8.983152841195215e-05],
+    "dtype": ["float32", "float32"],
+    "compression": "lzw",
+    "nodata_tag": null,
+    "scales": [1.0, 1.0],
+    "offsets": [0.0, 0.0],
+    "band_descriptions": [null, null],
+    "band_tags": [{}, {}],
+    "width_height": [2048, 2048],
+    "note": "Zero band-level metadata exists to confirm VV/VH order or units at the file level -- everything usable came from the external Zenodo record pages (Phase 3) or this project's own code assumptions."
+  },
+  "phase5_mc20_pipeline_trace": {
+    "classification": "MEASURED (from code, packages/varuna_data_eng/preprocessing/sentinel1_grd_calibration.py)",
+    "chain": [
+      "Sentinel-1 IW GRDH 1SDV .SAFE product, real DN measurement TIFF, direct file-seek crop centered on the event anchor",
+      "parse_calibration_lut() -- real XML parse of the product's own annotation/calibration/calibration-*.xml sigmaNought vectors",
+      "_interpolate_lut_to_grid() -- bilinear interpolation of the sparse LUT onto the full pixel grid via scipy RegularGridInterpolator",
+      "calibrate_to_db() -- sigma0_linear = DN^2 / sigmaNought^2; db = 10*log10(sigma0_linear); DN==0 forced to NaN",
+      "apply_netra_normalization() -- clip to [p2,p98] from the FROZEN v0.2 manifest stats, scale to [0,1], nodata (non-finite) forced to 0.0",
+      "tile_512() -- non-overlapping 512x512 tiling"
+    ],
+    "explicitly_not_done": [
+      "Thermal noise (NESZ) removal -- CalibrationResult.thermal_noise_removed is always False, stated in the module docstring as a known, unimplemented gap that biases dark-water (and oil-slick) backscatter upward.",
+      "Terrain correction / precision orbit refinement -- GRD is ellipsoid-projected only.",
+      "Speckle filtering -- not applied; module docstring explicitly states Zenodo's speckle-filtering status is 'not determined, not replicated here'."
+    ],
+    "documentation_accuracy_finding": "The module's docstring claims GRD-without-terrain-correction is 'consistent with how Zenodo's source imagery is delivered, per the existing Gold manifest's source_product field'. This audit checked data/manifests/netra_gold_v0_2.json directly: NO 'source_product' field exists anywhere in that manifest. This specific comment's citation is inaccurate -- it references a field that is not actually present. This does not mean the underlying claim (Zenodo being GRD-derived) is false -- Phase 3's external fetch independently confirms Zenodo's images are Sentinel-1-derived Sigma0-dB, consistent with a GRD product level -- but the comment's stated evidence source for that claim does not exist, and should be corrected to cite the actual evidence (Phase 3's external record check) rather than a nonexistent manifest field."
+  },
+  "phase6_earliest_common_representation": {
+    "classification": "MEASURED",
+    "representation_selected": "Calibrated Sigma0, dB scale (pre-normalization, pre-clip)",
+    "why_comparable": "Phase 3 confirms Zenodo's published product is Sigma0-dB; Phase 5's code confirms MC20's pipeline also produces Sigma0-dB via an explicit DN->sigma0->dB calibration formula. This is the earliest point at which both datasets are independently confirmed to share the same physical representation -- comparing raw DN would not be valid (MC20's raw DN and Zenodo's already-calibrated GeoTIFF are not the same quantity), and comparing post-normalization [0,1] values (done in the prior audit) compresses real dB differences through a shared but non-representation-preserving clip+rescale.",
+    "method": "Zenodo: raw dB pixel values read directly from 10 sampled GeoTIFFs (data/raw/zenodo/extracted/part1/00000-00009.tif), finite pixels only. MC20: the 9 Gold tiles' normalized [0,1] values were inverted back to dB using the exact frozen clip_low/clip_high bounds from data/manifests/netra_gold_v0_2.json (the same bounds MC20's own pipeline used to produce them), which reproduces the pre-normalization dB array exactly for every non-nodata pixel.",
+    "VV": {
+      "zenodo_mean_db": -34.78, "zenodo_std_db": 4.45,
+      "mc20_mean_db": -21.78, "mc20_std_db": 2.18,
+      "variance_ratio_mc20_over_zenodo": 0.2406
+    },
+    "VH": {
+      "zenodo_mean_db": -20.14, "zenodo_std_db": 2.68,
+      "mc20_mean_db": -29.29, "mc20_std_db": 2.11,
+      "variance_ratio_mc20_over_zenodo": 0.6185
+    },
+    "key_observation": "The variance compression is NOT uniform across channels: VV compresses to 24% of training variance while VH compresses to 62%. A uniform cause (e.g. thermal-noise-removal presence/absence alone, which would be expected to affect both channels' dynamic range in a broadly similar direction) does not cleanly explain this asymmetry. The asymmetry is more consistent with either (a) a channel-specific effect (supporting the still-open band-semantics question, Phase 9) or (b) a genuine content/scene difference that happens to affect VV and VH differently at this specific MC20 acquisition (e.g. wind/sea-state affecting co-pol and cross-pol returns differently)."
+  },
+  "phase7_resolution_investigation": {
+    "classification": "MIXED",
+    "measured": "MC20's crop is a direct file-seek read at Sentinel-1's native IW GRD resolution (per docs/datasets/MC20_EVENT_GOLD_V0_1.md, no resampling stated in the calibration code). Zenodo's pixel spacing (Phase 4) implies a nominal 10m/pixel design intent but Zenodo's own documentation does not state actual GSD or confirm whether resampling occurred from native resolution.",
+    "hypothesis_not_confirmed": "If Zenodo chips were resampled/downsampled from native full-scene GRD resolution (plausible given the uniform 2048x2048 chip size vs. GRD's native ~25000x17000), that would reduce high-frequency speckle variance in the training set relative to a native-resolution MC20 crop -- opposite direction from what would explain LOWER MC20 variance, since resampling REDUCES variance, and it is Zenodo (the training set) that would have been resampled, not MC20. This hypothesis, if true, would work in the WRONG direction to explain the observed gap (it would predict MC20 having MORE variance than training, not less) -- noted as a reason this does not look like the primary explanation on its own.",
+    "texture_finding_measured": "Prior audit's gradient-magnitude proxy found MC20 tiles have HIGHER pixel-to-pixel gradient magnitude than training tiles (0.061/0.067 vs 0.051/0.032 in normalized space) despite LOWER overall variance -- i.e. MC20 is not simply blurred/resampled-smooth; it has fine-grained texture riding on a compressed overall dynamic range. This is inconsistent with 'MC20 is smoothed/resampled' and more consistent with a different overall backscatter range (compressed dynamic range) with real speckle noise preserved.",
+    "conclusion": "UNKNOWN as the primary/sole cause. The measured texture-vs-variance combination argues against simple resampling/blur as the explanation, in either direction."
+  },
+  "phase8_geometry_investigation": {
+    "classification": "MIXED",
+    "measured": "Zenodo scenes use EPSG:4326 with an IDENTICAL degree-based pixel spacing (8.983152841195215e-05 deg) on both lat and lon axes for both sampled scenes. At the sampled scenes' ~55.2-55.5 degN latitude, this yields ~10.00m true ground spacing in latitude but only ~5.7m in longitude -- a ~1.75x anisotropic ground sample distance, because a single nominal-10m-at-equator degree increment was applied uniformly rather than latitude-corrected.",
+    "mc20_comparison": "MC20's georeferencing (per docs/datasets/MC20_EVENT_GOLD_V0_1.md) is derived from the SAFE product's own 210 real geolocationGridPoints -- a genuine orbit/geometry-based georeferencing, not a uniform degree-spacing assumption.",
+    "implication": "Zenodo's georeferencing convention is geometrically simplified/approximate in a way MC20's is not. This affects absolute geolocation accuracy and pixel aspect ratio, but this audit found no direct mechanism by which it would compress backscatter VALUE variance -- geolocation approximation changes where a pixel's footprint on the ground is claimed to be, not what value is stored there. Recorded as a real, measured geometric inconsistency between the two pipelines, but NOT currently linked to the contrast/variance gap by any established mechanism.",
+    "incidence_angle": "UNVERIFIABLE for Zenodo (Phase 3, item 12). MC20's incidence angle is in principle recoverable from its .SAFE product's annotation XML but was not extracted this pass (out of scope; would require a new, separate script)."
+  },
+  "phase9_band_semantics": {
+    "classification": "MEASURED (both parts)",
+    "part_A_channel_inversion": {
+      "status": "NOT SUPPORTED (prior finding, not re-litigated per instruction)",
+      "evidence": "Swap test: original max prob 3.07e-06 vs swapped 3.03e-06 (ratio 1.01)."
+    },
+    "part_B_source_band_semantic_uncertainty": {
+      "status": "CONFIRMED UNVERIFIABLE, now at the source-documentation level, not just this repo's level",
+      "evidence": "Phase 3 external fetch of both Zenodo records: both state 'two polarizations (VV, VH)' present, NEITHER states which GeoTIFF band is which. This project's own code (array_provider.py) resolves the ambiguity via an unverified assumption ('based on the Zenodo pilot'). Kept explicitly separate from Part A per instruction -- A is about whether swapping matters to the model (it doesn't), B is about whether the assumed labeling is actually correct (unknown, and unknowable from available evidence)."
+    }
+  },
+  "phase10_model_input_distribution_audit": {
+    "classification": "MEASURED",
+    "note": "Reuses and extends the prior audit's Phase 6 (normalized [0,1] space) with this audit's new Phase 6 (raw dB space, calibrated Sigma0). See phase6_earliest_common_representation above for the dB-space numbers, and the prior post_baseline_scientific_audit.json Phase 6 for the [0,1]-space numbers (VV: train mean=0.343/std=0.133, MC20 mean=0.722/std=0.076; VH: train mean=0.543/std=0.129, MC20 mean=0.160/std=0.081)."
+  },
+  "phase11_model_output_diagnostics": {
+    "classification": "MEASURED",
+    "note": "Unchanged from the prior audit (frozen checkpoint, no retuning): train sample max=0.9999, val sample max=0.9999, test sample max=0.9791, MC20 max=3.05e-06. See reports/netra_v02/post_baseline_scientific_audit.json Phase 7 for full figures; not re-run this pass since the checkpoint and all four sample sets are unchanged."
+  },
+  "phase12_controlled_synthetic_probes": {
+    "classification": "SYNTHETIC CHARACTERIZATION -- not evidence about MC20 or real oil detection",
+    "note": "Unchanged from the prior audit's Phase 7 addendum: band-limited-texture noise (avg_pool k=9 on U[0,1] noise) fires at ~0.97-0.99; unsmoothed noise and constant fills both score ~0.0. All inputs were kept in-range [0,1] this pass and in the prior pass (the earlier out-of-range N(0,1) control was identified as an error by its own author and retracted). Not re-run here as it was already independently replicated twice (this session and router-datasets-ca) with converging numbers."
+  },
+  "phase13_root_cause_classification": {
+    "classification": "DERIVED from all measured evidence above",
+    "causes": [
+      {
+        "cause": "REPRESENTATION_MISMATCH",
+        "verdict": "NOT SUPPORTED",
+        "supporting_evidence": "None found this pass.",
+        "counter_evidence": "Phase 3's external fetch confirms both Zenodo and MC20 are calibrated Sigma0-dB -- the same physical representation. Phase 5 confirms the normalization function and frozen statistics are identically applied to both.",
+        "confidence": "HIGH (that this is NOT the cause)",
+        "falsifying_experiment": "N/A -- already falsified by direct evidence."
+      },
+      {
+        "cause": "PREPROCESSING_MISMATCH",
+        "verdict": "SUPPORTED, moderate confidence",
+        "supporting_evidence": "MC20's pipeline explicitly does NOT perform thermal-noise (NESZ) removal (confirmed by code, CalibrationResult.thermal_noise_removed=False). Whether Zenodo's original Sigma0-dB product included thermal-noise removal is UNVERIFIABLE (not stated in Zenodo's documentation), but ESA-standard Sigma0 calibration workflows commonly include it as a documented option, and a 'clean, publication-ready' curated dataset choosing to apply it would be unsurprising. If Zenodo applied it and MC20 did not, dark-water/low-backscatter regions in MC20 would be biased upward and dynamic range would compress -- directionally consistent with the observed MC20 variance reduction.",
+        "counter_evidence": "The variance compression is asymmetric across channels (VV: 24% of training variance, VH: 62%) -- a channel-independent thermal-noise effect would be expected to compress both channels' dynamic range more similarly, though not necessarily identically, since NESZ itself is channel- and incidence-angle-dependent, so this counter-evidence is not decisive either way.",
+        "confidence": "MEDIUM",
+        "falsifying_experiment": "Apply thermal-noise removal (from the real NESZ LUT already present in MC20's .SAFE product, annotation/calibration/noise-*.xml, currently unused) to MC20's calibration and re-measure the variance ratio. If the ratio moves substantially toward 1.0, this cause is confirmed; if unchanged, it is refuted."
+      },
+      {
+        "cause": "GEOMETRY_SHIFT",
+        "verdict": "MEASURED AS PRESENT, mechanism to the value-distribution gap NOT ESTABLISHED",
+        "supporting_evidence": "Zenodo's georeferencing (uniform degree-spacing, anisotropic true GSD at latitude) is confirmed geometrically different from MC20's orbit-derived georeferencing.",
+        "counter_evidence": "No mechanism identified by which a georeferencing/geolocation difference would alter stored backscatter VALUES or their variance -- it affects claimed pixel position, not pixel content.",
+        "confidence": "LOW as an explanation for the variance gap specifically; HIGH that the geometric inconsistency itself is real.",
+        "falsifying_experiment": "N/A for the variance-gap link -- this is recorded as a real, separate data-quality finding, not currently linked to the OOD failure by any established causal path."
+      },
+      {
+        "cause": "DATASET_SOURCE_SHIFT / TRAINING_DOMAIN_LIMITATION",
+        "verdict": "SUPPORTED, moderate-to-high confidence",
+        "supporting_evidence": "53% of Part I scenes are scene-level hard negatives; 82% of official test tiles are empty; the measured 0.24-0.62x variance ratio and higher-gradient-lower-variance texture profile (Phase 7) suggest MC20 sits in a genuinely different region of the sensing-condition space (sea state, wind, incidence geometry) than Zenodo's curated corpus, independent of any preprocessing difference.",
+        "counter_evidence": "Cannot be fully separated from PREPROCESSING_MISMATCH with current evidence -- both predict the same directional symptom (compressed MC20 dynamic range).",
+        "confidence": "MEDIUM",
+        "falsifying_experiment": "Experiment 0 (below): if correcting the identified preprocessing gap (thermal-noise removal) closes most of the variance gap, this cause's independent contribution is small. If a substantial gap remains after correction, it points to a genuine content/domain difference requiring new training data."
+      },
+      {
+        "cause": "MODEL_LIMITATION",
+        "verdict": "NOT SUPPORTED",
+        "supporting_evidence": "None.",
+        "counter_evidence": "The model performs well and stably in-distribution (test IoU 0.6458, PR-AUC 0.8513) with clean, orderly saturation on OOD input (near-zero, not erratic/undefined) -- behavior consistent with a well-behaved classifier facing genuinely out-of-range input, not an architectural defect.",
+        "confidence": "HIGH (that this is NOT the cause)",
+        "falsifying_experiment": "N/A -- already addressed in the prior audit's Phase 11 recommendation reasoning."
+      },
+      {
+        "cause": "RESOLUTION_MISMATCH",
+        "verdict": "UNKNOWN, direction-inconsistent with a simple version of this hypothesis",
+        "supporting_evidence": "Zenodo's chip-size uniformity (2048x2048 for every scene) is circumstantially consistent with resampling from a larger native product.",
+        "counter_evidence": "If Zenodo (training) were downsampled from native resolution, that would REDUCE Zenodo's variance relative to a native-resolution MC20 crop -- the opposite of the observed direction (MC20 has LOWER variance). The measured higher-gradient/lower-variance MC20 texture profile (Phase 7) is also inconsistent with 'MC20 is over-smoothed relative to training'.",
+        "confidence": "LOW",
+        "falsifying_experiment": "Obtain Zenodo's original dataset paper/card (external, not attempted this pass beyond the record-page fetch) to state definitively whether resampling occurred and at what factor."
+      }
+    ],
+    "overall_classification": "MIXED_CAUSE, with PREPROCESSING_MISMATCH (thermal-noise-removal asymmetry) as the leading, falsifiable, single most actionable hypothesis, and DATASET_SOURCE_SHIFT / TRAINING_DOMAIN_LIMITATION as a very plausible independent or compounding contributor. REPRESENTATION_MISMATCH and MODEL_LIMITATION are ruled out with high confidence. GEOMETRY_SHIFT and RESOLUTION_MISMATCH are real/plausible findings respectively but not currently linked to the value-distribution gap by an established mechanism."
+  },
+  "phase14_v0_3_data_strategy": {
+    "classification": "DERIVED",
+    "recommendation": "A, THEN gate B on A's result -- i.e. run the falsifying experiment for the leading hypothesis (thermal-noise removal) BEFORE deciding whether new training data (B) is needed at all, and before choosing what kind.",
+    "reasoning": "Given Phase 13 identifies a specific, cheap, code-level, falsifiable preprocessing correction (apply the already-present NESZ LUT to MC20's calibration -- no new data required, no retraining required, pure re-measurement), it is the smallest possible next step and must be tried before committing to the much larger, harder-to-reverse decision of collecting and labeling new Sentinel-1 GRD training scenes (B). This is a change from the PRIOR audit's framing (which posed A and B as parallel/sequenced) to a stronger claim: A's cheapest sub-experiment (Experiment 0 below) can be run with ZERO new data and should happen first because it could substantially change how much of B is actually needed."
+  },
+  "phase15_data_acquisition_spec": {
+    "classification": "DERIVED -- specification only, nothing downloaded",
+    "condition": "Only if Experiment 0 (thermal-noise correction) fails to close most of the gap, proceed to specify and acquire this:",
+    "spec": {
+      "sensor": "Sentinel-1",
+      "product": "GRD (IW mode, matching MC20's own product type) -- no alternative justified by current evidence",
+      "polarizations": "VV + VH, with EXPLICIT verification of band order from the product's own annotation XML at ingestion time (not assumed) -- directly closes the Phase 9-B gap for any newly acquired data even if Zenodo's own ordering remains unverifiable",
+      "signal_representation": "Sigma0, dB, WITH thermal-noise removal applied consistently (matching whatever Experiment 0 determines is the correct contract) -- must not silently repeat the current MC20 pipeline's gap",
+      "geographic_diversity": "Multiple ocean regions beyond Zenodo's apparent Northern-European bias (sampled scenes at ~55N) -- to test whether TRAINING_DOMAIN_LIMITATION is real",
+      "temporal_diversity": "Multiple seasons -- sea state varies seasonally and Zenodo's scenes carry no verified timestamps at all (dummy_time placeholder, per zenodo_adapter.py)",
+      "sea_state_diversity": "Explicit inclusion of calm/low-wind conditions, since MC20's compressed dynamic range is consistent with (among other explanations) a calmer sea state than Zenodo's typical scenes",
+      "positive_examples": "Required if any real oil-spill positives are to be added -- current Part I positives (2.98% oil-pixel rate) are already thin; more would only help",
+      "negative_examples": "Required, matching MC20-like calm/low-contrast conditions specifically -- the current hard negatives (lookalike/no_oil) do not obviously cover this exact contrast regime, unverified either way",
+      "lookalikes": "Required where obtainable, same reasoning",
+      "metadata_required": "Acquisition timestamp (real, not a dummy placeholder), full viewing geometry (incidence angle, orbit, look direction), product ID, and source identity -- all four of which Zenodo's current pipeline lacks and this audit found to be blocking multiple phases above"
+    }
+  },
+  "phase16_v0_3_experiment_design": {
+    "classification": "DERIVED -- design only, NOT executed",
+    "experiment_0_preprocessing_correction": {
+      "hypothesis": "MC20's compressed dynamic range relative to Zenodo training scenes is substantially explained by the absence of thermal-noise (NESZ) removal in MC20's calibration pipeline.",
+      "independent_variable": "Whether NESZ subtraction (using the real per-pixel noise LUT already present in MC20's .SAFE product, annotation/calibration/noise-*.xml, currently parsed by nothing) is applied before dB conversion.",
+      "fixed_variables": "Everything else in the calibration chain (LUT interpolation method, dB formula, frozen v0.2 normalization stats and clip bounds, tiling), the frozen checkpoint (NOT retrained), the official test set (untouched).",
+      "training_data": "NONE -- this experiment requires no training. It only re-processes MC20's 9 tiles with the corrected calibration and re-measures.",
+      "validation_data": "N/A.",
+      "held_out_test_data": "Untouched -- this experiment does not run inference against the 152-scene test set at all.",
+      "metric": "VV/VH variance ratio (MC20-corrected / Zenodo-raw-dB), and frozen-model max/mean oil probability on the re-corrected MC20 tiles.",
+      "success_criterion": "Variance ratio moves substantially toward 1.0 (e.g. from 0.24/0.62 toward >0.7 on both channels) AND/OR the frozen model's MC20 output probability rises out of the noise-indistinguishable regime (>1e-3, an arbitrary but clearly-different order of magnitude from the current 3e-6).",
+      "failure_criterion": "Variance ratio and model output are materially unchanged after NESZ correction -- would refute PREPROCESSING_MISMATCH as the (or a major) cause and shift weight toward DATASET_SOURCE_SHIFT / TRAINING_DOMAIN_LIMITATION, making B (data expansion) the next justified step instead.",
+      "note": "This experiment does NOT use MC20 as a training/tuning/threshold signal -- it re-measures a diagnostic statistic and re-runs the FROZEN, unmodified checkpoint's inference. No parameter of the model or normalization changes."
+    },
+    "experiment_A_preprocessing_correction_full": {
+      "hypothesis": "If Experiment 0 succeeds, applying the same corrected calibration convention when building a NETRA-GOLD-v0.3 (re-deriving Zenodo-side statistics is not needed if Zenodo's source truly already has noise removal, per Phase 3's external evidence -- only the frozen normalization's assumptions about MC20-side inputs would need to change) will let the EXISTING checkpoint or a lightly-retrained one generalize to MC20-like input without needing new labeled scenes.",
+      "independent_variable": "The corrected MC20 calibration contract from Experiment 0.",
+      "fixed_variables": "Architecture, seed, optimizer, loss, training split -- identical to v0.2.",
+      "training_data": "NETRA-GOLD-v0.2, unchanged (no new scenes) -- this experiment tests whether a preprocessing fix alone (applied only on the inference/MC20 side) is sufficient, before touching training data at all.",
+      "validation_data": "v0.2's existing val split, unchanged.",
+      "held_out_test_data": "v0.2's existing 152-scene test split -- if this experiment requires re-evaluating against it, that is a SECOND official evaluation and must be disclosed as such per the test-protection rule.",
+      "normalization": "Unchanged frozen v0.2 stats, UNLESS Experiment 0 specifically shows the clip bounds themselves need adjustment for a noise-corrected MC20 input -- if so, that becomes an explicitly disclosed, separate sub-experiment, not a silent change.",
+      "threshold": "0.806, unchanged, unless a new val-set sweep is explicitly run and disclosed.",
+      "augmentation": "None -- no training occurs in this experiment if the checkpoint is unmodified; N/A.",
+      "seed": "42 (v0.2's seed), for consistency if any retraining occurs.",
+      "optimizer": "AdamW, matching v0.2, if any retraining occurs.",
+      "success_metric": "MC20 output probability distribution moves out of the noise-indistinguishable regime, WITHOUT any change to the official test-set metrics (re-evaluated once, disclosed).",
+      "success_criterion": "As above.",
+      "failure_criterion": "MC20 output remains saturated near zero even after the preprocessing correction -- confirms the gap is NOT purely a preprocessing artifact and justifies proceeding to Experiment B."
+    },
+    "experiment_B_domain_expansion": {
+      "hypothesis": "Unchanged from the prior audit's Experiment 2: adding labeled, non-MC20, raw-calibrated Sentinel-1 GRD scenes (with the corrected preprocessing contract from Experiment 0/A) widens the training distribution enough to close the remaining gap.",
+      "independent_variable": "Presence/absence of newly acquired raw-GRD scenes (per Phase 15's spec) in the training pool.",
+      "training_data": "NETRA-GOLD-v0.2 + newly acquired, correctly-labeled raw-GRD scenes, scene-level leakage-guarded split per v0.2's existing Union-Find/region-binning methodology.",
+      "validation_data": "v0.2's val split + a held-out slice of the new scenes.",
+      "held_out_test_data": "v0.2's 152-scene test split AND MC20 both remain untouched by training/tuning -- MC20 continues to serve only as a qualitative, non-scored E2E check.",
+      "metric": "val IoU(oil) on both the original-domain slice and the new-domain slice, reported separately.",
+      "success_criterion": "New-domain val IoU improves substantially from a near-zero/near-random baseline without the original-domain val IoU regressing outside noise of 0.6149.",
+      "failure_criterion": "New-domain val IoU does not improve, or original-domain val IoU regresses -- would indicate either insufficient new data volume/diversity or a conflicting-domain effect requiring the domain-adaptation route (option G) instead.",
+      "gate": "Only run if Experiment A's failure criterion is met."
+    },
+    "experiment_C_combined": {
+      "status": "Not specified in detail -- only justified if both A and B individually show partial-but-incomplete improvement, per instruction to design the smallest useful next experiment first rather than a maximal combined one."
+    }
+  },
+  "phase17_test_protection": {
+    "classification": "DERIVED",
+    "official_test_status": "LOCKED_FOR_FINAL_EVALUATION (unchanged from prior audit; not re-touched this pass)",
+    "mc20_status": "EXTERNAL EVALUATION / OOD DIAGNOSTIC (unchanged) -- explicitly not used to select any v0.3 hyperparameter, threshold, or stopping point in this design",
+    "confirmed_no_mc20_use_in_this_designs_success_criteria": true
+  },
+  "phase18_dataset_versioning": {
+    "classification": "DERIVED",
+    "decision": "NETRA-GOLD-v0.2 is NOT modified. If Experiment B is eventually run, its output must be a new, explicitly versioned NETRA-GOLD-v0.3 (or later), preserving v0.2's Gold directory, manifest, checkpoint, and all reports for baseline comparison.",
+    "performed_this_task": "No dataset version was created or modified this task."
+  },
+  "phase19_reproducibility_record": {
+    "classification": "MEASURED",
+    "git_commit": "67b16a7d4bce1db00b123a0ebe03d83dece671b1",
+    "manifest_hash": "89d3cf69d7131964f30879506a6ec0cd07cf01a5900deef89a9c6c24697f",
+    "checkpoint_sha256": "9f38c690d0ef1629bdc7a59b76dbe054d45245cfccb4ba5b26f242f1d2e2cd66",
+    "python_version": "3.12.14",
+    "torch_version": "2.6.0+cu124",
+    "cuda_version": "12.4",
+    "gpu": "NVIDIA GeForce RTX 3060",
+    "seed": "N/A -- no stochastic sampling used in this audit's new measurements (10 Zenodo scenes taken by sorted filename order; 9 MC20 tiles = full population)",
+    "commands_used": [
+      "rasterio metadata reads over sampled Zenodo GeoTIFFs (this session, inline python)",
+      "unnormalization of MC20 Gold tiles using data/manifests/netra_gold_v0_2.json clip bounds (this session, inline python)",
+      "WebFetch of https://zenodo.org/records/8346860 and https://zenodo.org/records/8253899"
+    ]
+  },
+  "safety_report": {
+    "deleted_files": 0, "renamed_files": 0, "moved_files": 0, "overwritten_datasets": 0,
+    "frozen_checkpoint_modified": 0, "official_test_modified": 0, "mc20_modified": 0,
+    "netra_gold_v0_2_modified": 0,
+    "files_touched_this_task": [
+      "reports/netra_v02/netra_preprocessing_reconciliation.json (new)",
+      "reports/netra_v02/NETRA_PREPROCESSING_RECONCILIATION.md (new)",
+      "reports/netra_v02/_earliest_common_representation_db.json (new, scratch evidence)"
+    ],
+    "training_launched": false,
+    "data_downloaded": false,
+    "gold_modified": false
+  },
+  "final_decision": "E",
+  "final_decision_label": "FURTHER_INVESTIGATION_REQUIRED",
+  "final_decision_reasoning": "Root-cause evidence this pass identifies a specific, cheap, zero-new-data falsifying experiment (Experiment 0: apply MC20's already-available NESZ noise LUT) that has NOT yet been run. Choosing B (domain expansion) now would risk collecting and labeling new data to fix a gap that might close with a code-level calibration correction alone. Choosing A alone would be premature without first confirming, via Experiment 0, that thermal-noise removal is actually the dominant contributor rather than one of several partial contributors (the channel-asymmetric variance compression in Phase 6 suggests the true picture may be MIXED_CAUSE). The evidence supports neither a confident B (the prior baseline audit's recommendation) nor a confident A alone -- it supports running the cheapest falsifying experiment first."
+}

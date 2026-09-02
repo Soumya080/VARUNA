@@ -1,240 +1,333 @@
 """
-VARUNA GRID v2 — NETRA Training Entrypoint.
+VARUNA GRID v2 - NETRA real-data training entrypoint.
 
-Trains the NETRA SAR Oil Slick & Lookalike Segmentation Model.
-Supports both real Gold datasets (under data/gold/netra/) and synthetic data fallback.
+This file previously detected the Gold tiles, printed that it was using them,
+and then trained on `SyntheticNetraDataset` while emitting per-epoch losses from
+the closed form `0.45 / sqrt(epoch)`. That path is gone. There is no synthetic
+fallback here and no fabricated metric.
+
+Hard guarantees:
+  * data membership comes from a versioned Gold manifest, never a directory glob
+  * a missing manifest is a fatal error - no substitute data is synthesised
+  * `device: cuda` with CUDA unavailable raises rather than falling back to CPU
+  * every logged number is measured from real predictions on real tiles
 
 Usage:
-    python train_netra.py --config configs/lab/netra.yaml
-    python train_netra.py --config configs/lab/netra.yaml --dry-run
+    .venv/Scripts/python.exe train_netra.py --config configs/lab/netra.yaml
+    .venv/Scripts/python.exe train_netra.py --config configs/lab/netra.yaml --epochs 2
+    .venv/Scripts/python.exe train_netra.py --config configs/lab/netra.yaml --resume auto
 """
-
 from __future__ import annotations
 
-import os
-import sys
-import json
-import yaml
-import hashlib
 import argparse
-from pathlib import Path
+import hashlib
+import json
+import subprocess
+import sys
+import time
 from datetime import datetime, timezone
+from pathlib import Path
 
-# Add packages to sys.path
+import yaml
+
 REPO_ROOT = Path(__file__).resolve().parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-for pkg in (REPO_ROOT / "packages").glob("varuna_*"):
-    if str(pkg) not in sys.path:
-        sys.path.insert(0, str(pkg))
+for _p in (REPO_ROOT, REPO_ROOT / "packages"):
+    if str(_p) not in sys.path:
+        sys.path.insert(0, str(_p))
 
-from varuna_netra.model.config import NetraModelConfig
-from varuna_netra.model.factory import create_netra_model
-from varuna_netra.training.config import NetraTrainingConfig
-from varuna_netra.training.trainer import NetraTrainer
-from varuna_netra.training.evaluator import NetraEvaluator
-from varuna_netra.dataset.synthetic import SyntheticNetraDataset
-from varuna_infra.experiment.store import InMemoryExperimentStore
-from varuna_infra.experiment.runner import ExperimentRunner
-from varuna_domain.model_registry import InMemoryModelRegistry, ModelStatus
-from scripts.lab_bootstrap import check_git_state
+import numpy as np                                                        # noqa: E402
+import torch                                                              # noqa: E402
+from torch.utils.data import DataLoader, WeightedRandomSampler            # noqa: E402
 
+from varuna_netra.dataset.gold import NetraGoldDataset, manifest_sha256   # noqa: E402
+from varuna_netra.model.config import NetraModelConfig                    # noqa: E402
+from varuna_netra.model.factory import create_netra_model                 # noqa: E402
+from varuna_netra.training.config import NetraTrainingConfig              # noqa: E402
+from varuna_netra.training.evaluator import NetraEvaluator                # noqa: E402
+from varuna_netra.training.trainer import NetraTrainer, resolve_device    # noqa: E402
 
-def load_yaml_config(path: Path) -> dict:
-    """Loads and validates training YAML configuration."""
-    if not path.exists():
-        raise FileNotFoundError(f"Configuration file not found: {path}")
-    with open(path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
-    return cfg or {}
+SCIENTIFIC_STATUS = "EXPERIMENTAL / UNVALIDATED"
 
 
-def train_netra(config_path: str, dry_run: bool = False) -> dict:
-    """Main NETRA training execution pipeline."""
-    cfg_file = Path(config_path)
-    if not cfg_file.is_absolute():
-        cfg_file = REPO_ROOT / cfg_file
-
-    config = load_yaml_config(cfg_file)
-    print("=" * 70)
-    print(f" VARUNA GRID v2 — NETRA MODEL TRAINING [{config.get('experiment_name', 'netra')}]")
-    print("=" * 70)
-
-    git_state = check_git_state(REPO_ROOT)
-    git_commit = git_state.get("commit") or "unknown_commit"
-    timestamp = datetime.now(timezone.utc).isoformat()
-
-    # Determine hardware / device
-    req_device = config.get("device", "cuda")
-    actual_device = "cpu"
+def git_commit() -> str:
     try:
-        import torch
-        if (req_device == "cuda" or req_device == "auto") and torch.cuda.is_available():
-            actual_device = "cuda"
-    except ImportError:
-        actual_device = "cpu"
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        return "unknown"
 
-    epochs = 1 if dry_run else int(config.get("epochs", 25))
-    batch_size = int(config.get("batch_size", 4))
-    seed = int(config.get("seed", 42))
-    dataset_version = str(config.get("dataset_version", "gold_v1.0.0"))
-    checkpoint_rel = config.get("checkpoint_dir", "artifacts/checkpoints/netra")
-    ckpt_dir = REPO_ROOT / checkpoint_rel
-    ckpt_dir.mkdir(parents=True, exist_ok=True)
-    exp_dir = REPO_ROOT / "artifacts" / "experiments"
-    exp_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"Configuration     : {cfg_file}")
-    print(f"Target Device     : {actual_device.upper()} (Configured: {req_device})")
-    print(f"Dataset Version   : {dataset_version}")
-    print(f"Training Epochs   : {epochs} {'[DRY RUN]' if dry_run else ''}")
-    print(f"Batch Size        : {batch_size}")
-    print(f"Random Seed       : {seed}")
+def load_config(path: Path) -> dict:
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    if not path.exists():
+        raise FileNotFoundError(f"config not found: {path}")
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
-    # 1. Dataset Loading (Gold or Synthetic Fallback)
-    gold_dir = REPO_ROOT / "data" / "gold" / "netra"
-    gold_files = list(gold_dir.glob("*.npy")) if gold_dir.exists() else []
-    
-    if gold_files:
-        print(f"[INFO] Using GOLD dataset from {gold_dir} ({len(gold_files)} tiles)")
-        # In real workflow, Gold dataset loader reads gold tiles
-        dataset = SyntheticNetraDataset(num_samples=max(20, len(gold_files)), seed=seed)
-    else:
-        print(f"[INFO] No real GOLD tiles found in data/gold/netra/ — using synthetic dataset provider")
-        dataset = SyntheticNetraDataset(num_samples=20, seed=seed)
 
-    train_samples = dataset.list_samples(split="train")
-    val_samples = dataset.list_samples(split="val")
-    print(f"[PASS] Dataset Ready   : {len(train_samples)} training samples, {len(val_samples)} validation samples")
+def collate_with_meta(batch):
+    imgs = torch.stack([b[0] for b in batch])
+    msks = torch.stack([b[1] for b in batch])
+    meta = {k: [b[2][k] for b in batch] for k in batch[0][2]}
+    return imgs, msks, meta
 
-    # 2. Model Initialization
-    enc_weights = config.get("encoder_weights")
-    if enc_weights is None:
-        enc_weights = "none"
-        
+
+def build_loaders(cfg: dict, manifest: Path, epochs_limit: int | None = None):
+    bs = int(cfg.get("batch_size", 16))
+    nw = int(cfg.get("num_workers", 8))
+    # Both loaders' worker pools spawn concurrently once persistent_workers=True on
+    # both: train's pool stays alive across the whole run, and val's pool spawns on
+    # top of it at the end of every epoch. Each worker process reloads torch+CUDA,
+    # and on this machine nw=8 + nw=8 = 16 concurrent DLL loads exhausted the
+    # Windows paging file mid-epoch-1 (WinError 1455) and stalled the run.
+    # Val runs briefly once per epoch and needs far less throughput than train, so
+    # it gets a capped, non-persistent pool instead of a matching one.
+    val_nw = min(nw, int(cfg.get("val_num_workers", 2)))
+    tile_limit = cfg.get("tile_limit")
+    # 2026-08-29 incident (part 2): a train loader persistent for the whole run
+    # exhausted the Windows paging file at epoch 15 (WinError-class OpenBLAS
+    # allocation failure), consistent with a slow per-epoch accumulation. Tried
+    # making train workers non-persistent (respawn every epoch) as the fix --
+    # that instead triggered a hard native crash (c0000005 access violation in
+    # c10.dll, confirmed via Windows Event Log WER records) almost immediately
+    # after the respawned pool started, i.e. spawning 8 fresh worker processes
+    # every single epoch is itself unstable on this machine's torch/CUDA/driver
+    # stack. Reverted: train workers are persistent again (proven stable for 14
+    # real epochs before the paging-file incident). Re-verify via
+    # 06_real_smoke_test.py before trusting any further change here.
+
+    train_ds = NetraGoldDataset(manifest, "train", repo_root=REPO_ROOT,
+                                limit=tile_limit, return_meta=True)
+    val_ds = NetraGoldDataset(manifest, "val", repo_root=REPO_ROOT,
+                              limit=cfg.get("val_tile_limit"), return_meta=True)
+
+    sampler = None
+    shuffle = True
+    if cfg.get("positive_aware_sampling", False):
+        w = train_ds.sampler_weights(float(cfg.get("positive_weight", 3.0)))
+        sampler = WeightedRandomSampler(w.tolist(), num_samples=len(w), replacement=True)
+        shuffle = False
+        print(f"[SAMPLING] positive-aware sampler active "
+              f"(positive_weight={cfg.get('positive_weight', 3.0)}); "
+              f"dataset membership unchanged, {len(train_ds)} tiles remain addressable")
+
+    pin = bool(cfg.get("pin_memory", True))
+    train_loader = DataLoader(train_ds, batch_size=bs, shuffle=shuffle,
+                              sampler=sampler, drop_last=False,
+                              num_workers=nw, pin_memory=pin,
+                              persistent_workers=nw > 0, collate_fn=collate_with_meta)
+    val_loader = DataLoader(val_ds, batch_size=bs, shuffle=False,
+                            num_workers=val_nw, pin_memory=pin,
+                            persistent_workers=False, collate_fn=collate_with_meta)
+    print(f"[LOADERS] train_num_workers={nw} (persistent)  val_num_workers={val_nw} (non-persistent)")
+    return train_ds, val_ds, train_loader, val_loader
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="VARUNA NETRA real-data training")
+    ap.add_argument("--config", default="configs/lab/netra.yaml")
+    ap.add_argument("--epochs", type=int, default=None, help="override config epochs")
+    ap.add_argument("--experiment-id", default=None)
+    ap.add_argument("--resume", default=None, help="checkpoint path, or 'auto' for <exp>_last.pt")
+    args = ap.parse_args()
+
+    cfg = load_config(Path(args.config))
+    started = datetime.now(timezone.utc)
+    commit = git_commit()
+    config_hash = hashlib.sha256(
+        json.dumps(cfg, sort_keys=True, default=str).encode()
+    ).hexdigest()[:12]
+    experiment_id = args.experiment_id or (
+        f"netra_{cfg.get('experiment_name', 'baseline')}_{config_hash}"
+    )
+
+    print("=" * 74)
+    print(f" VARUNA GRID v2 - NETRA TRAINING  [{experiment_id}]")
+    print(f" Scientific status: {SCIENTIFIC_STATUS}")
+    print("=" * 74)
+
+    # ---- device: fail loudly, never downgrade silently ---- #
+    requested = str(cfg.get("device", "cuda"))
+    device = resolve_device(requested)   # raises CudaUnavailableError if cuda missing
+    print(f"[DEVICE] requested={requested} -> {device}")
+    if device.type == "cuda":
+        p = torch.cuda.get_device_properties(0)
+        free, _ = torch.cuda.mem_get_info()
+        print(f"[DEVICE] {p.name} | VRAM {p.total_memory / 1024 ** 3:.1f} GB "
+              f"({free / 1024 ** 3:.2f} GB free) | torch {torch.__version__} "
+              f"| CUDA {torch.version.cuda}")
+
+    # ---- data: manifest only, no fallback ---- #
+    manifest = REPO_ROOT / cfg.get("gold_manifest", "data/manifests/netra_gold_v0_2.json")
+    if not manifest.exists():
+        print(f"[FATAL] Gold manifest not found: {manifest}")
+        print("        Real training requires a real Gold dataset. This entrypoint will "
+              "not substitute synthetic data. Build it with scripts/netra_v02/*.py first.")
+        return 2
+
+    train_ds, val_ds, train_loader, val_loader = build_loaders(cfg, manifest)
+    man_hash = manifest_sha256(manifest)
+    print(f"[DATA] manifest        : {manifest.name}  sha256={man_hash[:16]}...")
+    print(f"[DATA] dataset_version : {train_ds.dataset_version}")
+    print(f"[DATA] normalization   : {train_ds.normalization['normalization_version']}")
+    for name, ds in (("train", train_ds), ("val", val_ds)):
+        d = ds.describe()
+        print(f"[DATA] {name:5s}: {d['n_tiles']} tiles / {d['n_scenes']} scenes | "
+              f"pos={d['n_positive_tiles']} empty={d['n_empty_tiles']} | "
+              f"oil px {d['oil_pixel_frac']:.4%} | {d['tiles_by_source']}")
+    overlap = set(train_ds.scene_ids) & set(val_ds.scene_ids)
+    if overlap:
+        print(f"[FATAL] {len(overlap)} scenes appear in both train and val")
+        return 3
+    print(f"[DATA] train/val scene overlap : 0  (verified at load time)")
+
+    # ---- model ---- #
+    in_ch = int(cfg.get("in_channels", 2))
+    n_cls = int(cfg.get("classes", 2))
+    if in_ch != 2 or n_cls != 2:
+        print(f"[FATAL] NETRA baseline is 2-channel (VV,VH) / 2-class (NOT_OIL,OIL); "
+              f"config asks for in_channels={in_ch}, classes={n_cls}")
+        return 4
     model_cfg = NetraModelConfig(
-        encoder_name=str(config.get("encoder_name", "resnet34")),
-        encoder_weights=str(enc_weights),
-        in_channels=int(config.get("in_channels", 3)),
-        classes=int(config.get("classes", 3)),
-        tile_confidence_head=True,
+        encoder_name=str(cfg.get("encoder_name", "resnet34")),
+        encoder_weights=cfg.get("encoder_weights"),
+        in_channels=in_ch, classes=n_cls, tile_confidence_head=True,
     )
     model = create_netra_model(model_cfg)
-    print(f"[PASS] Model Created   : NETRA U-Net ({model_cfg.encoder_name}, {model_cfg.classes} classes)")
+    n_params = sum(p.numel() for p in model.parameters())
+    print(f"[MODEL] U-Net {model_cfg.encoder_name} | in_ch={in_ch} classes={n_cls} | "
+          f"{n_params / 1e6:.2f} M params | encoder_weights={model_cfg.encoder_weights}")
 
-    # 3. Trainer Initialization
+    # ---- trainer ---- #
+    epochs = int(args.epochs if args.epochs is not None else cfg.get("epochs", 50))
+    ckpt_dir = REPO_ROOT / cfg.get("checkpoint_dir", "artifacts/checkpoints/netra_v0_2")
     train_cfg = NetraTrainingConfig(
         epochs=epochs,
-        batch_size=batch_size,
-        lr=float(config.get("learning_rate", 3e-4)),
-        weight_decay=float(config.get("weight_decay", 1e-4)),
-        warmup_epochs=int(config.get("warmup_epochs", 3)),
-        patience=int(config.get("patience", 6)),
-        amp=bool(config.get("mixed_precision", True)),
-        seed=seed,
+        batch_size=int(cfg.get("batch_size", 16)),
+        lr=float(cfg.get("learning_rate", 3e-4)),
+        weight_decay=float(cfg.get("weight_decay", 1e-4)),
+        warmup_epochs=int(cfg.get("warmup_epochs", 3)),
+        patience=int(cfg.get("patience", 8)),
+        amp=bool(cfg.get("mixed_precision", True)),
+        seed=int(cfg.get("seed", 42)),
         checkpoint_dir=str(ckpt_dir),
     )
-    trainer = NetraTrainer(train_cfg)
+    exp_dir = REPO_ROOT / "artifacts" / "experiments"
+    exp_dir.mkdir(parents=True, exist_ok=True)
+    log_path = exp_dir / f"{experiment_id}.log.jsonl"
 
-    # 4. Experiment Tracking
-    exp_store = InMemoryExperimentStore()
-    exp_runner = ExperimentRunner(exp_store)
-    exp_name = str(config.get("experiment_name", "netra_lab_training"))
-
-    config_hash = hashlib.sha256(json.dumps(config, sort_keys=True, default=str).encode()).hexdigest()[:12]
-
-    best_checkpoint = ""
-    eval_result = None
-
-    def _train_fn(exp_id: str):
-        nonlocal best_checkpoint, eval_result
-        print(f"\n--- Starting Training Execution [ID: {exp_id}] ---")
-        for ep in range(1, epochs + 1):
-            train_loss = 0.45 / (ep ** 0.5)
-            val_loss = train_loss * 1.08
-            print(f"  Epoch [{ep:>2}/{epochs:>2}] | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
-            exp_store.log_metric(exp_id, f"train_loss_epoch_{ep}", train_loss)
-            exp_store.log_metric(exp_id, f"val_loss_epoch_{ep}", val_loss)
-
-        best_checkpoint = trainer.train(model, train_samples, val_samples, exp_id)
-        print(f"[PASS] Checkpoint Saved : {best_checkpoint}")
-
-        evaluator = NetraEvaluator()
-        eval_result = evaluator.evaluate(
-            model=model,
-            test_loader=val_samples,
-            experiment_id=exp_id,
-            model_version=f"netra-{dataset_version}",
-            dataset_version=dataset_version,
-            split="val",
-        )
-        print(f"[PASS] Evaluation Metrics: IoU Oil = {eval_result.iou_oil:.4f}, Dice Oil = {eval_result.dice_oil:.4f}, F1 = {eval_result.f1_oil:.4f}")
-
-    experiment_id = exp_runner.run(exp_name, _train_fn)
-
-    # 5. Model Registry (Registration as CANDIDATE — NOT auto-deployed)
-    registry = InMemoryModelRegistry()
-    registered_version = registry.register(
-        model_name="netra",
-        version=f"v2.0.0-{config_hash[:6]}",
-        artifact_path=best_checkpoint,
-        dataset_version=dataset_version,
-        training_config=config,
-        git_commit=git_commit,
+    provenance = {
+        "dataset_version": train_ds.dataset_version,
+        "manifest_hash": man_hash,
+        "normalization_version": train_ds.normalization["normalization_version"],
+        "git_commit": commit,
+        "config_hash": config_hash,
+        "experiment_id": experiment_id,
+    }
+    trainer = NetraTrainer(
+        train_cfg, device=requested,
+        loss_name=str(cfg.get("loss", "dice_ce")),
+        class_weights=cfg.get("class_weights", [1.0, 10.0]),
+        monitor=str(cfg.get("monitor", "iou_oil")),
+        provenance=provenance,
+        log_interval=int(cfg.get("log_interval", 20)),
     )
-    print(f"[PASS] Model Registry   : Registered version '{registered_version.version}' (Status: {registered_version.status.value})")
+    print(f"[TRAIN] epochs={epochs} batch={train_cfg.batch_size} "
+          f"lr={train_cfg.lr} amp={train_cfg.amp} loss={cfg.get('loss', 'dice_ce')} "
+          f"class_weights={cfg.get('class_weights', [1.0, 10.0])} "
+          f"monitor={cfg.get('monitor', 'iou_oil')} patience={train_cfg.patience}")
+    print(f"[TRAIN] checkpoints -> {ckpt_dir}")
+    print(f"[TRAIN] epoch log   -> {log_path}")
 
-    # 6. Save Experiment Metadata JSON
+    resume = args.resume
+    if resume == "auto":
+        cand = ckpt_dir / f"{experiment_id}_last.pt"
+        resume = str(cand) if cand.exists() else None
+        print(f"[TRAIN] resume auto -> {resume or 'no prior checkpoint, starting fresh'}")
+
+    t0 = time.perf_counter()
+    result = trainer.train(model, train_loader, val_loader, experiment_id,
+                           epochs=epochs, resume_from=resume, log_path=log_path)
+
+    print("\n" + "=" * 74)
+    print(" TRAINING COMPLETE")
+    print("=" * 74)
+    print(f" epochs run       : {result.epochs_run}")
+    print(f" best epoch       : {result.best_epoch}  ({trainer.monitor}={result.best_metric:.6f})")
+    print(f" weights changed  : {result.weights_changed}")
+    print(f" best checkpoint  : {result.best_checkpoint}")
+    print(f" last checkpoint  : {result.last_checkpoint}")
+    print(f" peak VRAM        : {result.peak_vram_gb:.2f} GB (MEASURED)")
+    print(f" wall clock       : {result.total_seconds / 60:.1f} min (MEASURED)")
+
+    # ---- final validation metrics from the best checkpoint ---- #
+    best = torch.load(result.best_checkpoint, map_location=device, weights_only=False)
+    model.load_state_dict(best["model_state_dict"])
+    evaluator = NetraEvaluator(amp=train_cfg.amp)
+    val_metrics = evaluator.evaluate(model, val_loader, device=device, split="val")
+    o = val_metrics.overall
+    print("\n[VAL METRICS - best checkpoint, computed from real predictions]")
+    print(f"  IoU(oil)={o['iou_oil']:.4f}  Dice={o['dice_oil']:.4f}  "
+          f"P={o['precision_oil']:.4f}  R={o['recall_oil']:.4f}  F1={o['f1_oil']:.4f}")
+    print(f"  PR-AUC={val_metrics.pr_auc:.4f}  best-F1={val_metrics.best_f1:.4f} "
+          f"@thr={val_metrics.best_f1_threshold:.3f}")
+    for src, m in val_metrics.by_source.items():
+        print(f"  [{src}] tiles={m['n_tiles']} FP-pixel-rate={m['fp_pixel_rate']:.6f} "
+              f"IoU={m['iou_oil']:.4f}")
+
     metadata = {
         "experiment_id": experiment_id,
         "model_name": "netra",
-        "model_version": registered_version.version,
-        "dataset_version": dataset_version,
-        "git_commit": git_commit,
+        "scientific_status": SCIENTIFIC_STATUS,
+        "started_at": started.isoformat(),
+        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "git_commit": commit,
         "config_hash": config_hash,
-        "seed": seed,
+        "config": cfg,
+        "seed": train_cfg.seed,
+        "dataset": {
+            "manifest": str(manifest.relative_to(REPO_ROOT)),
+            "manifest_hash": man_hash,
+            "dataset_version": train_ds.dataset_version,
+            "normalization_version": train_ds.normalization["normalization_version"],
+            "train": train_ds.describe(),
+            "val": val_ds.describe(),
+        },
+        "model": {"architecture": "unet", "encoder": model_cfg.encoder_name,
+                  "in_channels": in_ch, "classes": n_cls, "parameters": n_params,
+                  "encoder_weights": model_cfg.encoder_weights},
         "hardware": {
-            "device": actual_device,
-            "mixed_precision": config.get("mixed_precision", True),
+            "device": str(result.device),
+            "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+            "torch": torch.__version__, "cuda": torch.version.cuda,
+            "peak_vram_gb": result.peak_vram_gb, "amp": train_cfg.amp,
+            "measurement": "MEASURED",
         },
-        "training_params": {
-            "epochs": epochs,
-            "batch_size": batch_size,
-            "learning_rate": config.get("learning_rate", 3e-4),
+        "training": {
+            "epochs_requested": epochs, "epochs_run": result.epochs_run,
+            "best_epoch": result.best_epoch, "monitor": trainer.monitor,
+            "best_metric": result.best_metric,
+            "weights_changed": result.weights_changed,
+            "fingerprint_before": result.fingerprint_before,
+            "fingerprint_after": result.fingerprint_after,
+            "wall_clock_s": result.total_seconds,
+            "history": result.history,
         },
-        "metrics": {
-            "val_iou_oil": eval_result.iou_oil if eval_result else 0.0,
-            "val_dice_oil": eval_result.dice_oil if eval_result else 0.0,
-            "val_f1_oil": eval_result.f1_oil if eval_result else 0.0,
-            "ood_auroc": eval_result.ood_auroc if eval_result else 0.0,
-        },
-        "checkpoint_path": best_checkpoint,
-        "timestamp": timestamp,
+        "val_metrics": val_metrics.to_dict(),
+        "checkpoints": {"best": result.best_checkpoint, "last": result.last_checkpoint},
+        "note": (
+            "Metrics above are computed from real model predictions on real held-out "
+            "Gold tiles. Test-split evaluation is deliberately NOT run here; it is run "
+            "once, separately, after the training configuration is frozen."
+        ),
     }
-    exp_file = exp_dir / f"{experiment_id}.json"
-    exp_file.write_text(json.dumps(metadata, indent=2))
-    print(f"[PASS] Experiment Log   : {exp_file}")
-
-    print("=" * 70)
-    print(" TRAINING SUMMARY")
-    print(f" Status          : SUCCESS")
-    print(f" Experiment ID   : {experiment_id}")
-    print(f" Best Checkpoint : {best_checkpoint}")
-    print(f" Scientific State: EXPERIMENTAL / UNVALIDATED")
-    print("=" * 70)
-
-    return {
-        "experiment_id": experiment_id,
-        "checkpoint_path": best_checkpoint,
-        "model_version": registered_version.version,
-        "metadata_file": str(exp_file),
-    }
+    (exp_dir / f"{experiment_id}.json").write_text(json.dumps(metadata, indent=2, default=str))
+    print(f"\n[EXPERIMENT] {exp_dir / (experiment_id + '.json')}")
+    print(f"[STATUS] {SCIENTIFIC_STATUS}")
+    return 0
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="VARUNA NETRA Training")
-    parser.add_argument("--config", type=str, default="configs/lab/netra.yaml", help="Path to training config YAML")
-    parser.add_argument("--dry-run", action="store_true", help="Run 1-epoch validation dry run")
-    args = parser.parse_args()
-
-    train_netra(config_path=args.config, dry_run=args.dry_run)
+    sys.exit(main())

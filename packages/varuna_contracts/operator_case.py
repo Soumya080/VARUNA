@@ -35,16 +35,20 @@ from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from varuna_contracts.action import DecisionTrace, NextBestAction
 from varuna_contracts.decision import AttributionResultV2, ValidityGateResult
+from varuna_contracts.detection_evidence import UncertaintyAssessment
 from varuna_contracts.evidence import EvidenceMode
 from varuna_contracts.phi import PhiField
 from varuna_contracts.schemas import (
     AssetTasking,
     BBox,
     ForwardForecast,
+    GeoPoint,
     SlickDetection,
     VesselType,
 )
+from varuna_contracts.source_hypothesis import SourceHypothesisEnvelope
 from varuna_contracts.states import MissionRecord
 
 __all__ = [
@@ -55,6 +59,7 @@ __all__ = [
     "AlertView",
     "EvidenceComponentView",
     "EvidenceHealthView",
+    "IntelligenceSection",
     "ObservationView",
     "OperationalDecisionState",
     "OperatorCase",
@@ -103,23 +108,40 @@ class AlertDeliveryStatus(StrEnum):
 
 
 class AlertSeverity(StrEnum):
+    """Alert severity.
+
+    HISTORY (kept, because it explains the two-vocabulary shape): this enum
+    originally carried only INFO/WARNING/BLOCKED, which are *structural*
+    facts about a delivery attempt (was the send suppressed, did it reach a
+    simulated channel), and CRITICAL was documented as deliberately
+    unreachable because no policy anywhere in the repository scored how
+    urgent a real spill event was. `varuna_alerts.severity.infer_severity()`
+    still assigns exactly those three, unchanged, for delivery-derived
+    severity.
+
+    Workstream A adds an OPERATIONAL urgency scale — LOW/MEDIUM/HIGH — and
+    makes CRITICAL genuinely reachable, because
+    `varuna_alerts.material_change` now implements the urgency policy that
+    was previously missing. That policy is grounded only in state this
+    system actually computes (a predicted landfall, a validity gate that
+    withdraws operational authorisation, a mission state change), and every
+    assignment carries a `severity_basis` string explaining it. No severity
+    is derived from an uncalibrated model score, and no score is converted
+    into a calibrated probability.
+
+    The two groups coexist on purpose: INFO/WARNING/BLOCKED answer "what
+    happened to the delivery", LOW/MEDIUM/HIGH/CRITICAL answer "how much
+    should an operator care". Both are legitimate values of this field, and
+    a consumer can tell them apart by membership.
     """
-    Structural severity, NOT an urgency judgment. INFO/WARNING/BLOCKED are
-    derived purely from facts already computed elsewhere (was the send
-    suppressed, did it reach a simulated channel). CRITICAL exists in this
-    enum because the operator-case-contract task requires the vocabulary,
-    but nothing in this codebase ever assigns it: there is no repository
-    policy anywhere (varuna_alerts.materiality/freshness/role_router) that
-    scores how urgent a real spill event is (proximity to shore, asset
-    availability, volume, ...). Inventing that scoring here would be
-    exactly the kind of fabricated safety-critical rule the task
-    prohibits. See `varuna_alerts.severity.infer_severity()` and
-    reports/mission/ABHIYAN_MISSION_ALERTS_REPORT.md, "Alert severity policy
-    gap", for the explicit gap this leaves.
-    """
+    # Delivery-structural (legacy, still produced by infer_severity)
     INFO = "info"
     WARNING = "warning"
     BLOCKED = "blocked"
+    # Operational urgency (Workstream A, material-change derived)
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
     CRITICAL = "critical"
 
 
@@ -282,6 +304,48 @@ class EvidenceHealthView(_Base):
         return max(modes, key=lambda m: m.rank) if modes else None
 
 
+class IntelligenceSection(_Base):
+    """
+    Product-facing view of the reasoning layer
+    (`varuna_integration.intelligence.CaseIntelligenceService`) — CHHAYA
+    source hypotheses, SMRITI memory retrieval, component-level uncertainty,
+    and the agentic decision trace. Added by ADR-0013 (STEP 3, unified case
+    contract).
+
+    All sub-fields reuse EXISTING `varuna_contracts` types
+    (`UncertaintyAssessment`, `SourceHypothesisEnvelope`, `DecisionTrace`,
+    `NextBestAction` — all already defined in this package, in
+    `detection_evidence.py`/`source_hypothesis.py`/`action.py`) rather than
+    importing from `varuna_chhaya`, `varuna_agentic`, `varuna_evidence`, or
+    `varuna_smriti`. `varuna_contracts` has zero imports from any other
+    `varuna_*` package (verified by inspection) — it is the dependency-free
+    leaf of this repository's package graph, and adding a typed dependency
+    on a higher-level package here would invert that. `memory_hits` and
+    `evidence_lineage` stay plain `dict`s because that is what
+    `EvidenceLedger.audit_trail()` and `CaseIntelligence.memory_hits`
+    already produce upstream — no information is lost by not re-typing them
+    here, since neither ever had a `varuna_contracts` type to begin with.
+
+    `status=NOT_YET_PRODUCED` (with `reason` set) is the correct, honest
+    state whenever `CaseIntelligenceService` was not run against this case's
+    `PipelineRun` — most commonly today because the case was produced by the
+    legacy `CaseWorkflow` path, which does not produce a `PipelineRun` for
+    the intelligence layer to consume (see
+    docs/architecture/ADR-0013-case-intelligence-composition.md). This is
+    NOT the same fact as "CHHAYA/SMRITI found nothing" — that case is
+    `PRODUCED` with empty `hypotheses`/`memory_hits`, per the
+    EMPTY-BUT-VALID distinction Task 4 of STEP 3 requires preserving.
+    """
+    status: ProducerStatus
+    reason: str | None = None
+    uncertainty: UncertaintyAssessment | None = None
+    hypotheses: SourceHypothesisEnvelope | None = None
+    memory_hits: list[dict] = Field(default_factory=list)
+    decision_trace: DecisionTrace | None = None
+    next_best_action: NextBestAction | None = None
+    evidence_lineage: list[dict] = Field(default_factory=list)
+
+
 class ProvenanceView(_Base):
     """
     Lineage summary. Never includes credentials, tokens, or raw storage
@@ -316,6 +380,48 @@ class SystemStatusView(_Base):
 
 # ───────────────────────── The contract ─────────────────────────
 
+class StartingPointStatus(StrEnum):
+    """Machine-readable answer to whether a usable spill origin exists.
+    `UNAVAILABLE` (nothing to derive from) and `INVALID` (something was
+    derived but failed validation) are deliberately distinct — collapsing
+    them would hide malformed upstream geometry behind "no data yet"."""
+
+    AVAILABLE = "STARTING_POINT_AVAILABLE"
+    UNAVAILABLE = "STARTING_POINT_UNAVAILABLE"
+    INVALID = "STARTING_POINT_INVALID"
+    REJECTED_LAND = "STARTING_POINT_REJECTED_LAND"
+
+
+class StartingPointSource(StrEnum):
+    """Which already-approved evidence object the coordinates were copied
+    from. There is deliberately no DEFAULT/FALLBACK member: an unsourced
+    starting point is not representable by this contract."""
+
+    DETECTION_CENTROID = "detection_centroid"
+    PHI_BBOX_CENTER = "phi_bbox_center"
+    NONE = "none"
+
+
+class LandClassification(StrEnum):
+    """`UNKNOWN_NO_LANDMASK` is a first-class outcome, not a failure: this
+    repository ships no offline land/coastline mask, and reporting an
+    honest unknown is required rather than guessing. A consumer must never
+    read UNKNOWN as "confirmed at sea"."""
+
+    WATER = "water"
+    LAND = "land"
+    UNKNOWN_NO_LANDMASK = "unknown_no_landmask"
+
+
+class StartingPoint(_Base):
+    status: StartingPointStatus
+    source: StartingPointSource = StartingPointSource.NONE
+    point: GeoPoint | None = None
+    land_classification: LandClassification = LandClassification.UNKNOWN_NO_LANDMASK
+    reason: str | None = None
+    evidence_mode: EvidenceMode | None = None
+
+
 class OperatorCase(_Base):
     """
     Canonical, versioned, read-only projection of one VARUNA case for the
@@ -347,3 +453,27 @@ class OperatorCase(_Base):
 
     evidence: EvidenceHealthView
     provenance: ProvenanceView
+
+    # ADR-0013 (STEP 3, unified case contract). Additive: defaults to a
+    # correct NOT_YET_PRODUCED state so every existing caller that never
+    # supplies this field keeps working unmodified, and OPERATOR_CASE_SCHEMA_VERSION
+    # is NOT bumped for this change (see ADR-0013 for why this qualifies as
+    # additive rather than a breaking v2).
+    starting_point: StartingPoint = Field(
+        default_factory=lambda: StartingPoint(
+            status=StartingPointStatus.UNAVAILABLE,
+            reason="Starting point was not resolved for this case.",
+        ),
+        description=(
+            "The single, explicit answer to 'where did this spill start?' — the "
+            "input the forecast/back-trajectory chain needs. Resolved by "
+            "varuna_geospatial.starting_point.resolve_starting_point() from "
+            "already-validated evidence only; never a default coordinate."
+        ),
+    )
+    intelligence: IntelligenceSection = Field(
+        default_factory=lambda: IntelligenceSection(
+            status=ProducerStatus.NOT_YET_PRODUCED,
+            reason="CaseIntelligenceService was not composed for this case.",
+        )
+    )

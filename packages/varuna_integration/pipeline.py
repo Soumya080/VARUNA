@@ -197,7 +197,7 @@ class RealE2EPipeline:
         forecast_res = self._forecast(run, forcing_res, detection_res, validity_res)
         decision_res = self._decide(run, phi_res, validity_res)
         mission_res = self._mission(run, decision_res, validity_res)
-        self._alerts(run, validity_res, mission_res)
+        self._alerts(run, validity_res, mission_res, attribution_res)
 
         run.finished_at = datetime.now(timezone.utc)
         return run
@@ -702,7 +702,24 @@ class RealE2EPipeline:
     # ----------------------------------------------------- Phase 11: ALERTS
 
     def _alerts(self, run: PipelineRun, validity_res: StageResult,
-                mission_res: StageResult) -> StageResult:
+                mission_res: StageResult,
+                attribution_res: StageResult | None = None) -> StageResult:
+        """STEP 7, Phase 5: wires a second recognized material event
+        (`attribution.generated`) into the same call site `validity.evaluated`
+        already uses, rather than adding a new alert pathway. Both events are
+        gated by the SAME validity result — `check_materiality()` requires a
+        `ValidityState` and the case has exactly one, so `attribution.generated`
+        is only sent when the case's own gate also allows it, never a
+        fabricated separate materiality judgment. (`mission.assigned` is
+        wired separately, at `MissionService.approve_and_assign()` — see that
+        module — since the pipeline itself never assigns a mission; missions
+        are always created un-approved here.)
+
+        `detail["events"]` groups each event's own results for
+        `GoldenCaseWorkflow._sync_alerts_to_lifecycle()` to correlate as
+        distinct `AlertRecord`s; the top-level `n_*`/`delivery_claim` keys
+        stay aggregated across ALL events combined, preserving the existing
+        `test_alerts_never_claim_undelivered_delivery` contract."""
         if self.alert_service is None:
             return run.record(StageResult(
                 stage="alerts", status=StageStatus.NOT_YET_PRODUCED,
@@ -712,20 +729,32 @@ class RealE2EPipeline:
             return run.blocked_by("alerts", "validity", validity_res.reason or "")
 
         gate = validity_res.value
-        event_type = "validity.evaluated"
         t0 = time.perf_counter()
+        event_specs = [(
+            "validity.evaluated",
+            f"[{run.case_id}] validity={gate.state.value}",
+            f"run_id={run.run_id} class={self.config.run_class} "
+            f"gate={gate.state.value} allows_action={gate.allows_operational_action}",
+        )]
+        if attribution_res is not None and attribution_res.produced:
+            event_specs.append((
+                "attribution.generated",
+                f"[{run.case_id}] attribution generated",
+                f"run_id={run.run_id} class={self.config.run_class} "
+                f"gate={gate.state.value} allows_action={gate.allows_operational_action}",
+            ))
+
+        events: list[dict] = []
+        all_results = []
         try:
-            results = self.alert_service.route_and_send(
-                event_type=event_type, case_id=run.case_id,
-                event_timestamp=datetime.now(timezone.utc),
-                gate_state=gate.state,
-                subject=f"[{run.case_id}] validity={gate.state.value}",
-                body=(
-                    f"run_id={run.run_id} class={self.config.run_class} "
-                    f"gate={gate.state.value} "
-                    f"allows_action={gate.allows_operational_action}"
-                ),
-            )
+            for event_type, subject, body in event_specs:
+                results = self.alert_service.route_and_send(
+                    event_type=event_type, case_id=run.case_id,
+                    event_timestamp=datetime.now(timezone.utc),
+                    gate_state=gate.state, subject=subject, body=body,
+                )
+                events.append({"event_type": event_type, "results": results})
+                all_results.extend(results)
         except Exception as exc:
             return run.record(StageResult(
                 stage="alerts", status=StageStatus.BLOCKED,
@@ -735,25 +764,26 @@ class RealE2EPipeline:
 
         # "sent" on a simulated channel is not a delivery. Count only results
         # that both claim to have been sent AND were not flagged simulated.
-        delivered = [r for r in results if r.status == "sent" and not r.is_simulated]
-        simulated = [r for r in results if r.is_simulated]
-        suppressed = [r for r in results if r.status in ("suppressed", "expired")]
+        delivered = [r for r in all_results if r.status == "sent" and not r.is_simulated]
+        simulated = [r for r in all_results if r.is_simulated]
+        suppressed = [r for r in all_results if r.status in ("suppressed", "expired")]
         return run.record(StageResult(
-            stage="alerts", status=StageStatus.PRODUCED, value=results,
+            stage="alerts", status=StageStatus.PRODUCED, value=all_results,
             # An alert that only reached a simulated channel is not evidence of
             # delivery. Report SIMULATED unless something genuinely went out.
             evidence_mode=EvidenceMode.REAL if delivered and not simulated
             else EvidenceMode.SIMULATED,
             runtime_seconds=time.perf_counter() - t0,
             detail={
-                "event_type": event_type,
-                "n_results": len(results),
+                "event_type": event_specs[0][0],  # back-compat: first/primary event
+                "events": events,
+                "n_results": len(all_results),
                 "n_actually_delivered": len(delivered),
                 "n_simulated": len(simulated),
                 "n_suppressed": len(suppressed),
-                "statuses": [r.status for r in results],
-                "channels": sorted({r.channel for r in results}),
-                "delivery_claim": _delivery_claim(results, delivered, simulated, suppressed),
+                "statuses": [r.status for r in all_results],
+                "channels": sorted({r.channel for r in all_results}),
+                "delivery_claim": _delivery_claim(all_results, delivered, simulated, suppressed),
             },
         ))
 

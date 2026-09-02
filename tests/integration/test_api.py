@@ -2,6 +2,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from apps.api.main import app
+from apps.api.security import get_principal
+from varuna_infra.authorization import Principal
+
+
 @pytest.fixture
 def client():
     from varuna_domain.repositories import InMemoryCaseRepository, InMemoryArtifactRepository, InMemoryEventStore
@@ -15,24 +19,34 @@ def client():
 
     def override_get_case_repo():
         return cases
-        
+
     def override_get_artifact_repo():
         return artifacts
-        
+
     def override_get_event_repo():
         return events
 
     def override_get_object_store():
         return store
 
+    def override_get_principal() -> Principal:
+        # State-changing routes require authorization as of Phase 5
+        # (VARUNA_PRODUCT_READY hardening); this fixture exercises the
+        # workflow logic under a role that holds every permission these
+        # tests exercise, not the identity-resolution logic itself, which
+        # `tests/api/test_cases.py` and `tests/unit/test_authorization_enforcement.py`
+        # cover directly.
+        return Principal(principal_id="test-duty-officer", role="duty_officer")
+
     app.dependency_overrides[get_case_repo] = override_get_case_repo
     app.dependency_overrides[get_artifact_repo] = override_get_artifact_repo
     app.dependency_overrides[get_event_repo] = override_get_event_repo
     app.dependency_overrides[get_object_store] = override_get_object_store
-    
+    app.dependency_overrides[get_principal] = override_get_principal
+
     with TestClient(app) as c:
         yield c
-    
+
     app.dependency_overrides.clear()
 
 

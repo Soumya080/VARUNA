@@ -241,7 +241,12 @@ trace as JSON.
 - CHHAYA's posteriors are internally consistent but **uncalibrated** — relative
   plausibility under declared assumptions, not empirical frequencies.
 - SMRITI similarity weights are declared, not fitted.
-- Demo B's populated case is REPLAY/SIMULATED throughout and labelled as such.
+- Demo B is REPLAY at the **run** level, but the `CASE-VALID` fixture stamps
+  `EvidenceMode.REAL` on its **stages** (it represents a recording of what a real
+  validated run produces), so `worst_mode` reports `real`. This is the fixture's
+  deliberate design, not a provenance upgrade — but it does mean "Demo B is
+  simulated throughout" would be an inaccurate summary. The genuinely
+  simulated-labelled path is the `CASE-SIMULATED` fixture, covered by tests.
 - Seeded SMRITI history in the demos is explicitly synthetic
   (`provenance_source="SYNTHETIC-DEMO-SEED (not a real historical case)"`).
 

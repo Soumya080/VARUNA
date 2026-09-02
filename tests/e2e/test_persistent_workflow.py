@@ -5,10 +5,28 @@ import pytest
 from fastapi.testclient import TestClient
 
 from apps.api.main import app
+from apps.api.security import get_principal
+from varuna_infra.authorization import Principal
 
 pytestmark = [pytest.mark.e2e]
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _authenticated_principal():
+    """Case-mutation endpoints require an authenticated Principal as of
+    Phase 5 (VARUNA_PRODUCT_READY hardening); this test exercises the
+    workflow under a role holding every permission it needs, not the
+    identity-resolution logic itself (covered by
+    tests/unit/test_api_security.py). Scoped to this module and torn down
+    after each test so it cannot leak into other test files sharing the same
+    `app` singleton."""
+    app.dependency_overrides[get_principal] = lambda: Principal(
+        principal_id="test-duty-officer", role="duty_officer")
+    yield
+    app.dependency_overrides.pop(get_principal, None)
+
 
 def test_full_workflow_end_to_end():
     # 1. Create Case

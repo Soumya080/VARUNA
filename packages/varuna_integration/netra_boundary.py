@@ -234,6 +234,7 @@ class FrozenCheckpointNetraProvider(NetraProvider):
             x = torch.from_numpy(tile.astype(np.float32)).unsqueeze(0).to(self.spec.device)
             logits = model(x)
             probs = torch.softmax(logits, dim=1)[0, self.spec.oil_class_index].cpu().numpy()
+            logits_np = logits[0].cpu().numpy()  # [C, H, W], pre-softmax
         # Record the peak activation even when nothing is detected. Without
         # this the "no detection" outcome is indistinguishable from an
         # out-of-domain one: a model that ALMOST fired and a model whose
@@ -243,6 +244,22 @@ class FrozenCheckpointNetraProvider(NetraProvider):
         tile_max = float(probs.max()) if probs.size else 0.0
         self.last_max_probability = (tile_max if self.last_max_probability is None
                                      else max(self.last_max_probability, tile_max))
+        # Energy score (Liu et al. 2020): E(x) = -logsumexp(logits), computed
+        # per-pixel then reduced to the tile's minimum (most in-domain-
+        # confident pixel). This is a genuinely different signal from
+        # `tile_max` above: it is a property of the raw logits across ALL
+        # classes, not of the winning class's probability, so a model that is
+        # confidently NEGATIVE for oil (low tile_max, but features it
+        # recognizes) is distinguishable here from a model whose features are
+        # actually unfamiliar. See varuna_integration.ood_energy for how this
+        # is compared against a reference distribution. No training and no
+        # checkpoint modification are involved in computing this number.
+        m = logits_np.max(axis=0, keepdims=True)
+        energy_map = -(m + np.log(np.exp(logits_np - m).sum(axis=0, keepdims=True)))[0]
+        if energy_map.size:
+            tile_min_energy = float(energy_map.min())
+            self.last_min_energy = (tile_min_energy if self.last_min_energy is None
+                                    else min(self.last_min_energy, tile_min_energy))
         mask = probs >= self.spec.decision_threshold
         if int(mask.sum()) < self.spec.min_slick_pixels:
             return []
@@ -254,6 +271,10 @@ class FrozenCheckpointNetraProvider(NetraProvider):
     # Peak oil-class probability seen across every tile of the current
     # detect_tiles() sweep. None until at least one tile has been scored.
     last_max_probability: float | None = None
+    # Minimum (most in-domain-confident) energy score seen across every tile
+    # of the current detect_tiles() sweep. None until at least one tile has
+    # been scored. Lower (more negative) = more familiar to the model.
+    last_min_energy: float | None = None
 
     def get_model_version(self) -> str:
         return self.spec.model_version
@@ -349,6 +370,8 @@ class NetraDetectionBoundary:
         # Reset so the reported peak belongs to THIS sweep, not a prior one.
         if hasattr(self.provider, "last_max_probability"):
             self.provider.last_max_probability = None
+        if hasattr(self.provider, "last_min_energy"):
+            self.provider.last_min_energy = None
         detections: list[SlickDetection] = []
         failures: list[str] = []
         t0 = time.perf_counter()
@@ -385,6 +408,12 @@ class NetraDetectionBoundary:
                     # Peak activation across the sweep. Distinguishes "nearly
                     # fired" from "no representation for this input at all".
                     "max_probability": getattr(self.provider, "last_max_probability", None),
+                    # Energy-score signal (varuna_integration.ood_energy): a
+                    # property of the raw logits across ALL classes, distinct
+                    # from max_probability which only reflects the oil class.
+                    # None for providers that don't expose it (e.g. the
+                    # simulated provider).
+                    "min_energy": getattr(self.provider, "last_min_energy", None),
                 },
             )
         return StageResult(
@@ -395,6 +424,7 @@ class NetraDetectionBoundary:
                 "n_tiles": len(tile_paths), "n_detections": len(detections),
                 "model_version": self.provider.get_model_version(),
                 "scientific_status": self.scientific_status,
+                "min_energy": getattr(self.provider, "last_min_energy", None),
                 "model_metrics": self.model_metrics,
                 "failures": failures,
             },

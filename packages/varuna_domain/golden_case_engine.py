@@ -369,7 +369,8 @@ class GoldenCaseWorkflow:
     def __init__(self, case_repo: CaseRepository, artifact_repo: ArtifactRepository,
                  event_repo: EventRepository, *, object_store: Optional[ObjectStore] = None,
                  mission_service: Any = None, alert_service: Any = None,
-                 netra: Any = None):
+                 alert_lifecycle: Any = None, alert_orchestrator: Any = None,
+                 smriti_store: Any = None, netra: Any = None):
         self.cases = case_repo
         self.artifacts = artifact_repo
         self.events_store = event_repo
@@ -377,6 +378,19 @@ class GoldenCaseWorkflow:
         self.event_spine = EventSpine(self.events_store)
         self.mission_service = mission_service
         self.alert_service = alert_service
+        # STEP 6: optional `AlertLifecycleService` — correlates the
+        # `alerts` stage's `DeliveryResult`s into a persisted, operator-
+        # actionable `AlertRecord` in `_apply_run()`. Optional so every
+        # existing caller that constructs this class without it (tests,
+        # scripts) is unaffected; without it the alerts stage still runs
+        # and is still visible on `OperatorCase.alerts`, there is simply
+        # nothing for an operator to acknowledge/escalate/resolve.
+        self.alert_lifecycle = alert_lifecycle
+        # Workstream A: Material Change Engine -> Alert Orchestrator. Optional
+        # so every existing construction site is unaffected; when absent the
+        # legacy delivery-receipt correlation above still runs.
+        self.alert_orchestrator = alert_orchestrator
+        self.smriti_store = smriti_store
         self.netra = netra
 
     # -------------------------------------------------------------- create
@@ -546,6 +560,87 @@ class GoldenCaseWorkflow:
         )
         case.metadata["golden_case_run_artifact_id"] = artifact.artifact_id
         case.scientific_status = ScientificStatus.EXPERIMENTAL
+
+        self._sync_alerts_to_lifecycle(case, run)
+        self._sync_missions_to_service(run)
+
+    def _sync_missions_to_service(self, run: Any) -> None:
+        """Register this run's MissionRecord(s) with MissionService so the
+        real authorization route (POST /v1/missions/{id}/approve) can find
+        them.
+
+        Replay fixtures build their MissionRecord directly rather than
+        through MissionService.create_mission(), so the mission an operator
+        sees on the case was addressable by NO route -- approving it
+        returned 404. This registers the SAME record the run produced; it
+        never creates a mission the run did not produce, and never sets
+        human_approved_by or advances the state. Approval still has to go
+        through authorize() + a real human principal."""
+        if self.mission_service is None or not hasattr(run, "stages"):
+            return
+        res = run.stages.get("mission")
+        if res is None or not getattr(res, "produced", False):
+            return
+        repo = getattr(self.mission_service, "_repo", None)
+        if repo is None:
+            return
+        for mission in (res.value or []):
+            try:
+                if repo.get(mission.mission_id) is None:
+                    repo.save(mission)
+            except Exception:
+                # Registration is a convenience for the authorization route;
+                # it must never break case execution.
+                continue
+
+    def _sync_alerts_to_lifecycle(self, case: Case, run: Any) -> None:
+        """STEP 6: correlate this run's `alerts` stage output into a
+        persisted `AlertRecord` an operator can acknowledge/escalate/
+        resolve, and register that correlation as a PRAMAN artifact so
+        "why was this alert generated" is answerable from the case's
+        evidence trail (docs/product/ALERT_OPERATIONAL_DIAGNOSTIC.md,
+        items 4 and 14). No-op when no lifecycle service was injected, or
+        when the alerts stage did not produce anything to correlate — this
+        never fabricates an alert the stage itself did not report."""
+        if self.alert_lifecycle is None:
+            return
+        alerts_res = run.stages.get("alerts") if hasattr(run, "stages") else None
+        if alerts_res is None or not getattr(alerts_res, "produced", False):
+            return
+        detail = alerts_res.detail or {}
+        evidence_mode = alerts_res.evidence_mode.value if alerts_res.evidence_mode else None
+
+        # STEP 7: `detail["events"]` groups this run's alert deliveries by
+        # event type (validity.evaluated, attribution.generated, ...) —
+        # correlate each group into its OWN AlertRecord, since they are
+        # genuinely distinct material conditions, not one alert. Falls back
+        # to the pre-STEP-7 single-group shape (e.g. the replay fixtures,
+        # which still only set `n_results`) so nothing that predates this
+        # grouping breaks.
+        events = detail.get("events")
+        if not events:
+            events = [{"event_type": detail.get("event_type", "unknown"),
+                       "results": alerts_res.value or []}]
+
+        for group in events:
+            record = self.alert_lifecycle.sync_from_deliveries(
+                case_id=case.case_id,
+                event_type=group.get("event_type", "unknown"),
+                deliveries=group.get("results") or [],
+                evidence_mode=evidence_mode,
+            )
+            if record is not None:
+                self.praman.register_artifact(
+                    artifact_type="alert_correlation", case_id=case.case_id,
+                    produced_by="alert_lifecycle_service", data={
+                        "alert_id": record.alert_id, "event_type": record.event_type,
+                        "severity": record.severity.value, "status": record.status.value,
+                        "is_simulated": record.is_simulated,
+                    },
+                )
+                case.metadata.setdefault("alert_ids", [])
+                if record.alert_id not in case.metadata["alert_ids"]:
+                    case.metadata["alert_ids"].append(record.alert_id)
 
 
 def _dataset_version(gold_dir: Path) -> str | None:
