@@ -150,9 +150,16 @@ def _decision(case_id: str) -> list[AssetTasking]:
 
 
 def _mission(case_id: str) -> list[MissionRecord]:
+    """The replay mission now carries the SAME AssetTasking the fixture's
+    own decision stage produces (ADR-0015). It was omitted, so a replay
+    mission showed an asset base-name and nothing else — an operator could
+    not see what they were being asked to authorise, and the map had no
+    search box to draw. This is the fixture's existing tasking, not a new
+    invented one."""
     return [MissionRecord(
         mission_id=f"MSN-REPLAY-{case_id}", case_id=case_id, asset_id="INS Replay Base",
         state=MissionState.AVAILABLE,
+        tasking=_decision(case_id)[0],
     )]
 
 

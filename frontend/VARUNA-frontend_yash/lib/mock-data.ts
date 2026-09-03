@@ -462,43 +462,46 @@ export const TOP_NAV = [
   'Cases',
   'Alerts',
   'Missions',
-  'Assets',
-  'Reports',
-  'Intelligence',
-]
+  'Assignment',
+] as const
 
 export const CASE_NAV = [
   'Overview',
-  'Detection',
-  'Source Reconstruction',
-  'Vessel Attribution',
   'Assignment & Mission',
-  'Evidence Chain',
-]
+] as const
 
 /* ------------------------------------------------------------------ */
 /* Route mappings                                                      */
 /* ------------------------------------------------------------------ */
 
 /** Sidebar case-section navigation routes */
+/**
+ * Case-level sub-navigation. Detection / Source Reconstruction /
+ * Vessel Attribution / Evidence Chain are still mock pages, so they are
+ * not routed. The cockpit Overview already shows all of that data from
+ * the real OperatorCase.
+ */
 export const CASE_NAV_ROUTES: Record<string, string> = {
   'Overview': '/',
-  'Detection': '/detection',
-  'Source Reconstruction': '/source-reconstruction',
-  'Vessel Attribution': '/vessel-attribution',
   'Assignment & Mission': '/assignment-mission',
-  'Evidence Chain': '/evidence-chain',
 }
 
 /** Top-level navigation routes */
+/**
+ * Only routes that are genuinely backend-driven appear in the nav.
+ *
+ * Assets / Reports / Intelligence are still hardcoded mock pages. Leaving
+ * them clickable is worse than omitting them: a reviewer clicks, sees
+ * fabricated vessel names and invented percentages, and reasonably concludes
+ * the whole product is fake. The files remain in the repo; they are simply
+ * not reachable until they are wired.
+ */
 export const TOP_NAV_ROUTES: Record<string, string> = {
   'Dashboard': '/',
   'Cases': '/cases',
   'Alerts': '/alerts',
   'Missions': '/missions',
-  'Assets': '/assets',
-  'Reports': '/reports',
-  'Intelligence': '/intelligence',
+  'Assignment': '/assignment-mission',
 }
 
 /* ------------------------------------------------------------------ */

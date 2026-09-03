@@ -46,14 +46,65 @@ def create_case(
 
 @router.get("", response_model=Dict[str, Any])
 def list_cases(workflow: CaseWorkflow = Depends(get_workflow)):
-    cases = workflow.cases.list_all()
-    return {
-        "items": [
-            {"case_id": c.case_id, "status": c.status.value, "created_at": c.created_at}
-            for c in cases
-        ],
-        "total": len(cases),
+    """Every case a UI should be able to see, from BOTH repositories.
+
+    This previously read only the legacy `CaseWorkflow` repo, so replay cases
+    — the ones that actually carry alerts, missions and intelligence — were
+    invisible to the case list even though the cockpit was showing them. A
+    case list that omits the only populated cases is worse than no list.
+
+    Also enriched: status alone is not enough to triage from. Each row now
+    carries its validity state, recommendation, and alert/mission counts,
+    all read from state that already exists — nothing is computed here.
+    """
+    from apps.api.dependencies import (
+        get_alert_lifecycle_service, get_golden_case_workflow, get_mission_service,
+    )
+    from apps.api.routers.replay import _COMPOSED_CACHE
+
+    alerts_svc = get_alert_lifecycle_service()
+    missions_svc = get_mission_service()
+
+    # case_id -> composed OperatorCase, for the cases that have been run.
+    composed_by_id = {
+        getattr(c, "case_id", None): c for c in _COMPOSED_CACHE.values()
     }
+
+    rows: dict[str, dict] = {}
+
+    def add(case, source: str) -> None:
+        cid = case.case_id
+        oc = composed_by_id.get(cid)
+        validity = None
+        recommendation = None
+        if oc is not None:
+            v = getattr(getattr(oc, "validity", None), "value", None)
+            st = getattr(v, "state", None) if v is not None else None
+            validity = getattr(st, "value", st)
+            recommendation = getattr(getattr(oc, "recommendation", None), "value", None)
+        rows[cid] = {
+            "case_id": cid,
+            "status": case.status.value,
+            "created_at": case.created_at,
+            "source": source,
+            "engine_mode": (case.metadata or {}).get("engine_mode"),
+            "validity_state": validity,
+            "recommendation": recommendation,
+            "n_alerts": len(alerts_svc.list_by_case(cid)),
+            "n_missions": len(missions_svc.list_by_case(cid)),
+            "has_operator_view": oc is not None,
+        }
+
+    for c in workflow.cases.list_all():
+        add(c, "case_workflow")
+    try:
+        for c in get_golden_case_workflow().cases.list_all():
+            add(c, "golden_case_engine")   # later wins: richer source
+    except Exception:
+        pass
+
+    items = sorted(rows.values(), key=lambda r: str(r["created_at"]), reverse=True)
+    return {"items": items, "total": len(items)}
 
 @router.get("/{case_id}", response_model=CaseResponse)
 def get_case(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):

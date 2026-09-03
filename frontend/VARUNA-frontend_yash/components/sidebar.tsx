@@ -1,6 +1,8 @@
 'use client'
 
-import { ACTIVE_CASE, CASE_NAV, CASE_NAV_ROUTES, OTHER_CASES, type CaseStatus } from '@/lib/mock-data'
+import { CASE_NAV, CASE_NAV_ROUTES } from '@/lib/mock-data'
+import { useEffect, useState } from 'react'
+import { listCases, type CaseRow } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import {
   Anchor,
@@ -18,18 +20,6 @@ import { usePathname } from 'next/navigation'
 
 const NAV_ICONS = [LayoutGrid, Radar, Target, Ship, Anchor, GitBranch]
 
-function statusTint(status: CaseStatus) {
-  switch (status) {
-    case 'ACTIVE ANALYSIS':
-      return 'text-saffron'
-    case 'ANALYSIS':
-      return 'text-teal'
-    case 'REVIEW':
-      return 'text-[var(--warn)]'
-    default:
-      return 'text-sidebar-foreground/45'
-  }
-}
 
 export function Sidebar({
   open = false,
@@ -38,6 +28,15 @@ export function Sidebar({
   open?: boolean
   onClose?: () => void
 }) {
+  // Real cases from the backend. The sidebar previously showed one hardcoded
+  // "active case" and three fake others on buttons that did nothing.
+  const [cases, setCases] = useState<CaseRow[]>([])
+  useEffect(() => {
+    listCases().then((r) => setCases(r.items)).catch(() => setCases([]))
+  }, [])
+  const active = cases[0] ?? null
+  const others = cases.slice(1)
+
   const pathname = usePathname()
 
   return (
@@ -69,28 +68,37 @@ export function Sidebar({
         </button>
 
         <div className="flex-1 overflow-y-auto scroll-thin px-3 py-4">
-          {/* Active case */}
+          {/* Active case — the most recently created REAL case. */}
           <div className="mb-1 px-1 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-sidebar-foreground/45">
             Active Case
           </div>
           <div className="rounded-sm border border-sidebar-border bg-sidebar-accent/60 p-3">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xl font-semibold tracking-wide text-primary-foreground">
-                {ACTIVE_CASE.id}
-              </span>
-            </div>
-            <div className="mt-0.5 text-[13px] text-sidebar-foreground/70">
-              {ACTIVE_CASE.region}
-            </div>
-            <div className="mt-2 flex items-center gap-1.5">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-saffron opacity-70 animate-pulse-ring" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-saffron" />
-              </span>
-              <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-saffron">
-                {ACTIVE_CASE.status}
-              </span>
-            </div>
+            {active ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[15px] font-semibold tracking-wide text-primary-foreground">
+                    {active.case_id}
+                  </span>
+                </div>
+                <div className="mt-0.5 text-[13px] text-sidebar-foreground/70">
+                  {active.n_alerts} alert{active.n_alerts === 1 ? '' : 's'} ·{' '}
+                  {active.n_missions} mission{active.n_missions === 1 ? '' : 's'}
+                </div>
+                <div className="mt-2 flex items-center gap-1.5">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-saffron opacity-70 animate-pulse-ring" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-saffron" />
+                  </span>
+                  <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-saffron">
+                    {active.status}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="text-[12px] leading-snug text-sidebar-foreground/60">
+                No case loaded yet. Run a scenario from the cockpit.
+              </div>
+            )}
           </div>
 
           {/* Case navigation */}
@@ -127,36 +135,42 @@ export function Sidebar({
             })}
           </nav>
 
-          {/* Other cases */}
-          <div className="mb-2 mt-6 px-1 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-sidebar-foreground/45">
-            Other Cases
-          </div>
-          <div className="space-y-1">
-            {OTHER_CASES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="flex w-full items-center justify-between rounded-sm border border-transparent px-2.5 py-2 text-left transition-colors hover:border-sidebar-border hover:bg-white/5"
-              >
-                <span className="leading-tight">
-                  <span className="block font-mono text-[13px] font-medium text-sidebar-foreground/85">
-                    {c.id}
-                  </span>
-                  <span className="block text-[12px] text-sidebar-foreground/50">
-                    {c.region}
-                  </span>
-                </span>
-                <span
-                  className={cn(
-                    'font-mono text-[10px] font-semibold uppercase tracking-[0.08em]',
-                    statusTint(c.status),
-                  )}
-                >
-                  {c.status}
-                </span>
-              </button>
-            ))}
-          </div>
+          {/* Other cases — real, and they navigate. These were three
+              hardcoded cases on buttons with no onClick. */}
+          {others.length > 0 && (
+            <>
+              <div className="mb-2 mt-6 px-1 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-sidebar-foreground/45">
+                Other Cases
+              </div>
+              <div className="space-y-1">
+                {others.map((c) => (
+                  <Link
+                    key={c.case_id}
+                    href={`/?case=${encodeURIComponent(c.case_id)}`}
+                    onClick={onClose}
+                    className="flex w-full items-center justify-between rounded-sm border border-transparent px-2.5 py-2 text-left transition-colors hover:border-sidebar-border hover:bg-white/5"
+                  >
+                    <span className="leading-tight">
+                      <span className="block font-mono text-[13px] font-medium text-sidebar-foreground/85">
+                        {c.case_id}
+                      </span>
+                      <span className="block text-[12px] text-sidebar-foreground/50">
+                        {c.n_alerts} alert{c.n_alerts === 1 ? '' : 's'}
+                      </span>
+                    </span>
+                    <span className={cn(
+                      'font-mono text-[10px] font-semibold uppercase tracking-[0.08em]',
+                      c.status === 'complete' ? 'text-[var(--ok)]'
+                        : c.status === 'ood' ? 'text-destructive'
+                        : 'text-saffron',
+                    )}>
+                      {c.status}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* New case */}

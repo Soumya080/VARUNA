@@ -363,3 +363,134 @@ export function approveMission(
     approved_by: approvedBy,
   })
 }
+
+
+// ─────────────── Phase 5: cases, missions FSM, global alerts ───────────────
+
+export interface CaseRow {
+  case_id: string
+  status: string
+  created_at: string
+  source: string
+  engine_mode: string | null
+  validity_state: string | null
+  recommendation: string | null
+  n_alerts: number
+  n_missions: number
+  has_operator_view: boolean
+}
+
+export interface MissionRow {
+  mission_id: string
+  case_id: string
+  asset_id: string
+  state: string
+  human_approved_by: string | null
+  assigned_at: string | null
+  tasking: {
+    asset_type?: string
+    base_name?: string
+    pattern?: string
+    flight_hours?: number
+    probability_of_detection?: number
+    rationale?: string
+    launch_time?: string
+    search_box?: {
+      area_km2?: number
+      phi_mass_contained?: number
+      center?: { lon: number; lat: number }
+      bbox?: { min_lon: number; min_lat: number; max_lon: number; max_lat: number }
+    }
+  } | null
+  [key: string]: unknown
+}
+
+/** GET /v1/cases — merged across both repositories, with triage fields. */
+export function listCases(): Promise<{ items: CaseRow[]; total: number }> {
+  return getJson('/v1/cases')
+}
+
+/** POST /v1/cases — RBAC-gated; requires CREATE_CASE. */
+export function createCase(caseId?: string): Promise<{ case_id: string; status: string }> {
+  return postJsonWithBody('/v1/cases', caseId ? { case_id: caseId } : {})
+}
+
+/** GET /v1/alerts — global list with filters. */
+export function listAlerts(params: {
+  status?: string
+  severity?: string
+  case_id?: string
+  limit?: number
+  offset?: number
+} = {}): Promise<{
+  items: AlertLifecycleRecord[]
+  total: number
+  limit: number
+  offset: number
+  returned: number
+}> {
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') q.set(k, String(v))
+  }
+  const qs = q.toString()
+  return getJson(`/v1/alerts${qs ? `?${qs}` : ''}`)
+}
+
+/** GET /v1/cases/{caseId}/missions */
+export function listCaseMissions(caseId: string): Promise<{ items: MissionRow[] }> {
+  return getJson(`/v1/cases/${encodeURIComponent(caseId)}/missions`)
+}
+
+/** GET /v1/missions/{id}/transitions — legal next states, so the UI offers
+ * only reachable actions instead of discovering illegality by 409. */
+export function missionTransitions(missionId: string): Promise<{
+  mission_id: string
+  state: string
+  legal_next: string[]
+  terminal: boolean
+}> {
+  return getJson(`/v1/missions/${encodeURIComponent(missionId)}/transitions`)
+}
+
+/** POST /v1/missions/{id}/transition */
+export function transitionMission(
+  missionId: string, toState: string, reason?: string,
+): Promise<MissionRow> {
+  return postJsonWithBody(`/v1/missions/${encodeURIComponent(missionId)}/transition`, {
+    to_state: toState, reason: reason ?? null,
+  })
+}
+
+/** POST /v1/missions/{id}/cancel */
+export function cancelMission(missionId: string, reason?: string): Promise<MissionRow> {
+  return postJsonWithBody(`/v1/missions/${encodeURIComponent(missionId)}/cancel`, {
+    to_state: 'closed', reason: reason ?? null,
+  })
+}
+
+/** GET /v1/missions/{id}/history — state changes with their reasons. */
+export function missionHistory(missionId: string): Promise<{
+  mission_id: string
+  current_state: string
+  human_approved_by: string | null
+  assigned_at: string | null
+  history: Array<{ state: string; at: string; reason: string | null }>
+}> {
+  return getJson(`/v1/missions/${encodeURIComponent(missionId)}/history`)
+}
+
+/** GET /v1/events?case_id= — the Event Spine, now genuinely visible. */
+export function listEvents(caseId?: string): Promise<{
+  count: number
+  events: Array<{
+    event_id: string
+    event_type: string
+    case_id: string
+    actor: string
+    timestamp: string
+    payload: Record<string, unknown>
+  }>
+}> {
+  return getJson(`/v1/events${caseId ? `?case_id=${encodeURIComponent(caseId)}` : ''}`)
+}

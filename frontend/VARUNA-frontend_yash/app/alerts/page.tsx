@@ -1,246 +1,204 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { SectionLabel, StatusBadge } from '@/components/primitives'
-import { EvidenceModeBadge } from '@/components/evidence-mode-badge'
-import type { EvidenceModeValue } from '@/lib/operator-case-types'
-import { OperatorCaseProvider, useOperatorCaseData } from '@/lib/operator-case-context'
-import { OperatorCaseBoundary } from '@/components/operator-case-boundary'
+/**
+ * Alert Center — global, backed by GET /v1/alerts.
+ *
+ * Previously pinned to the single hardcoded case 'REPLAY-CASE-VALID', because
+ * no global alert endpoint existed. It now shows every alert with real
+ * severity/status filters and honest per-channel delivery.
+ *
+ * Reuses the cockpit's AlertCenter component so the two surfaces are visually
+ * and behaviourally identical — one alert vocabulary, not two.
+ */
+import { useCallback, useEffect, useState } from 'react'
+import { AlertCenter } from '@/components/cockpit/alert-center'
+import { Card } from '@/components/cockpit/cockpit-panels'
+import { StatusBadge } from '@/components/primitives'
 import { useAuth } from '@/lib/auth-context'
 import {
-  acknowledgeAlert,
-  AuthActionError,
-  escalateAlert,
-  getCaseAlerts,
-  resolveAlert,
-  type AlertLifecycleRecord,
+  acknowledgeAlert, AuthActionError, escalateAlert, getOperationalSummary,
+  listAlerts, resolveAlert, type AlertLifecycleRecord,
 } from '@/lib/api'
-import { AlertTriangle, Bell, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { RefreshCw } from 'lucide-react'
 
-/**
- * STEP 6: replaces the previous fully-hardcoded 9-entry mock (`ALT-2471`,
- * "AIS transponder gap...", etc. — see docs/product/
- * ALERT_OPERATIONAL_DIAGNOSTIC.md item 17). Every alert shown here now
- * comes from `GET /v1/cases/{case_id}/alerts` — the STEP 6 lifecycle
- * layer correlated from the same `GoldenCaseWorkflow` run the rest of the
- * operator cockpit reads (`OperatorCase.alerts` shows the same underlying
- * delivery; this page adds the lifecycle status and the actions to change
- * it). CASE-VALID is the same replay case the rest of the app defaults to.
- */
-const REPLAY_CASE_ID = 'REPLAY-CASE-VALID'
+const SEVERITIES = ['critical', 'high', 'medium', 'low', 'warning', 'info'] as const
+const STATUSES = [
+  'created', 'routed', 'delivery_pending', 'delivered',
+  'acknowledged', 'escalated', 'resolved',
+] as const
 
-function severityTone(sev: string) {
-  if (sev === 'critical') return 'destructive' as const
-  if (sev === 'warning') return 'warn' as const
-  if (sev === 'blocked') return 'muted' as const
-  return 'ok' as const
-}
+export default function AlertsPage() {
+  const { session, isAuthenticated, logout } = useAuth()
+  const [alerts, setAlerts] = useState<AlertLifecycleRecord[]>([])
+  const [total, setTotal] = useState(0)
+  const [channels, setChannels] = useState<Record<string, string>>({})
+  const [severity, setSeverity] = useState<string>('')
+  const [status, setStatus] = useState<string>('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-function lifecycleTone(status: string) {
-  if (status === 'resolved') return 'ok' as const
-  if (status === 'escalated') return 'destructive' as const
-  if (status === 'acknowledged') return 'warn' as const
-  return 'muted' as const
-}
-
-function AlertActions({
-  alert,
-  onChanged,
-}: {
-  alert: AlertLifecycleRecord
-  onChanged: (updated: AlertLifecycleRecord) => void
-}) {
-  const { isAuthenticated, logout } = useAuth()
-  const [statusMsg, setStatusMsg] = useState<{ text: string; kind: 'error' | 'success' } | null>(null)
-  const [pending, setPending] = useState(false)
-
-  async function run(action: (id: string) => Promise<AlertLifecycleRecord>, label: string) {
-    setPending(true)
-    setStatusMsg(null)
+  const load = useCallback(async () => {
+    setError(null)
     try {
-      const updated = await action(alert.alert_id)
-      onChanged(updated)
-      setStatusMsg({ text: `${label} confirmed by backend.`, kind: 'success' })
-    } catch (err) {
-      if (err instanceof AuthActionError) {
-        if (err.status === 401) {
-          logout() // stored token is invalid/expired — clear it, force re-login
-          setStatusMsg({ text: 'NOT AUTHENTICATED — please sign in.', kind: 'error' })
-        } else {
-          setStatusMsg({ text: 'NOT AUTHORIZED for this action with your current role.', kind: 'error' })
-        }
-      } else {
-        setStatusMsg({ text: err instanceof Error ? err.message : 'Action failed.', kind: 'error' })
-      }
-    } finally {
-      setPending(false)
+      const r = await listAlerts({ severity, status, limit: 200 })
+      setAlerts(r.items)
+      setTotal(r.total)
+    } catch (e) {
+      setAlerts([])
+      setError(e instanceof Error ? e.message : 'Failed to load alerts')
     }
-  }
-
-  if (!isAuthenticated) {
-    return <p className="mt-2 text-[12px] text-muted-foreground">Sign in (top right) to act on this alert.</p>
-  }
-
-  const nextActions: Array<{ label: string; fn: typeof acknowledgeAlert }> =
-    alert.status === 'created'
-      ? [
-          { label: 'Acknowledge', fn: acknowledgeAlert },
-          { label: 'Escalate', fn: escalateAlert },
-        ]
-      : alert.status === 'acknowledged'
-        ? [
-            { label: 'Escalate', fn: escalateAlert },
-            { label: 'Resolve', fn: resolveAlert },
-          ]
-        : alert.status === 'escalated'
-          ? [{ label: 'Resolve', fn: resolveAlert }]
-          : []
-
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
-      {nextActions.map((a) => (
-        <button
-          key={a.label}
-          type="button"
-          disabled={pending}
-          onClick={() => run(a.fn, a.label)}
-          className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 text-[12px] font-medium text-foreground hover:bg-muted disabled:opacity-50"
-        >
-          <Check className="h-3 w-3" />
-          {a.label}
-        </button>
-      ))}
-      {nextActions.length === 0 && (
-        <span className="text-[12px] text-muted-foreground">No further action — resolved.</span>
-      )}
-      {statusMsg && (
-        <span className={cn('text-[12px]', statusMsg.kind === 'success' ? 'text-[var(--ok)]' : 'text-destructive')}>
-          {statusMsg.text}
-        </span>
-      )}
-    </div>
-  )
-}
-
-function AlertCenterBody() {
-  const oc = useOperatorCaseData()
-  const [alerts, setAlerts] = useState<AlertLifecycleRecord[] | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
+    // Channel configuration is global; any case surfaces the same report.
+    try {
+      const first = await listAlerts({ limit: 1 })
+      if (first.items.length) {
+        setChannels((await getOperationalSummary(first.items[0].case_id)).channels)
+      }
+    } catch {
+      setChannels({})
+    }
+  }, [severity, status])
 
   useEffect(() => {
-    let cancelled = false
-    getCaseAlerts(REPLAY_CASE_ID)
-      .then((r) => {
-        if (!cancelled) setAlerts(r.items)
-      })
-      .catch((err) => {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Failed to load alerts.')
-      })
-    return () => {
-      cancelled = true
+    load()
+  }, [load])
+
+  async function onAction(
+    alertId: string,
+    action: 'acknowledge' | 'escalate' | 'resolve',
+    label: string,
+  ) {
+    setMsg(null)
+    if (!isAuthenticated) {
+      setMsg({ text: 'NOT AUTHENTICATED — sign in (top right) first.', ok: false })
+      return
     }
-  }, [])
-
-  function applyUpdate(updated: AlertLifecycleRecord) {
-    setAlerts((prev) => (prev ? prev.map((a) => (a.alert_id === updated.alert_id ? updated : a)) : prev))
+    const fn = action === 'acknowledge' ? acknowledgeAlert
+      : action === 'escalate' ? escalateAlert : resolveAlert
+    setBusy(true)
+    try {
+      await fn(alertId)
+      setMsg({ text: `${label} confirmed by backend.`, ok: true })
+      await load()
+    } catch (e) {
+      if (e instanceof AuthActionError) {
+        if (e.status === 401) {
+          logout()
+          setMsg({ text: 'NOT AUTHENTICATED — session expired.', ok: false })
+        } else {
+          setMsg({
+            text: `NOT AUTHORIZED — ${session?.role ?? 'your role'} cannot ${action} alerts.`,
+            ok: false,
+          })
+        }
+      } else {
+        setMsg({ text: e instanceof Error ? e.message : 'Action failed.', ok: false })
+      }
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const counts = {
-    critical: alerts?.filter((a) => a.severity === 'critical').length ?? 0,
-    warning: alerts?.filter((a) => a.severity === 'warning').length ?? 0,
-    info: alerts?.filter((a) => a.severity === 'info').length ?? 0,
-  }
+  const counts = SEVERITIES.map((s) => ({
+    sev: s, n: alerts.filter((a) => a.severity === s).length,
+  })).filter((c) => c.n > 0)
 
   return (
     <>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-balance text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-xl">
+          <h1 className="text-balance text-xl font-semibold leading-tight tracking-tight text-foreground">
             Alert Center
           </h1>
           <p className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.1em] text-muted-foreground">
-            {REPLAY_CASE_ID} · engine_mode={oc?.system_status.engine_mode ?? 'unknown'}
+            {total} alert{total === 1 ? '' : 's'} across all cases · live from backend
           </p>
         </div>
+        <button
+          type="button"
+          onClick={load}
+          className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:bg-muted"
+        >
+          <RefreshCw className="h-3.5 w-3.5" /> Refresh
+        </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-3">
-        {[
-          { label: 'Critical', count: counts.critical, tone: 'destructive', icon: AlertTriangle },
-          { label: 'Warning', count: counts.warning, tone: 'warn', icon: Bell },
-          { label: 'Informational', count: counts.info, tone: 'muted', icon: Bell },
-        ].map((s) => (
-          <div key={s.label} className="rounded-sm border border-border bg-card p-3">
-            <div className="flex items-center gap-2">
-              <s.icon className={cn('h-4 w-4', s.tone === 'destructive' ? 'text-destructive' : s.tone === 'warn' ? 'text-[var(--warn)]' : 'text-muted-foreground')} />
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{s.label}</span>
-            </div>
-            <div className="mt-1 font-mono text-[23px] font-bold text-foreground">{s.count}</div>
-          </div>
-        ))}
-      </div>
+      {counts.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          {counts.map(({ sev, n }) => (
+            <StatusBadge
+              key={sev}
+              tone={sev === 'critical' || sev === 'high' ? 'destructive'
+                : sev === 'medium' || sev === 'warning' ? 'warn' : 'ok'}
+            >
+              {sev}: {n}
+            </StatusBadge>
+          ))}
+        </div>
+      )}
 
-      <div className="mt-3 space-y-2">
-        {loadError && (
-          <p className="rounded-sm border border-destructive/40 bg-destructive/5 p-3 text-[13px] text-destructive">
-            {loadError}
-          </p>
-        )}
-        {alerts !== null && alerts.length === 0 && !loadError && (
-          <p className="rounded-sm border border-border bg-card p-4 text-[13px] text-muted-foreground">
-            No material alerts for this case. This is the honest state — CASE-VALID's validity
-            gate produced exactly one alert candidate, and it may already be resolved above, or
-            none has been generated yet if the replay case has not been fetched.
-          </p>
-        )}
-        {alerts?.map((alert) => (
-          <section key={alert.alert_id} className="rounded-sm border border-border bg-card p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle
-                className={cn(
-                  'h-4 w-4 shrink-0 mt-0.5',
-                  alert.severity === 'critical' ? 'text-destructive' : alert.severity === 'warning' ? 'text-[var(--warn)]' : 'text-muted-foreground',
-                )}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[14px] font-semibold text-foreground">{alert.event_type}</span>
-                  <StatusBadge tone={severityTone(alert.severity)}>{alert.severity}</StatusBadge>
-                  <StatusBadge tone={lifecycleTone(alert.status)} dot>{alert.status}</StatusBadge>
-                  {alert.evidence_mode && (
-                    <EvidenceModeBadge mode={alert.evidence_mode as EvidenceModeValue} compact />
-                  )}
-                </div>
-                <p className="mt-1 text-[13px] text-muted-foreground">{alert.reason}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-4 text-[12px] text-muted-foreground">
-                  <span>Case: {alert.case_id}</span>
-                  <span>Created: {new Date(alert.created_at).toISOString()}</span>
-                  <span className="font-mono text-[11px]">{alert.alert_id}</span>
-                </div>
-                {(alert.acknowledged_by || alert.escalated_by || alert.resolved_by) && (
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    {alert.acknowledged_by && <span>Acknowledged by {alert.acknowledged_by}. </span>}
-                    {alert.escalated_by && <span>Escalated by {alert.escalated_by}. </span>}
-                    {alert.resolved_by && <span>Resolved by {alert.resolved_by}.</span>}
-                  </div>
-                )}
-                <AlertActions alert={alert} onChanged={applyUpdate} />
-              </div>
-            </div>
-          </section>
-        ))}
+      <Card title="Filters">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+              Severity
+            </span>
+            <select
+              value={severity}
+              onChange={(e) => setSeverity(e.target.value)}
+              className="rounded-sm border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground"
+            >
+              <option value="">all</option>
+              {SEVERITIES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+              Status
+            </span>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="rounded-sm border border-border bg-background px-2 py-1 font-mono text-[11px] text-foreground"
+            >
+              <option value="">all</option>
+              {STATUSES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+            </select>
+          </label>
+          {(severity || status) && (
+            <button
+              type="button"
+              onClick={() => { setSeverity(''); setStatus('') }}
+              className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground hover:text-foreground"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </Card>
+
+      {msg && (
+        <p
+          className={cn(
+            'my-3 rounded-sm border px-3 py-2 text-[12px]',
+            msg.ok
+              ? 'border-[color-mix(in_oklch,var(--ok)_40%,transparent)] bg-[color-mix(in_oklch,var(--ok)_8%,transparent)] text-[color-mix(in_oklch,var(--ok)_55%,black)]'
+              : 'border-destructive/40 bg-destructive/5 text-destructive',
+          )}
+        >
+          {msg.text}
+        </p>
+      )}
+      {error && (
+        <p className="my-3 rounded-sm border border-destructive/40 bg-destructive/5 px-3 py-2 text-[12px] text-destructive">
+          {error}
+        </p>
+      )}
+
+      <div className="mt-3">
+        <AlertCenter alerts={alerts} channels={channels} onAction={onAction} busy={busy} />
       </div>
     </>
-  )
-}
-
-export default function AlertsPage() {
-  return (
-    <OperatorCaseProvider fixtureName="CASE-VALID">
-      <OperatorCaseBoundary>
-        <AlertCenterBody />
-      </OperatorCaseBoundary>
-    </OperatorCaseProvider>
   )
 }

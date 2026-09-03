@@ -1,14 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { DetailDrawer } from './detail-drawer'
 import { Header } from './header'
-import type { MapDetail } from './map/map-utils'
 import { Sidebar } from './sidebar'
 
+/**
+ * DetailDrawer was mounted here with a `detail` state that nothing ever set —
+ * a permanently-null drawer. Removed along with the orphaned dashboard.tsx
+ * that was the only consumer of the old static-image map.
+ */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false)
-  const [detail, setDetail] = useState<MapDetail | null>(null)
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -33,7 +35,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <DetailDrawer detail={detail} onClose={() => setDetail(null)} />
     </div>
   )
 }

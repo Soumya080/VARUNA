@@ -1,172 +1,315 @@
 'use client'
 
-import { ASSIGNMENTS, FEASIBILITY } from '@/lib/mock-data'
-import { SectionLabel, StatusBadge, Meter } from '@/components/primitives'
-import { ShieldCheck, Plane, Ship, Clock, Target, Check, X, AlertTriangle } from 'lucide-react'
+/**
+ * Assignment & Mission — real, backed by the Phase 4 mission FSM.
+ *
+ * Replaces a fully mock page: a hardcoded ASSIGNMENTS/FEASIBILITY table, a
+ * fabricated green "Authorization Workflow" checklist with invented actors
+ * and timestamps, and a "Request Authorization" button with no handler.
+ *
+ * Everything here is the backend's own state. Actions offered are exactly
+ * the FSM's legal next states (GET /v1/missions/{id}/transitions), so the UI
+ * never presents a move the system would reject.
+ */
+import { useCallback, useEffect, useState } from 'react'
+import { Card, Row } from '@/components/cockpit/cockpit-panels'
+import { StatusBadge } from '@/components/primitives'
+import { useAuth } from '@/lib/auth-context'
+import {
+  approveMission, AuthActionError, cancelMission, listCases, listCaseMissions,
+  missionHistory, missionTransitions, transitionMission,
+  type MissionRow,
+} from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { Ban, Plane, RefreshCw, ShieldCheck, Ship } from 'lucide-react'
+
+function stateTone(s: string) {
+  if (['assigned', 'acknowledged', 'en_route', 'on_station', 'searching'].includes(s))
+    return 'ok' as const
+  if (['contact', 'confirmed'].includes(s)) return 'saffron' as const
+  if (['complete', 'closed'].includes(s)) return 'muted' as const
+  if (['not_found', 'reassigned'].includes(s)) return 'destructive' as const
+  return 'warn' as const
+}
+
+interface Enriched extends MissionRow {
+  legal_next?: string[]
+  terminal?: boolean
+  history?: Array<{ state: string; at: string; reason: string | null }>
+}
 
 export default function AssignmentMissionPage() {
+  const { session, isAuthenticated, logout } = useAuth()
+  const [missions, setMissions] = useState<Enriched[] | null>(null)
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [openId, setOpenId] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    try {
+      const cases = (await listCases()).items
+      const all: Enriched[] = []
+      for (const c of cases) {
+        const { items } = await listCaseMissions(c.case_id)
+        for (const m of items) {
+          const enriched: Enriched = { ...m }
+          try {
+            const t = await missionTransitions(m.mission_id)
+            enriched.legal_next = t.legal_next
+            enriched.terminal = t.terminal
+          } catch {
+            /* leave undefined; the UI shows no actions rather than guessing */
+          }
+          try {
+            enriched.history = (await missionHistory(m.mission_id)).history
+          } catch {
+            /* history is optional detail */
+          }
+          all.push(enriched)
+        }
+      }
+      setMissions(all)
+    } catch {
+      setMissions([])
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function act(fn: () => Promise<unknown>, okText: string) {
+    setMsg(null)
+    if (!isAuthenticated) {
+      setMsg({ text: 'NOT AUTHENTICATED — sign in (top right) first.', ok: false })
+      return
+    }
+    setBusy(true)
+    try {
+      await fn()
+      setMsg({ text: okText, ok: true })
+      await load()
+    } catch (e) {
+      if (e instanceof AuthActionError) {
+        if (e.status === 401) {
+          logout()
+          setMsg({ text: 'NOT AUTHENTICATED — session expired.', ok: false })
+        } else {
+          setMsg({
+            text: `NOT AUTHORIZED — ${session?.role ?? 'your role'} lacks mission-approval permission.`,
+            ok: false,
+          })
+        }
+      } else {
+        setMsg({ text: e instanceof Error ? e.message : 'Action failed.', ok: false })
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-balance text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-xl">
-            Assignment &amp; Mission Planning
+          <h1 className="text-balance text-xl font-semibold leading-tight tracking-tight text-foreground">
+            Assignment &amp; Mission
           </h1>
           <p className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.1em] text-muted-foreground">
-            Case 24-071 · Asset Allocation & Authorization · Stage 06
+            {missions === null
+              ? 'Loading…'
+              : `${missions.length} mission${missions.length === 1 ? '' : 's'} · live FSM state`}
           </p>
         </div>
-        <StatusBadge tone="warn" dot>Pending Approval</StatusBadge>
+        <button
+          type="button"
+          onClick={load}
+          className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:bg-muted"
+        >
+          <RefreshCw className="h-3.5 w-3.5" /> Refresh
+        </button>
       </div>
 
-      {/* Assignments */}
-      <section className="rounded-sm border border-border bg-card p-4">
-        <SectionLabel>Assignment Table</SectionLabel>
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-border">
-                {['ID', 'Candidate', 'Recommendation', 'Asset', 'Task', 'Priority', 'Window', 'Status'].map((h) => (
-                  <th key={h} className="pb-2 pr-4 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ASSIGNMENTS.map((a) => (
-                <tr key={a.id} className="border-b border-border/50 last:border-b-0">
-                  <td className="py-2.5 pr-4 font-mono text-[12px] font-medium text-muted-foreground">{a.id.toUpperCase()}</td>
-                  <td className="py-2.5 pr-4 text-[13px] font-semibold text-foreground">{a.candidate}</td>
-                  <td className="py-2.5 pr-4">
-                    <StatusBadge tone={a.recommendation === 'PRIMARY LEAD' ? 'saffron' : 'muted'} dot>{a.recommendation}</StatusBadge>
-                  </td>
-                  <td className="py-2.5 pr-4 font-mono text-[13px] text-foreground">{a.asset}</td>
-                  <td className="py-2.5 pr-4 text-[13px] text-foreground">{a.task}</td>
-                  <td className="py-2.5 pr-4">
-                    <StatusBadge tone={a.priority === 'HIGH' ? 'warn' : 'muted'}>{a.priority}</StatusBadge>
-                  </td>
-                  <td className="py-2.5 pr-4 font-mono text-[13px] text-foreground whitespace-nowrap">{a.window}</td>
-                  <td className="py-2.5">
-                    <StatusBadge tone="warn" dot>{a.status}</StatusBadge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {msg && (
+        <p
+          className={cn(
+            'mb-3 rounded-sm border px-3 py-2 text-[12px]',
+            msg.ok
+              ? 'border-[color-mix(in_oklch,var(--ok)_40%,transparent)] bg-[color-mix(in_oklch,var(--ok)_8%,transparent)] text-[color-mix(in_oklch,var(--ok)_55%,black)]'
+              : 'border-destructive/40 bg-destructive/5 text-destructive',
+          )}
+        >
+          {msg.text}
+        </p>
+      )}
 
-      {/* Feasibility + Authorization */}
-      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {/* Feasibility */}
-        <section className="rounded-sm border border-border bg-card p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Check className="h-4 w-4 text-[var(--ok)]" />
-            <SectionLabel>Feasibility Assessment</SectionLabel>
-          </div>
-          <div className="space-y-2">
-            {FEASIBILITY.map((item) => (
-              <div key={item.label} className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-b-0">
-                <span className="text-[13px] text-muted-foreground">{item.label}</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[13px] font-medium text-foreground">{item.value}</span>
-                  {item.feasible ? (
-                    <span className="grid h-5 w-5 place-items-center rounded-full bg-[color-mix(in_oklch,var(--ok)_18%,transparent)]">
-                      <Check className="h-3 w-3 text-[var(--ok)]" />
-                    </span>
+      {missions !== null && missions.length === 0 && (
+        <Card title="Missions">
+          <p className="text-[12px] leading-snug text-muted-foreground">
+            No missions exist. A mission is proposed by the pipeline when a case
+            produces an ABHIYAN tasking — run <strong>CASE-VALID</strong> from the
+            cockpit. No sample missions are invented to fill this page.
+          </p>
+        </Card>
+      )}
+
+      <div className="space-y-3">
+        {(missions ?? []).map((m) => {
+          const approved = Boolean(m.human_approved_by)
+          const open = openId === m.mission_id
+          const t = m.tasking
+          const isAir = (t?.asset_type ?? '').toLowerCase().includes('dornier')
+          return (
+            <Card
+              key={m.mission_id}
+              title={m.mission_id}
+              right={
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <StatusBadge tone={stateTone(m.state)} dot>
+                    {m.state.replace(/_/g, ' ')}
+                  </StatusBadge>
+                  {approved && <StatusBadge tone="ok">authorized</StatusBadge>}
+                  {m.terminal && <StatusBadge tone="muted">terminal</StatusBadge>}
+                </div>
+              }
+            >
+              <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                <Row label="Case" value={m.case_id} />
+                <Row label="Asset" value={m.asset_id} />
+                <Row
+                  label="Approved by"
+                  value={m.human_approved_by ?? 'not yet authorized'}
+                />
+                <Row label="Assigned at" value={m.assigned_at ?? '—'} />
+              </div>
+
+              {/* Real tasking — persisted since ADR-0015; previously discarded. */}
+              <div className="mt-2 border-t border-border pt-2">
+                <div className="mb-1 flex items-center gap-1.5">
+                  {isAir ? (
+                    <Plane className="h-3.5 w-3.5 text-saffron" />
                   ) : (
-                    <span className="grid h-5 w-5 place-items-center rounded-full bg-[color-mix(in_oklch,var(--destructive)_18%,transparent)]">
-                      <X className="h-3 w-3 text-destructive" />
-                    </span>
+                    <Ship className="h-3.5 w-3.5 text-teal" />
                   )}
+                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
+                    Tasking
+                  </span>
                 </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 rounded-sm border border-[color-mix(in_oklch,var(--ok)_35%,transparent)] bg-[color-mix(in_oklch,var(--ok)_8%,transparent)] p-3">
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-[var(--ok)]" />
-              <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.08em] text-[color-mix(in_oklch,var(--ok)_60%,black)]">
-                All feasibility checks passed
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* Authorization */}
-        <section className="rounded-sm border border-border bg-card p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-saffron" />
-            <SectionLabel>Authorization Workflow</SectionLabel>
-          </div>
-          <div className="space-y-3">
-            {[
-              { step: 'Evidence reviewed', by: 'Analyst Rao', time: '06:52 UTC', done: true },
-              { step: 'Feasibility confirmed', by: 'System (automated)', time: '06:53 UTC', done: true },
-              { step: 'Mission plan generated', by: 'System (automated)', time: '06:53 UTC', done: true },
-              { step: 'Authorization requested', by: 'Analyst Rao', time: '06:55 UTC', done: true },
-              { step: 'Commanding Officer review', by: 'Pending · CO Watch', time: '—', done: false },
-              { step: 'Dispatch order', by: 'Pending', time: '—', done: false },
-            ].map((item, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <span className={cn(
-                  'mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold',
-                  item.done ? 'bg-[var(--ok)] text-white' : 'bg-muted text-muted-foreground',
-                )}>
-                  {item.done ? <Check className="h-3 w-3" /> : i + 1}
-                </span>
-                <div className="flex-1">
-                  <div className="text-[13px] font-medium text-foreground">{item.step}</div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[12px] text-muted-foreground">{item.by}</span>
-                    <span className="font-mono text-[11px] text-muted-foreground">{item.time}</span>
+                {t ? (
+                  <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                    <Row label="Asset type" value={t.asset_type ?? '—'} />
+                    <Row label="Base" value={t.base_name ?? '—'} />
+                    <Row label="Pattern" value={t.pattern ?? '—'} />
+                    <Row label="Flight hours" value={t.flight_hours ?? '—'} />
+                    <Row
+                      label="Search area"
+                      value={t.search_box?.area_km2 != null ? `${t.search_box.area_km2} km²` : '—'}
+                    />
+                    <Row
+                      label="P(detection)"
+                      value={t.probability_of_detection ?? '—'}
+                    />
+                    {t.search_box?.center && (
+                      <Row
+                        label="Search centre"
+                        value={`${t.search_box.center.lat.toFixed(3)}, ${t.search_box.center.lon.toFixed(3)}`}
+                      />
+                    )}
+                    {t.rationale && (
+                      <div className="sm:col-span-2">
+                        <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
+                          {t.rationale}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                </div>
+                ) : (
+                  <p className="text-[12px] text-muted-foreground">
+                    No tasking recorded for this mission.
+                  </p>
+                )}
               </div>
-            ))}
-          </div>
 
-          <div className="mt-4 flex gap-2">
-            <button type="button" className="flex flex-1 items-center justify-center gap-1.5 rounded-sm bg-primary px-4 py-2.5 text-[13px] font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-colors hover:bg-[var(--navy-muted)]">
-              <ShieldCheck className="h-4 w-4" />
-              Request Authorization
-            </button>
-          </div>
-        </section>
+              {/* Actions = exactly the FSM's legal next states. */}
+              <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border pt-2">
+                {!approved && (
+                  <button
+                    type="button"
+                    disabled={busy || !isAuthenticated}
+                    onClick={() =>
+                      act(() => approveMission(m.mission_id, session?.username ?? ''),
+                          'Mission authorized — confirmed by backend.')}
+                    className="flex items-center gap-1.5 rounded-sm bg-primary px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-primary-foreground hover:bg-[var(--navy-muted)] disabled:opacity-40"
+                  >
+                    <ShieldCheck className="h-3 w-3" />
+                    {isAuthenticated ? 'Authorize mission' : 'Sign in to authorize'}
+                  </button>
+                )}
+
+                {(m.legal_next ?? [])
+                  .filter((s) => s !== 'reserved' || approved)
+                  .map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        act(() => transitionMission(m.mission_id, s,
+                              `advanced to ${s} by ${session?.username ?? 'operator'}`),
+                            `Mission → ${s.replace(/_/g, ' ')} — confirmed by backend.`)}
+                      className="rounded-sm border border-border bg-card px-2.5 py-1.5 text-[11px] font-medium hover:bg-muted disabled:opacity-40"
+                    >
+                      {s.replace(/_/g, ' ')}
+                    </button>
+                  ))}
+
+                {approved && !m.terminal && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      act(() => cancelMission(m.mission_id, 'cancelled by operator'),
+                          'Mission cancelled — confirmed by backend.')}
+                    className="flex items-center gap-1.5 rounded-sm border border-destructive/40 bg-destructive/5 px-2.5 py-1.5 text-[11px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-40"
+                  >
+                    <Ban className="h-3 w-3" /> Cancel
+                  </button>
+                )}
+
+                {m.terminal && (
+                  <span className="text-[11px] text-muted-foreground">
+                    Terminal state — no further transitions are legal.
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setOpenId(open ? null : m.mission_id)}
+                  className="ml-auto font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground hover:text-foreground"
+                >
+                  {open ? 'Hide history' : 'History'}
+                </button>
+              </div>
+
+              {open && (
+                <ol className="mt-2 space-y-0.5 border-t border-border pt-2">
+                  {(m.history ?? []).length === 0 && (
+                    <li className="text-[11px] text-muted-foreground">
+                      No recorded transitions yet.
+                    </li>
+                  )}
+                  {(m.history ?? []).map((h, i) => (
+                    <li key={i} className="font-mono text-[10px] text-muted-foreground">
+                      <span className="text-foreground">{h.state}</span> · {h.at}
+                      {h.reason ? ` · ${h.reason}` : ''}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Card>
+          )
+        })}
       </div>
-
-      {/* Asset details */}
-      <section className="mt-3 rounded-sm border border-border bg-card p-4">
-        <SectionLabel>Assigned Assets</SectionLabel>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-sm border border-saffron/20 bg-saffron/5 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Plane className="h-5 w-5 text-saffron" />
-              <span className="text-[15px] font-semibold text-foreground">Aircraft-02</span>
-              <StatusBadge tone="ok">Available</StatusBadge>
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-[13px]"><span className="text-muted-foreground">Type</span><span className="font-medium text-foreground">Dornier 228</span></div>
-              <div className="flex justify-between text-[13px]"><span className="text-muted-foreground">Task</span><span className="font-medium text-foreground">Inspection / Overflight</span></div>
-              <div className="flex justify-between text-[13px]"><span className="text-muted-foreground">Window</span><span className="font-mono font-medium text-foreground">10:30–11:15 UTC</span></div>
-              <div className="flex justify-between text-[13px]"><span className="text-muted-foreground">Base</span><span className="font-medium text-foreground">INS Hansa, Goa</span></div>
-            </div>
-          </div>
-          <div className="rounded-sm border border-border bg-background/50 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Ship className="h-5 w-5 text-teal" />
-              <span className="text-[15px] font-semibold text-foreground">Patrol Vessel-03</span>
-              <StatusBadge tone="ok">Available</StatusBadge>
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-[13px]"><span className="text-muted-foreground">Type</span><span className="font-medium text-foreground">Interceptor Boat</span></div>
-              <div className="flex justify-between text-[13px]"><span className="text-muted-foreground">Task</span><span className="font-medium text-foreground">Monitoring</span></div>
-              <div className="flex justify-between text-[13px]"><span className="text-muted-foreground">Window</span><span className="font-mono font-medium text-foreground">10:45–12:00 UTC</span></div>
-              <div className="flex justify-between text-[13px]"><span className="text-muted-foreground">Base</span><span className="font-medium text-foreground">Mumbai Harbor</span></div>
-            </div>
-          </div>
-        </div>
-      </section>
     </>
   )
 }
