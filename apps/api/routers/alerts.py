@@ -2,6 +2,7 @@ from dataclasses import asdict
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 
 from apps.api.dependencies import get_alert_lifecycle_service, get_alert_service
 from apps.api.security import get_principal
@@ -138,3 +139,69 @@ def resolve_alert(
     principal: Principal = Depends(get_principal),
 ):
     return _handle_transition(lambda aid: svc.resolve(aid, principal=principal), alert_id)
+
+
+# --------------------------------------------------------------------------
+# Credential verification (Phase 3). Lets an operator confirm SMTP/SMS really
+# work without fabricating a case or waiting for a material change.
+# --------------------------------------------------------------------------
+
+class TestNotificationRequest(BaseModel):
+    role: str = Field("duty_officer",
+                      description="Operational role to notify, per configs/recipients.yaml")
+    channels: list[str] | None = Field(
+        None, description="Channels to try; defaults to email + sms.")
+
+
+@router.post("/test-notification")
+def test_notification(
+    body: TestNotificationRequest,
+    principal: Principal = Depends(get_principal),
+):
+    """Send a REAL notification to verify credentials.
+
+    Admin-only, because it costs money and reaches real people. The message
+    is explicitly marked as a test in its own body — it must never be
+    mistakable for a live operational alert.
+
+    Returns exactly what each channel reported. A NOT_CONFIGURED result is a
+    successful call with an honest answer, not an error.
+    """
+    from varuna_alerts.channel_orchestrator import ChannelOrchestrator
+    from varuna_infra.authorization import authorize
+    from varuna_infra.rbac import Permission
+
+    try:
+        authorize(principal, Permission.TEST_NOTIFICATION,
+                  operation="alerts.test_notification", subject_id=body.role)
+    except AuthorizationError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    probe = {
+        "alert_id": "TEST-NOTIFICATION",
+        "case_id": "VARUNA-CONNECTIVITY-TEST",
+        "severity": "info",
+        "event_type": "notification.test",
+        "material_dimension": "notification.test",
+        "reason": (f"Connectivity test requested by {principal.principal_id}. "
+                   "This is NOT a spill alert and requires no action."),
+        "severity_basis": "operator-initiated credential verification",
+        "engine_mode": "test",
+        "is_simulated": True,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "evidence_refs": [],
+        "routing": {},
+    }
+
+    orch = ChannelOrchestrator(channels=body.channels or ["email", "sms"])
+    deliveries = orch.deliver(
+        alert_id="TEST-NOTIFICATION", recipient_roles=[body.role],
+        subject="[VARUNA TEST] notification connectivity check",
+        body=probe["reason"], alert=probe,
+    )
+    return {
+        "requested_by": principal.principal_id,
+        "role": body.role,
+        "channels": ChannelOrchestrator.channel_report(),
+        "results": [d.model_dump(mode="json") for d in deliveries],
+    }

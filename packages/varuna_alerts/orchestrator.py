@@ -169,11 +169,16 @@ class AlertOrchestrator:
             to=AlertLifecycleStatus.DELIVERY_PENDING.value, actor="channel_orchestrator",
             reason="dispatching to configured channels")
 
-        subject = f"[{change.case_id}] {change.severity.value.upper()} — {change.event_type}"
+        from varuna_alerts.templates import render_subject
+
         deliveries = self._channels.deliver(
             alert_id=alert.alert_id,
             recipient_roles=[r.role.value for r in decision.recipients],
-            subject=subject, body=change.reason,
+            subject=render_subject(alert), body=change.reason,
+            # Passing the alert lets email/SMS use the real templates, which
+            # state REAL vs DRILL in the body. An SMS reaching a duty officer
+            # at 02:00 must never leave them guessing.
+            alert=alert,
         )
         alert.deliveries = [d.model_dump(mode="json") for d in deliveries]
 

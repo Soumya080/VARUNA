@@ -64,6 +64,42 @@ class NotificationDelivery(BaseModel):
 
 
 # --------------------------------------------------------------------------
+# Recipient registry - role -> {email, phone}. Routing decides WHICH roles;
+# this is the only place that knows how to reach them. A role with no contact
+# is reported NOT_CONFIGURED by name, never silently dropped.
+# --------------------------------------------------------------------------
+
+_RECIPIENTS_CACHE: dict | None = None
+
+
+def recipients_config(path=None) -> dict:
+    global _RECIPIENTS_CACHE
+    if _RECIPIENTS_CACHE is not None and path is None:
+        return _RECIPIENTS_CACHE
+    from pathlib import Path
+
+    p = Path(path) if path else Path(
+        os.environ.get("VARUNA_RECIPIENTS_FILE")
+        or Path(__file__).resolve().parents[2] / "configs" / "recipients.yaml"
+    )
+    data: dict = {}
+    if p.exists():
+        try:
+            import yaml
+            loaded = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+            data = loaded.get("recipients") or {}
+        except Exception:
+            data = {}
+    if path is None:
+        _RECIPIENTS_CACHE = data
+    return data
+
+
+def contact_for(role: str) -> dict:
+    return recipients_config().get(role) or {}
+
+
+# --------------------------------------------------------------------------
 # Adapters. Each returns a NotificationDelivery describing what genuinely
 # happened. None of them pretends.
 # --------------------------------------------------------------------------
@@ -91,64 +127,83 @@ def _browser_push(alert_id: str, role: str, subject: str, body: str) -> Notifica
 
 
 def _email(alert_id: str, role: str, subject: str, body: str) -> NotificationDelivery:
+    """Real SMTP. Gmail-ready: VARUNA_SMTP_HOST=smtp.gmail.com, port 587, and
+    an app password (not the account password) in VARUNA_SMTP_PASSWORD.
+
+    Sends multipart/alternative - plain text plus the HTML template - so it
+    renders in a mail client and still reads correctly in a text-only one.
+    """
     host = os.environ.get("VARUNA_SMTP_HOST")
     if not host:
         return NotificationDelivery(
             alert_id=alert_id, channel="email", recipient_role=role,
             status=DeliveryStatus.NOT_CONFIGURED, mode=ChannelMode.NOT_CONFIGURED,
-            detail="VARUNA_SMTP_HOST is not set — no SMTP server configured, nothing sent.",
+            detail="VARUNA_SMTP_HOST is not set - no SMTP server configured.",
         )
+
+    to_addr = contact_for(role).get("email") or os.environ.get("VARUNA_ALERT_TO")
+    if not to_addr:
+        return NotificationDelivery(
+            alert_id=alert_id, channel="email", recipient_role=role,
+            status=DeliveryStatus.NOT_CONFIGURED, mode=ChannelMode.NOT_CONFIGURED,
+            provider=host,
+            detail=("no email configured for role " + repr(role) +
+                    " in configs/recipients.yaml and no VARUNA_ALERT_TO fallback."),
+        )
+
     try:
         import smtplib
         from email.message import EmailMessage
 
-        to_addr = os.environ.get("VARUNA_ALERT_TO")
-        from_addr = os.environ.get("VARUNA_ALERT_FROM", "varuna-alerts@localhost")
-        if not to_addr:
-            return NotificationDelivery(
-                alert_id=alert_id, channel="email", recipient_role=role,
-                status=DeliveryStatus.NOT_CONFIGURED, mode=ChannelMode.NOT_CONFIGURED,
-                provider=host,
-                detail="VARUNA_SMTP_HOST is set but VARUNA_ALERT_TO is not — no recipient.",
-            )
+        port = int(os.environ.get("VARUNA_SMTP_PORT", "587"))
+        user = os.environ.get("VARUNA_SMTP_USER")
+        password = os.environ.get("VARUNA_SMTP_PASSWORD")
+        from_addr = os.environ.get("VARUNA_ALERT_FROM") or user or "varuna-alerts@localhost"
+
         msg = EmailMessage()
-        msg["Subject"], msg["From"], msg["To"] = subject, from_addr, to_addr
+        msg["Subject"] = subject
+        msg["From"] = from_addr
+        msg["To"] = to_addr
         msg.set_content(body)
-        port = int(os.environ.get("VARUNA_SMTP_PORT", "25"))
-        with smtplib.SMTP(host, port, timeout=10) as s:
-            s.send_message(msg)
+        html_body = _HTML_BODIES.get(alert_id)
+        if html_body:
+            msg.add_alternative(html_body, subtype="html")
+
+        with smtplib.SMTP(host, port, timeout=20) as smtp:
+            smtp.ehlo()
+            if port in (587, 25) and os.environ.get("VARUNA_SMTP_STARTTLS", "1") != "0":
+                try:
+                    smtp.starttls()
+                    smtp.ehlo()
+                except smtplib.SMTPException:
+                    pass
+            if user and password:
+                smtp.login(user, password)
+            smtp.send_message(msg)
+
         return NotificationDelivery(
             alert_id=alert_id, channel="email", recipient_role=role,
-            status=DeliveryStatus.SENT, mode=ChannelMode.REAL, provider=f"smtp://{host}:{port}",
-            detail=f"Handed to SMTP for {to_addr}. SMTP acceptance is not proof of inbox delivery.",
+            status=DeliveryStatus.SENT, mode=ChannelMode.REAL,
+            provider="smtp://" + host + ":" + str(port),
+            detail=("handed to SMTP for " + to_addr +
+                    ". SMTP acceptance is not proof of inbox delivery."),
         )
     except Exception as exc:
         return NotificationDelivery(
             alert_id=alert_id, channel="email", recipient_role=role,
             status=DeliveryStatus.FAILED, mode=ChannelMode.REAL, provider=host,
-            error=f"{type(exc).__name__}: {exc}",
+            error=type(exc).__name__ + ": " + str(exc),
         )
 
 
 def _sms(alert_id: str, role: str, subject: str, body: str) -> NotificationDelivery:
-    provider = os.environ.get("VARUNA_SMS_PROVIDER")
-    key = os.environ.get("VARUNA_SMS_API_KEY")
-    if not provider or not key:
-        return NotificationDelivery(
-            alert_id=alert_id, channel="sms", recipient_role=role,
-            status=DeliveryStatus.NOT_CONFIGURED, mode=ChannelMode.NOT_CONFIGURED,
-            detail=("VARUNA_SMS_PROVIDER / VARUNA_SMS_API_KEY are not set — no SMS gateway "
-                    "configured, nothing sent."),
-        )
-    # A configured provider would be called here. Deliberately not faked:
-    # there is no provider integration in this repository, so a configured
-    # environment still reports honestly rather than claiming a send.
-    return NotificationDelivery(
-        alert_id=alert_id, channel="sms", recipient_role=role,
-        status=DeliveryStatus.NOT_CONFIGURED, mode=ChannelMode.NOT_CONFIGURED,
-        provider=provider,
-        detail=(f"Provider {provider!r} is named in the environment but no client for it is "
-                "implemented in this repository, so no send was attempted."),
+    """Delegates to the real MSG91 / Fast2SMS client."""
+    from varuna_alerts.channels.sms_gateway import send_sms
+
+    return send_sms(
+        alert_id=alert_id, recipient_role=role,
+        phone=contact_for(role).get("phone"),
+        body=_SMS_BODIES.get(alert_id) or body,
     )
 
 
@@ -178,13 +233,31 @@ ADAPTERS = {
 #: configured.
 DEFAULT_CHANNELS = ["dashboard", "browser_push", "email", "sms"]
 
+#: Rendered bodies for the alert currently being dispatched. Populated by
+#: ChannelOrchestrator.deliver() so the adapters can use the real HTML/SMS
+#: templates without changing the adapter signature every call site uses.
+_HTML_BODIES: dict[str, str] = {}
+_SMS_BODIES: dict[str, str] = {}
+
 
 class ChannelOrchestrator:
     def __init__(self, channels: list[str] | None = None):
         self.channels = channels or list(DEFAULT_CHANNELS)
 
     def deliver(self, *, alert_id: str, recipient_roles: list[str], subject: str,
-                body: str) -> list[NotificationDelivery]:
+                body: str, alert=None) -> list[NotificationDelivery]:
+        """`alert` is optional; when supplied, email and SMS use the real
+        rendered templates instead of the bare reason string."""
+        if alert is not None:
+            try:
+                from varuna_alerts.templates import render_html, render_sms, render_text
+
+                _HTML_BODIES[alert_id] = render_html(alert)
+                _SMS_BODIES[alert_id] = render_sms(alert)
+                body = render_text(alert)
+            except Exception:
+                pass  # fall back to the plain body; never block delivery
+
         out: list[NotificationDelivery] = []
         for role in recipient_roles:
             for ch in self.channels:
@@ -197,15 +270,22 @@ class ChannelOrchestrator:
                         detail=f"No adapter registered for channel {ch!r}."))
                     continue
                 out.append(adapter(alert_id, role, subject, body))
+        _HTML_BODIES.pop(alert_id, None)
+        _SMS_BODIES.pop(alert_id, None)
         return out
 
     @staticmethod
     def channel_report() -> dict[str, str]:
         """Honest per-channel configuration status, for the cockpit's
         system-status surface."""
-        probe = {ch: ADAPTERS[ch]("probe", "duty_officer", "probe", "probe")
-                 for ch in ADAPTERS if ch != "email"}
-        report = {ch: d.mode.value for ch, d in probe.items()}
-        report["email"] = (ChannelMode.REAL.value if os.environ.get("VARUNA_SMTP_HOST")
-                           else ChannelMode.NOT_CONFIGURED.value)
-        return report
+        from varuna_alerts.channels.sms_gateway import sms_provider_status
+
+        return {
+            "dashboard": ChannelMode.REAL.value,
+            "browser_push": ChannelMode.SIMULATED.value,
+            "email": (ChannelMode.REAL.value if os.environ.get("VARUNA_SMTP_HOST")
+                      else ChannelMode.NOT_CONFIGURED.value),
+            "sms": sms_provider_status()["mode"],
+            "whatsapp": ChannelMode.NOT_CONFIGURED.value,
+            "zoho_cliq": ChannelMode.NOT_CONFIGURED.value,
+        }

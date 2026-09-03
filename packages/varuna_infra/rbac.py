@@ -29,6 +29,9 @@ class Permission(StrEnum):
     ACKNOWLEDGE_ALERT = "acknowledge_alert"
     ESCALATE_ALERT = "escalate_alert"
     RESOLVE_ALERT = "resolve_alert"
+    # Sending a real outbound message to verify credentials.
+    # Admin-only: it costs money and reaches real people.
+    TEST_NOTIFICATION = "test_notification"
 
 ROLE_PERMISSIONS: dict[Role, Set[Permission]] = {
     Role.ADMIN: {
@@ -37,6 +40,7 @@ ROLE_PERMISSIONS: dict[Role, Set[Permission]] = {
         Permission.MANAGE_USERS, Permission.SUBMIT_OUTCOME, Permission.APPROVE_MODEL,
         Permission.VIEW_DASHBOARD, Permission.TRIGGER_ALERT,
         Permission.ACKNOWLEDGE_ALERT, Permission.ESCALATE_ALERT, Permission.RESOLVE_ALERT,
+        Permission.TEST_NOTIFICATION,
     },
     Role.DUTY_OFFICER: {
         Permission.CREATE_CASE, Permission.RUN_CASE_STAGE, Permission.APPROVE_MISSION,
