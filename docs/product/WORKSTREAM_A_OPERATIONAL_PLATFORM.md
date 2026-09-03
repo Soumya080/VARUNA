@@ -228,3 +228,108 @@ ASSIGNED mission).
    position-shift rule could not be verified against real data.
 7. **9 legacy frontend pages remain mock** and are untouched; the canonical
    cockpit at `/` is mock-free.
+
+
+---
+
+# Phase 1–2 follow-up (2026-09-03)
+
+The audits that followed the first Workstream A pass found the engine was
+real but crippled in five specific ways. All five are now fixed.
+
+## Persistence — decisions survive a restart
+
+`packages/varuna_infra/jsonl_store.py` generalises the pattern SMRITI already
+proved. `KeyedJsonlStore` (last-write-wins) backs alerts and missions;
+`AppendJsonlStore` (append-only, order preserved) backs the audit trails,
+because an audit log must never be rewritten wholesale — a crash mid-rewrite
+could lose earlier decisions.
+
+Persisted under `reports/state/` (gitignored, `VARUNA_STATE_DIR` overrides):
+
+| File | Contents |
+|---|---|
+| `alerts.jsonl` | lifecycle, transitions, routing, deliveries |
+| `missions.jsonl` | incl. `human_approved_by`, `assigned_at`, `state_history` |
+| `mission_audit.jsonl` | authorization decisions, allow **and** deny |
+| `alert_audit.jsonl` | previously unreadable even at runtime |
+| `case_snapshots.jsonl` | material-change baseline |
+
+A corrupt line is skipped and **counted** (`load_errors`) — losing one
+malformed record must not cost every acknowledgement ever made.
+
+**Verified by hard process kill:** an acknowledged alert kept its actor, the
+mission stayed `assigned` with `human_approved_by`, and the audit entry
+survived — with no case re-run.
+
+## Dedupe was lifetime suppression, not a window
+
+`dedupe_identity()` defaulted to the literal string `"run"` and every caller
+used the default. Once a dimension had alerted for a case it could never
+alert again for the process lifetime — a genuine second landfall hours later
+was swallowed and the stale record returned.
+
+Now `dedupe_bucket(clock(), window_seconds)`, default **300 s**, matching the
+interval the pre-existing `DedupeWindow` already used so the system has one
+suppression interval rather than two. The clock is injectable, so tests pin
+time and replay stays deterministic.
+
+## One alert producer, not two
+
+`MissionService` raised `mission.assigned` through the legacy
+`AlertService.route_and_send` + `sync_from_deliveries` path, writing
+`case:event` keys into the **same store** the orchestrator keys as
+`case|dimension|event|window`. Those legacy records had no severity basis, no
+routing and no material dimension. `mission.assigned` now goes through the
+orchestrator. All five CASE-VALID alerts now carry a dimension and a basis.
+
+## A protection that did not exist
+
+The orchestrator computed a `gate_state` from `check_materiality` and never
+used it, while its comment claimed a restrictive validity gate withheld
+outbound alerting. Deleted, with a note recording where materiality is
+*actually* enforced: upstream in `evaluate_material_changes()`, which emits
+nothing for a case whose gate blocks action (CASE-OOD produces zero changes).
+
+## Things that existed but were invisible
+
+- **`GET /v1/alerts`** — new, with `?status=&severity=&case_id=&since=&limit=&offset=`.
+  Previously the only way to see an alert was to already know its `case_id`
+  or `alert_id`. `GET /v1/alerts/log` is kept so callers do not 404 but now
+  declares itself deprecated and structurally always empty
+  (`get_alert_service()` is not a singleton).
+- **The Event Spine** — `GoldenCaseWorkflow` wrote to a separate
+  `_golden_event_store` that no route read, so every `case.stage.*` and every
+  material-change event was written somewhere invisible. Both now share the
+  store `GET /v1/events` reads: **16 events** for CASE-VALID, including all
+  four material changes with severity and dimension.
+- **PRAMAN + AuditLog on the orchestrator** — both were supported and neither
+  was ever passed, so alert transitions never reached the audit trail.
+- **`evidence_refs`** — origin, attribution and validity produced `[]`, the
+  three dimensions an operator most wants to drill into. Now populated from
+  `envelope.artifact_id` plus parent lineage, e.g. validity carries
+  `['gate-REPLAY-CASE-VALID', 'attribution-REPLAY-CASE-VALID']`.
+- **`AlertRecord.mission_id`** — a typed alert to mission link; the id
+  previously existed only inside prose.
+
+## RUN VARUNA produced no alerts at all
+
+The operational chain ran only from `GET /v1/replay/{fixture}`.
+`run_stream.py` composed the case and stopped, so pressing the cockpit's
+button executed the science and the alert engine looked dead. It now runs the
+loop and reports the genuine outcome in the `ALERT` stage event
+(`n_alerts`, `n_material_changes`, `alert_ids`) and in `run_complete`. A
+failure surfaces as an error event rather than being swallowed — a silent
+alerting failure is indistinguishable from "nothing was material".
+
+## Windows atomic-write race
+
+`os.replace` raises `PermissionError` (WinError 5) when an antivirus or the
+search indexer briefly holds the destination. Bounded retry with backoff,
+then a loud `OSError` — never a silent lost write. Found as a flaky test;
+it was a real data-loss risk.
+
+## Still open in Phase 2
+
+Nothing. Remaining work is Phase 3 (real email/SMS), Phase 4 (mission FSM),
+Phase 5 (the frontend mock pages).

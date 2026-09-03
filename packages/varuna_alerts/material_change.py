@@ -156,6 +156,31 @@ def _section(case: Any, name: str) -> Any:
     return case.get(name) if isinstance(case, dict) else getattr(case, name, None)
 
 
+def _evidence_refs(section: Any, *extra: Any) -> list[str]:
+    """Canonical, resolvable evidence references for a section.
+
+    Prefers `envelope.artifact_id` — the id PRAMAN and the evidence lineage
+    actually use, so a UI can follow an alert back to the artifact that
+    caused it — then any parent artifact ids, then domain ids passed by the
+    caller (slick_id, forecast_id, ...).
+
+    Origin, attribution and validity previously produced `evidence_refs=[]`,
+    which are the three dimensions an operator most wants to drill into.
+    """
+    refs: list[str] = []
+    env = _get(section, "value", "envelope")
+    art = _get(env, "artifact_id")
+    if art:
+        refs.append(str(art))
+    for parent in (_get(env, "parent_artifact_ids") or []):
+        if parent and str(parent) not in refs:
+            refs.append(str(parent))
+    for e in extra:
+        if e and str(e) not in refs:
+            refs.append(str(e))
+    return refs
+
+
 def _produced(section: Any) -> bool:
     st = _get(section, "status")
     return (st.value if hasattr(st, "value") else st) == "produced"
@@ -209,7 +234,7 @@ def evaluate_material_changes(
             add(MaterialDimension.DETECTION_PRESENCE, "detection.created",
                 None, {"slick_id": slick_id, "confidence": conf},
                 f"first detection produced for this case (slick {slick_id})",
-                [str(slick_id)] if slick_id else [], _get(det, "evidence_mode"))
+                _evidence_refs(det, slick_id), _get(det, "evidence_mode"))
         else:
             prev_conf = _get(prev_det, "value", "confidence")
             if (conf is not None and prev_conf is not None
@@ -218,7 +243,7 @@ def evaluate_material_changes(
                     prev_conf, conf,
                     f"detection confidence moved {prev_conf:.2f} -> {conf:.2f} "
                     f"(>= {CONFIDENCE_DELTA} operator-attention threshold)",
-                    [str(slick_id)] if slick_id else [], _get(det, "evidence_mode"))
+                    _evidence_refs(det, slick_id), _get(det, "evidence_mode"))
 
     # ---- origin ---------------------------------------------------------
     sp = _section(current_case, "starting_point")
@@ -235,7 +260,8 @@ def evaluate_material_changes(
                     {"lon": plon, "lat": plat}, {"lon": lon, "lat": lat},
                     f"reconstructed origin moved {moved:.1f} km "
                     f"(>= {ORIGIN_MOVE_KM} km threshold)",
-                    [], _get(sp, "evidence_mode"))
+                    _evidence_refs(_section(current_case, "origin")),
+                    _get(sp, "evidence_mode"))
 
     # ---- attribution ----------------------------------------------------
     attr = _section(current_case, "attribution")
@@ -248,13 +274,13 @@ def evaluate_material_changes(
                 None, top,
                 f"attribution produced (top relative posterior {top}); value is "
                 "uncalibrated and reported as-is",
-                [], _get(attr, "evidence_mode"))
+                _evidence_refs(attr), _get(attr, "evidence_mode"))
         elif top is not None and abs(top - prev_top) >= POSTERIOR_DELTA:
             add(MaterialDimension.ATTRIBUTION_POSTERIOR, "attribution.generated",
                 prev_top, top,
                 f"attribution posterior moved {prev_top:.2f} -> {top:.2f} "
                 f"(>= {POSTERIOR_DELTA} threshold); uncalibrated value",
-                [], _get(attr, "evidence_mode"))
+                _evidence_refs(attr), _get(attr, "evidence_mode"))
 
     # ---- validity -------------------------------------------------------
     prev_validity = None
@@ -266,7 +292,7 @@ def evaluate_material_changes(
         add(MaterialDimension.VALIDITY_STATE, "validity.changed",
             prev_validity, validity_state,
             f"validity gate state {prev_validity!r} -> {validity_state!r}",
-            [], _get(validity_sec, "evidence_mode"))
+            _evidence_refs(validity_sec), _get(validity_sec, "evidence_mode"))
 
     # ---- landfall -------------------------------------------------------
     prev_landfalls = (_get(_section(previous_case, "forecast"), "value", "landfalls") or []
@@ -276,7 +302,7 @@ def evaluate_material_changes(
         add(MaterialDimension.LANDFALL_PREDICTION, "landfall.predicted",
             len(prev_landfalls), len(landfalls),
             f"forecast predicts landfall at {', '.join(str(n) for n in names)}",
-            [str(_get(forecast_sec, 'value', 'forecast_id') or '')],
+            _evidence_refs(forecast_sec, _get(forecast_sec, "value", "forecast_id")),
             _get(forecast_sec, "evidence_mode"))
 
     # ---- mission --------------------------------------------------------

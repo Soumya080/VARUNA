@@ -221,17 +221,21 @@ _golden_event_store = None
 _golden_smriti_store = None
 
 def get_golden_case_workflow():
-    global _golden_case_repo, _golden_artifact_repo, _golden_event_store
+    global _golden_case_repo, _golden_artifact_repo
     from varuna_domain.golden_case_engine import GoldenCaseWorkflow
     from varuna_domain.repositories import (
-        InMemoryArtifactRepository, InMemoryCaseRepository, InMemoryEventStore,
+        InMemoryArtifactRepository, InMemoryCaseRepository,
     )
     if _golden_case_repo is None:
         _golden_case_repo = InMemoryCaseRepository()
         _golden_artifact_repo = InMemoryArtifactRepository()
-        _golden_event_store = InMemoryEventStore()
+    # Deliberately the SAME event store `GET /v1/events` reads. This used to
+    # be a separate `_golden_event_store`, so every event the engine and the
+    # Material Change Engine emitted — case.stage.*, detection.created,
+    # validity.changed, landfall.predicted — was written somewhere no API
+    # route could see. The event spine existed and was invisible.
     return GoldenCaseWorkflow(
-        _golden_case_repo, _golden_artifact_repo, _golden_event_store,
+        _golden_case_repo, _golden_artifact_repo, get_event_repo(),
         object_store=get_object_store(),
         mission_service=get_mission_service(),
         # Workstream A: the legacy delivery-receipt correlation
