@@ -38,7 +38,7 @@ from apps.api.dependencies import (
     get_alert_orchestrator, get_case_snapshot_store, get_golden_case_workflow,
     get_replay_smriti_store,
 )
-from varuna_domain.replay_fixtures import FIXTURE_NAMES
+from varuna_domain.replay_fixtures import ALL_FIXTURE_NAMES
 
 router = APIRouter(prefix="/v1/run", tags=["run"])
 
@@ -97,7 +97,7 @@ def _derived_status(section: Any) -> tuple[str, str | None]:
 
 @router.get("/fixtures")
 def list_runnable_fixtures():
-    return {"fixtures": list(FIXTURE_NAMES)}
+    return {"fixtures": list(ALL_FIXTURE_NAMES)}
 
 
 @router.get("/{fixture_name}/stream")
@@ -108,10 +108,10 @@ def stream_run(
     orchestrator=Depends(get_alert_orchestrator),
     snapshots=Depends(get_case_snapshot_store),
 ):
-    if fixture_name not in FIXTURE_NAMES:
+    if fixture_name not in ALL_FIXTURE_NAMES:
         raise HTTPException(
             status_code=404,
-            detail=f"Unknown fixture {fixture_name!r}. Known: {list(FIXTURE_NAMES)}",
+            detail=f"Unknown fixture {fixture_name!r}. Known: {list(ALL_FIXTURE_NAMES)}",
         )
 
     def generate() -> Iterator[str]:
