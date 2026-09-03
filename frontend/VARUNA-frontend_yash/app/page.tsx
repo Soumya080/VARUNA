@@ -24,7 +24,7 @@ import {
   escalateAlert,
   getOperationalSummary,
   getReplayOperatorCase,
-  reportUrl,
+  downloadReport,
   resolveAlert,
   type AlertLifecycleRecord,
 } from '@/lib/api'
@@ -65,6 +65,26 @@ export default function MissionCockpit() {
   // authoritative post-action state.
   const [liveMissions, setLiveMissions] = useState<Array<Record<string, unknown>>>([])
   const [busy, setBusy] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleDownloadReport() {
+    if (!oc) return
+    setDownloading(true)
+    setActionMsg(null)
+    try {
+      await downloadReport(oc.case_id)
+      setActionMsg({ text: 'Incident report downloaded.', ok: true })
+    } catch (e) {
+      // Surface the backend's own reason (404 = case not run in this process,
+      // 503 = reportlab missing) rather than opening a blank tab.
+      setActionMsg({
+        text: e instanceof Error ? `Report unavailable — ${e.message}` : 'Report failed.',
+        ok: false,
+      })
+    } finally {
+      setDownloading(false)
+    }
+  }
   const [actionMsg, setActionMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const { phase, stageOrder, events, summary, error: runError, run } = useRunStream()
 
@@ -221,22 +241,15 @@ export default function MissionCockpit() {
           <Play className="h-3.5 w-3.5" />
           {phase === 'running' ? 'Running…' : 'Run VARUNA'}
         </button>
-        <a
-          href={oc ? reportUrl(oc.case_id) : '#'}
-          target="_blank"
-          rel="noreferrer"
-          aria-disabled={!oc}
-          onClick={(e) => {
-            if (!oc) e.preventDefault()
-          }}
-          className={cn(
-            'flex items-center gap-1.5 rounded-sm border border-saffron bg-[color-mix(in_oklch,var(--saffron)_14%,transparent)] px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-[color-mix(in_oklch,var(--saffron)_45%,black)] hover:bg-[color-mix(in_oklch,var(--saffron)_24%,transparent)]',
-            !oc && 'pointer-events-none opacity-40',
-          )}
+        <button
+          type="button"
+          disabled={!oc || downloading}
+          onClick={handleDownloadReport}
+          className="flex items-center gap-1.5 rounded-sm border border-saffron bg-[color-mix(in_oklch,var(--saffron)_14%,transparent)] px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-[color-mix(in_oklch,var(--saffron)_45%,black)] hover:bg-[color-mix(in_oklch,var(--saffron)_24%,transparent)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <FileDown className="h-3.5 w-3.5" />
-          Download report
-        </a>
+          {downloading ? 'Generating…' : 'Download report'}
+        </button>
         {summary && (
           <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
             {summary.elapsed_ms.toFixed(0)}ms (workflow {summary.workflow_ms.toFixed(0)} · compose{' '}
@@ -457,14 +470,15 @@ export default function MissionCockpit() {
               ).map(([k, v]) => (
                 <Row key={k} label={k} value={String(v)} />
               ))}
-              <a
-                href={reportUrl(oc.case_id)}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-sm border border-border bg-background px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] hover:bg-muted"
+              <button
+                type="button"
+                disabled={downloading}
+                onClick={handleDownloadReport}
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-sm border border-border bg-background px-2 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] hover:bg-muted disabled:opacity-40"
               >
-                <FileDown className="h-3 w-3" /> Download incident report (PDF)
-              </a>
+                <FileDown className="h-3 w-3" />
+                {downloading ? 'Generating…' : 'Download incident report (PDF)'}
+              </button>
             </>
           ) : (
             <p className="text-[12px] text-muted-foreground">No case loaded.</p>

@@ -168,7 +168,7 @@ PLAYWRIGHT_BROWSERS_PATH=/some/large/disk/pw-browsers playwright install chromiu
 
 | Feature | Needs |
 |---|---|
-| CHHAYA vessel detection producing candidates | Raw sigma0 / uncalibrated Sentinel-1 GRD amplitude tiles. The committed MC20 tiles are normalised to [0,1] for NETRA segmentation, so CFAR cannot fire on them — the endpoint says so explicitly rather than reporting an empty ocean. |
+| CHHAYA vessel detection producing **candidates** | The MC20 tiles **are** committed (19 MB, `data/gold/events/mc20_v0_1/`) and CHHAYA runs on them — but they are normalised to [0,1] for NETRA segmentation, so CFAR cannot fire. The endpoint says so explicitly rather than reporting an empty ocean. Producing candidates needs raw sigma0 / uncalibrated GRD amplitude tiles, which are not in the repo. |
 | xView3 detector | The published checkpoint (220 MB, not committed) **and** a bathymetry raster for the event, which does not exist here. |
 | Email alerts | `VARUNA_SMTP_HOST` + `VARUNA_ALERT_TO`. Unset → `NOT_CONFIGURED`, never a faked send. |
 | SMS / WhatsApp / Zoho | No provider client implemented — always `NOT_CONFIGURED`. |
@@ -188,6 +188,16 @@ Get-NetTCPConnection -LocalPort 8000 -State Listen | Select OwningProcess
 ```
 
 **Map is blank** — no internet; tiles come from Esri/OSM.
+
+**CHHAYA says "No MC20 tile records"** — you are on a clone made before the data
+was committed. `git pull` and confirm
+`data/gold/events/mc20_v0_1/sar/tile_records.json` exists. The rest of
+`data/gold` (131 GB) is intentionally not in git; only this 19 MB event is.
+
+**PDF download fails** — click **RUN VARUNA** first. The report is generated
+from the composed case held in the API process, so a case that has not been run
+since the last API restart returns 404 with that explanation. A 503 instead
+means `reportlab` is missing: re-run `pip install -e .`.
 
 **Frontend can't reach the API** — check `NEXT_PUBLIC_VARUNA_API_URL`; it is
 inlined at dev-server start, so restart `npm run dev` after changing

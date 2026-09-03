@@ -1,0 +1,326 @@
+[
+  {
+    "tile_id": "mc20_2023-01-15__r0c0",
+    "parent_scene_id": "mc20_2023-01-15",
+    "split": "mc20_event_inference",
+    "sensor": "Sentinel-1A_IW_GRDH",
+    "source": "sentinel1_grd_mc20",
+    "row": 0,
+    "column": 0,
+    "pixel_window": {
+      "x_offset": 18657,
+      "y_offset": 7268,
+      "width": 512,
+      "height": 512
+    },
+    "bbox": {
+      "min_lon": -89.10060368934008,
+      "min_lat": 28.97482634503643,
+      "max_lon": -88.96974096929206,
+      "max_lat": 28.99512972756588
+    },
+    "provenance": {
+      "source_id": "sentinel1_grd_mc20",
+      "source_version": null,
+      "download_url": null,
+      "download_time": null,
+      "adapter_id": "scripts.build_mc20_event_gold",
+      "original_filename": null,
+      "original_crs": null,
+      "original_resolution_m": null,
+      "license": "Copernicus Sentinel Data Terms and Conditions (free, open)",
+      "citation": null,
+      "raw_artifact_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+      "notes": "calibrated via sentinel1_grd_calibration.py (real, unmodified); normalized with FROZEN netra-norm-v0.2-nodata-excluded; tile bbox is an approximation from the nearest of 210 sparse geolocationGrid points, not exact bilinear interpolation"
+    },
+    "data": null
+  },
+  {
+    "tile_id": "mc20_2023-01-15__r0c512",
+    "parent_scene_id": "mc20_2023-01-15",
+    "split": "mc20_event_inference",
+    "sensor": "Sentinel-1A_IW_GRDH",
+    "source": "sentinel1_grd_mc20",
+    "row": 0,
+    "column": 512,
+    "pixel_window": {
+      "x_offset": 19169,
+      "y_offset": 7268,
+      "width": 512,
+      "height": 512
+    },
+    "bbox": {
+      "min_lon": -88.99868031581649,
+      "min_lat": 28.965704554212643,
+      "max_lon": -88.94080162276764,
+      "max_lat": 29.02455490091912
+    },
+    "provenance": {
+      "source_id": "sentinel1_grd_mc20",
+      "source_version": null,
+      "download_url": null,
+      "download_time": null,
+      "adapter_id": "scripts.build_mc20_event_gold",
+      "original_filename": null,
+      "original_crs": null,
+      "original_resolution_m": null,
+      "license": "Copernicus Sentinel Data Terms and Conditions (free, open)",
+      "citation": null,
+      "raw_artifact_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+      "notes": "calibrated via sentinel1_grd_calibration.py (real, unmodified); normalized with FROZEN netra-norm-v0.2-nodata-excluded; tile bbox is an approximation from the nearest of 210 sparse geolocationGrid points, not exact bilinear interpolation; bbox corners collapsed to a single grid point (tile smaller than grid spacing) -- padded by half the tile's approximate angular footprint"
+    },
+    "data": null
+  },
+  {
+    "tile_id": "mc20_2023-01-15__r0c1024",
+    "parent_scene_id": "mc20_2023-01-15",
+    "split": "mc20_event_inference",
+    "sensor": "Sentinel-1A_IW_GRDH",
+    "source": "sentinel1_grd_mc20",
+    "row": 0,
+    "column": 1024,
+    "pixel_window": {
+      "x_offset": 19681,
+      "y_offset": 7268,
+      "width": 512,
+      "height": 512
+    },
+    "bbox": {
+      "min_lon": -88.96974096929206,
+      "min_lat": 28.99512972756588,
+      "max_lon": -88.83882732600408,
+      "max_lat": 29.01530597624321
+    },
+    "provenance": {
+      "source_id": "sentinel1_grd_mc20",
+      "source_version": null,
+      "download_url": null,
+      "download_time": null,
+      "adapter_id": "scripts.build_mc20_event_gold",
+      "original_filename": null,
+      "original_crs": null,
+      "original_resolution_m": null,
+      "license": "Copernicus Sentinel Data Terms and Conditions (free, open)",
+      "citation": null,
+      "raw_artifact_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+      "notes": "calibrated via sentinel1_grd_calibration.py (real, unmodified); normalized with FROZEN netra-norm-v0.2-nodata-excluded; tile bbox is an approximation from the nearest of 210 sparse geolocationGrid points, not exact bilinear interpolation"
+    },
+    "data": null
+  },
+  {
+    "tile_id": "mc20_2023-01-15__r512c0",
+    "parent_scene_id": "mc20_2023-01-15",
+    "split": "mc20_event_inference",
+    "sensor": "Sentinel-1A_IW_GRDH",
+    "source": "sentinel1_grd_mc20",
+    "row": 512,
+    "column": 0,
+    "pixel_window": {
+      "x_offset": 18657,
+      "y_offset": 7780,
+      "width": 512,
+      "height": 512
+    },
+    "bbox": {
+      "min_lon": -89.10060368934008,
+      "min_lat": 28.97482634503643,
+      "max_lon": -88.96974096929206,
+      "max_lat": 28.99512972756588
+    },
+    "provenance": {
+      "source_id": "sentinel1_grd_mc20",
+      "source_version": null,
+      "download_url": null,
+      "download_time": null,
+      "adapter_id": "scripts.build_mc20_event_gold",
+      "original_filename": null,
+      "original_crs": null,
+      "original_resolution_m": null,
+      "license": "Copernicus Sentinel Data Terms and Conditions (free, open)",
+      "citation": null,
+      "raw_artifact_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+      "notes": "calibrated via sentinel1_grd_calibration.py (real, unmodified); normalized with FROZEN netra-norm-v0.2-nodata-excluded; tile bbox is an approximation from the nearest of 210 sparse geolocationGrid points, not exact bilinear interpolation"
+    },
+    "data": null
+  },
+  {
+    "tile_id": "mc20_2023-01-15__r512c512",
+    "parent_scene_id": "mc20_2023-01-15",
+    "split": "mc20_event_inference",
+    "sensor": "Sentinel-1A_IW_GRDH",
+    "source": "sentinel1_grd_mc20",
+    "row": 512,
+    "column": 512,
+    "pixel_window": {
+      "x_offset": 19169,
+      "y_offset": 7780,
+      "width": 512,
+      "height": 512
+    },
+    "bbox": {
+      "min_lon": -88.99868031581649,
+      "min_lat": 28.965704554212643,
+      "max_lon": -88.94080162276764,
+      "max_lat": 29.02455490091912
+    },
+    "provenance": {
+      "source_id": "sentinel1_grd_mc20",
+      "source_version": null,
+      "download_url": null,
+      "download_time": null,
+      "adapter_id": "scripts.build_mc20_event_gold",
+      "original_filename": null,
+      "original_crs": null,
+      "original_resolution_m": null,
+      "license": "Copernicus Sentinel Data Terms and Conditions (free, open)",
+      "citation": null,
+      "raw_artifact_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+      "notes": "calibrated via sentinel1_grd_calibration.py (real, unmodified); normalized with FROZEN netra-norm-v0.2-nodata-excluded; tile bbox is an approximation from the nearest of 210 sparse geolocationGrid points, not exact bilinear interpolation; bbox corners collapsed to a single grid point (tile smaller than grid spacing) -- padded by half the tile's approximate angular footprint"
+    },
+    "data": null
+  },
+  {
+    "tile_id": "mc20_2023-01-15__r512c1024",
+    "parent_scene_id": "mc20_2023-01-15",
+    "split": "mc20_event_inference",
+    "sensor": "Sentinel-1A_IW_GRDH",
+    "source": "sentinel1_grd_mc20",
+    "row": 512,
+    "column": 1024,
+    "pixel_window": {
+      "x_offset": 19681,
+      "y_offset": 7780,
+      "width": 512,
+      "height": 512
+    },
+    "bbox": {
+      "min_lon": -88.96974096929206,
+      "min_lat": 28.99512972756588,
+      "max_lon": -88.83882732600408,
+      "max_lat": 29.01530597624321
+    },
+    "provenance": {
+      "source_id": "sentinel1_grd_mc20",
+      "source_version": null,
+      "download_url": null,
+      "download_time": null,
+      "adapter_id": "scripts.build_mc20_event_gold",
+      "original_filename": null,
+      "original_crs": null,
+      "original_resolution_m": null,
+      "license": "Copernicus Sentinel Data Terms and Conditions (free, open)",
+      "citation": null,
+      "raw_artifact_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+      "notes": "calibrated via sentinel1_grd_calibration.py (real, unmodified); normalized with FROZEN netra-norm-v0.2-nodata-excluded; tile bbox is an approximation from the nearest of 210 sparse geolocationGrid points, not exact bilinear interpolation"
+    },
+    "data": null
+  },
+  {
+    "tile_id": "mc20_2023-01-15__r1024c0",
+    "parent_scene_id": "mc20_2023-01-15",
+    "split": "mc20_event_inference",
+    "sensor": "Sentinel-1A_IW_GRDH",
+    "source": "sentinel1_grd_mc20",
+    "row": 1024,
+    "column": 0,
+    "pixel_window": {
+      "x_offset": 18657,
+      "y_offset": 8292,
+      "width": 512,
+      "height": 512
+    },
+    "bbox": {
+      "min_lon": -89.10060368934008,
+      "min_lat": 28.97482634503643,
+      "max_lon": -88.96974096929206,
+      "max_lat": 28.99512972756588
+    },
+    "provenance": {
+      "source_id": "sentinel1_grd_mc20",
+      "source_version": null,
+      "download_url": null,
+      "download_time": null,
+      "adapter_id": "scripts.build_mc20_event_gold",
+      "original_filename": null,
+      "original_crs": null,
+      "original_resolution_m": null,
+      "license": "Copernicus Sentinel Data Terms and Conditions (free, open)",
+      "citation": null,
+      "raw_artifact_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+      "notes": "calibrated via sentinel1_grd_calibration.py (real, unmodified); normalized with FROZEN netra-norm-v0.2-nodata-excluded; tile bbox is an approximation from the nearest of 210 sparse geolocationGrid points, not exact bilinear interpolation"
+    },
+    "data": null
+  },
+  {
+    "tile_id": "mc20_2023-01-15__r1024c512",
+    "parent_scene_id": "mc20_2023-01-15",
+    "split": "mc20_event_inference",
+    "sensor": "Sentinel-1A_IW_GRDH",
+    "source": "sentinel1_grd_mc20",
+    "row": 1024,
+    "column": 512,
+    "pixel_window": {
+      "x_offset": 19169,
+      "y_offset": 8292,
+      "width": 512,
+      "height": 512
+    },
+    "bbox": {
+      "min_lon": -88.99868031581649,
+      "min_lat": 28.965704554212643,
+      "max_lon": -88.94080162276764,
+      "max_lat": 29.02455490091912
+    },
+    "provenance": {
+      "source_id": "sentinel1_grd_mc20",
+      "source_version": null,
+      "download_url": null,
+      "download_time": null,
+      "adapter_id": "scripts.build_mc20_event_gold",
+      "original_filename": null,
+      "original_crs": null,
+      "original_resolution_m": null,
+      "license": "Copernicus Sentinel Data Terms and Conditions (free, open)",
+      "citation": null,
+      "raw_artifact_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+      "notes": "calibrated via sentinel1_grd_calibration.py (real, unmodified); normalized with FROZEN netra-norm-v0.2-nodata-excluded; tile bbox is an approximation from the nearest of 210 sparse geolocationGrid points, not exact bilinear interpolation; bbox corners collapsed to a single grid point (tile smaller than grid spacing) -- padded by half the tile's approximate angular footprint"
+    },
+    "data": null
+  },
+  {
+    "tile_id": "mc20_2023-01-15__r1024c1024",
+    "parent_scene_id": "mc20_2023-01-15",
+    "split": "mc20_event_inference",
+    "sensor": "Sentinel-1A_IW_GRDH",
+    "source": "sentinel1_grd_mc20",
+    "row": 1024,
+    "column": 1024,
+    "pixel_window": {
+      "x_offset": 19681,
+      "y_offset": 8292,
+      "width": 512,
+      "height": 512
+    },
+    "bbox": {
+      "min_lon": -88.96974096929206,
+      "min_lat": 28.99512972756588,
+      "max_lon": -88.83882732600408,
+      "max_lat": 29.01530597624321
+    },
+    "provenance": {
+      "source_id": "sentinel1_grd_mc20",
+      "source_version": null,
+      "download_url": null,
+      "download_time": null,
+      "adapter_id": "scripts.build_mc20_event_gold",
+      "original_filename": null,
+      "original_crs": null,
+      "original_resolution_m": null,
+      "license": "Copernicus Sentinel Data Terms and Conditions (free, open)",
+      "citation": null,
+      "raw_artifact_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+      "notes": "calibrated via sentinel1_grd_calibration.py (real, unmodified); normalized with FROZEN netra-norm-v0.2-nodata-excluded; tile bbox is an approximation from the nearest of 210 sparse geolocationGrid points, not exact bilinear interpolation"
+    },
+    "data": null
+  }
+]

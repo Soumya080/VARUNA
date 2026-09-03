@@ -29,7 +29,19 @@ def case_report(
     the report is never generated from a fabricated case.
     """
     from varuna_alerts.channel_orchestrator import ChannelOrchestrator
-    from varuna_integration.incident_report import build_incident_report
+
+    # This import is lazy so a missing reportlab cannot break API startup —
+    # but it also sat outside the try/except below, so an absent dependency
+    # surfaced as an unexplained 500. Name the missing package instead.
+    try:
+        from varuna_integration.incident_report import build_incident_report
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=("PDF reporting is unavailable: the 'reportlab' package is not "
+                    f"installed in this environment ({exc}). Install the project "
+                    "dependencies with `pip install -e .` from the repository root."),
+        ) from exc
 
     operator_case = None
     for composed in _COMPOSED_CACHE.values():

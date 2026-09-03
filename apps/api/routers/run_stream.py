@@ -140,6 +140,14 @@ def stream_run(
             return
         t_compose = ms()
 
+        # Publish into the same composed-case cache `GET /v1/replay/{fixture}`
+        # writes. Without this, running a case from the cockpit's RUN VARUNA
+        # button left `GET /v1/cases/{id}/report` returning 404, because the
+        # report route only ever reads that cache — the case had genuinely
+        # been composed, but nowhere the report could see it.
+        from apps.api.routers import replay as _replay
+        _replay._COMPOSED_CACHE[fixture_name] = operator_case
+
         stages = getattr(result.run, "stages", {}) or {}
         intel = operator_case.intelligence
 

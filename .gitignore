@@ -132,3 +132,13 @@ MEM/
 # Test/E2E output artifacts
 reports/product/_downloads/
 reports/product/_judge_downloads/
+
+# --- MC20 demo event: the ONE shippable slice of data/gold ---------------
+# data/gold is 131 GB and stays ignored above. This single event directory is
+# 19 MB and is read at request time by the CHHAYA endpoint, so it must ship or
+# a fresh clone has no SAR to investigate. Parents are re-included step by
+# step because git cannot un-ignore a file inside an excluded directory.
+!data/gold/events/
+!data/gold/events/mc20_v0_1/
+!data/gold/events/mc20_v0_1/**
+!data/gold/events/mc20_v0_1/**/*.npy

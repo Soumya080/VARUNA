@@ -1,0 +1,59 @@
+{
+  "sar_tiles": {
+    "n_tiles": 9,
+    "shape_expected": [
+      2,
+      512,
+      512
+    ],
+    "normalized_has_nan": false,
+    "normalized_has_inf": false,
+    "normalized_range": [
+      0.0,
+      1.0
+    ]
+  },
+  "ais": {
+    "n_tracks_total": 530,
+    "n_tracks_spatially_matched": 425,
+    "n_tracks_temporally_matched": 320
+  },
+  "forcing": {
+    "era5_cube_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\events\\mc20_v0_1\\forcing\\era5_cube.json",
+    "cmems_cube_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\events\\mc20_v0_1\\forcing\\cmems_cube.json",
+    "era5": {
+      "n_timesteps": 168,
+      "time_series_status": "sufficient",
+      "bbox": {
+        "min_lon": -91.0,
+        "min_lat": 27.0,
+        "max_lon": -87.0,
+        "max_lat": 31.0
+      },
+      "time_range": [
+        "2023-01-11T00:00:00+00:00",
+        "2023-01-17T23:00:00+00:00"
+      ],
+      "contains_sar_point": true,
+      "contains_t_sar": true,
+      "file_checksum": "8db79ceb5b3aa417d688a0d75e01bd6e5f2f0d9119d6280d1beed5c1d8d8e399"
+    },
+    "cmems": {
+      "n_timesteps": 133,
+      "time_series_status": "sufficient",
+      "bbox": {
+        "min_lon": -91.0,
+        "min_lat": 27.0,
+        "max_lon": -87.0,
+        "max_lat": 31.0
+      },
+      "time_range": [
+        "2023-01-11T12:00:00+00:00",
+        "2023-01-17T00:00:00+00:00"
+      ],
+      "contains_sar_point": true,
+      "contains_t_sar": true,
+      "file_checksum": "06163c96bf97b8fd2c34fb7b18720c3219d3bd1824f428dfb56ce24a5b0b9130"
+    }
+  }
+}

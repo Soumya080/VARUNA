@@ -258,10 +258,56 @@ export function getOperationalSummary(caseId: string): Promise<OperationalSummar
   return getJson(`/v1/cases/${encodeURIComponent(caseId)}/operational-summary`)
 }
 
-/** The incident PDF URL. A plain <a href> download — the browser fetches
- * the real generated file from the backend. */
+/** The incident PDF URL. Exported for display/debugging only — prefer
+ * `downloadReport()`, which surfaces backend errors instead of hiding them. */
 export function reportUrl(caseId: string): string {
   return `${API_BASE_URL}/v1/cases/${encodeURIComponent(caseId)}/report`
+}
+
+/**
+ * Fetch the incident PDF and hand it to the browser as a download.
+ *
+ * A bare `<a href target="_blank">` was used before, which turned every
+ * backend failure into a blank tab or a page of raw JSON — indistinguishable
+ * from "the button does nothing". The two real failures this hides are a 404
+ * (case never run in this API process) and a 503 (reportlab not installed),
+ * both of which the operator needs to see verbatim.
+ */
+export async function downloadReport(caseId: string): Promise<void> {
+  let response: Response
+  try {
+    response = await fetch(reportUrl(caseId), { headers: { Accept: 'application/pdf' } })
+  } catch (err) {
+    throw new ApiError(
+      `Could not reach the VARUNA backend at ${API_BASE_URL}. ` +
+        `(${err instanceof Error ? err.message : String(err)})`,
+    )
+  }
+
+  if (!response.ok) {
+    let detail = response.statusText
+    try {
+      const body = await response.json()
+      detail = body?.detail ?? body?.message ?? detail
+    } catch {
+      // non-JSON error body; keep statusText
+    }
+    throw new ApiError(detail, response.status)
+  }
+
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  try {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `VARUNA-incident-${caseId}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  } finally {
+    // Revoke on the next tick so the click has consumed the URL first.
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
 }
 
 /** GET /v1/missions/{missionId}/audit */
