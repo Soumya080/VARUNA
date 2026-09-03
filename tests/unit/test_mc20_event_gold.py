@@ -89,7 +89,19 @@ def test_sar_tile_records_have_valid_bbox():
 
 
 def test_sar_normalization_uses_frozen_gold_v0_2_bounds(manifest):
-    gold = json.loads((REPO_ROOT / "data" / "manifests" / "netra_gold_v0_2.json").read_text())
+    # netra_gold_v0_2.json is a 25 MB NETRA Gold artifact excluded from git by
+    # .gitignore:66 (data/manifests/**). It is present on the training machine
+    # and absent from a fresh clone, so this assertion cannot be made there.
+    # Skipped with a reason rather than passed vacuously: a clean clone must
+    # not be told the normalization bounds were verified when they were not.
+    gold_path = REPO_ROOT / "data" / "manifests" / "netra_gold_v0_2.json"
+    if not gold_path.exists():
+        pytest.skip(
+            "NETRA Gold manifest not present (data/manifests/netra_gold_v0_2.json "
+            "is gitignored); cannot verify the event manifest against frozen "
+            "gold v0.2 normalization bounds on this machine."
+        )
+    gold = json.loads(gold_path.read_text())
     assert manifest["modalities"]["sar"]["normalization_version"] == gold["normalization"]["normalization_version"]
 
 
@@ -151,6 +163,10 @@ def test_netra_gold_dataset_rejects_this_manifest(manifest):
     """The real production loader must refuse to load the event manifest
     as a training split -- proven by actually calling it, not by
     inspecting code and assuming."""
+    # varuna_netra.dataset.gold pulls in torch, which lives in the optional
+    # `ml` extra. Skip honestly on a base install rather than fail; the check
+    # still runs in full wherever NETRA can actually be loaded.
+    pytest.importorskip("torch", reason="NETRA loader requires the `ml` extra")
     from varuna_netra.dataset.gold import NetraGoldDataset
 
     split = manifest["netra_training_isolation"]["split_value"]

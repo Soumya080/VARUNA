@@ -2,7 +2,12 @@
 name = "varuna-grid"
 version = "2.0.0"
 description = "VARUNA GRID v2 — National Marine Pollution Watch & Response Grid (SIH26143)"
-requires-python = ">=3.12"
+# Verified on 3.11.9 in a clean clone: full install, all packages resolve,
+# 635 unit+api tests pass. The pin was ">=3.12" with no 3.12-only syntax
+# anywhere in packages/ or apps/, and tests/conftest.py even carries a 3.10
+# compat shim. It hard-blocked `pip install -e .` before a single dependency
+# downloaded, which is a hostile first experience on a fresh machine.
+requires-python = ">=3.11"
 license = { text = "Proprietary" }
 
 dependencies = [

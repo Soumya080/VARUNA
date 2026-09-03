@@ -5,15 +5,46 @@ records what actually happens including every network failure.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
+import urllib.error
+import urllib.request
 
 from playwright.sync_api import sync_playwright
 
 FE = "http://localhost:3000"
+API = "http://localhost:8000"
 DL = os.path.abspath("reports/product/_judge_downloads")
 FAILS: list[str] = []
+
+
+def api(path: str, method: str = "GET", token: str | None = None,
+        payload: dict | None = None) -> tuple[int, object]:
+    """Direct backend call, for claims a page cannot be trusted to prove."""
+    data = json.dumps(payload).encode() if payload is not None else None
+    req = urllib.request.Request(API + path, data=data, method=method)
+    req.add_header("Content-Type", "application/json")
+    if token:
+        req.add_header("Authorization", "Bearer " + token)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.status, json.loads(r.read().decode() or "null")
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode()
+        try:
+            return e.code, json.loads(raw)
+        except json.JSONDecodeError:
+            return e.code, raw
+    except Exception as exc:
+        return 0, type(exc).__name__ + ": " + str(exc)
+
+
+def token_for(username: str, password: str) -> str | None:
+    st, r = api("/v1/auth/login", "POST",
+                payload={"username": username, "password": password})
+    return r.get("access_token") if st == 200 and isinstance(r, dict) else None
 
 
 def check(label: str, ok: bool, detail: str = "") -> None:
@@ -180,7 +211,67 @@ def main() -> int:
         else:
             print("   [INFO] no escalate action available in current alert states")
 
-        print("\n### 13. Network hygiene")
+        print()
+        print("### 13. Judge creates a brand-new case from the UI")
+        page.goto(FE + "/cases", wait_until="networkidle", timeout=90000)
+        page.wait_for_timeout(2500)
+        before = page.locator("tbody tr").count()
+        check("Case list is populated from the backend", before > 0, str(before) + " rows")
+        newb = page.get_by_role("button", name=re.compile("New Case", re.I))
+        check("New Case control exists", newb.count() > 0)
+        if newb.count():
+            newb.first.click()
+            page.wait_for_timeout(3500)
+            check("New case confirmed by backend", "confirmed by backend" in body(),
+                  str([ln for ln in body().splitlines()
+                       if "confirmed" in ln or "NOT AUTH" in ln][:1])[:120])
+            after = page.locator("tbody tr").count()
+            check("Case list grew", after > before, str(before) + " -> " + str(after))
+
+        print()
+        print("### 14. Judge asks whether email/SMS are actually real")
+        # Asserted against the backend, never the page: a UI can print anything.
+        tok = token_for("admin", "admin-demo-pass")
+        check("Admin can authenticate", bool(tok))
+        st, rep = api("/v1/alerts/test-notification", "POST", token=tok,
+                      payload={"role": "duty_officer"})
+        check("test-notification endpoint is routed", st != 404, "HTTP " + str(st))
+        if isinstance(rep, dict):
+            blob = json.dumps(rep).upper()
+            configured = "NOT_CONFIGURED" not in blob
+            check("Channel status is stated explicitly",
+                  any(k in blob for k in ("NOT_CONFIGURED", "SENT", "FAILED")), str(rep)[:130])
+            check("An unconfigured channel never reports SUCCESS",
+                  configured or (Q + "SUCCESS" + Q) not in blob, str(rep)[:130])
+            print("   [INFO] delivery: " + ("credentials present"
+                  if configured else "NOT_CONFIGURED - no credentials set"))
+        st2, _ = api("/v1/alerts/test-notification", "POST",
+                     token=token_for("analyst", "analyst-demo-pass"),
+                     payload={"role": "duty_officer"})
+        check("Non-admin is refused the notification test", st2 == 403, "HTTP " + str(st2))
+
+        print()
+        print("### 15. Judge walks a mission through the FSM")
+        page.goto(FE + "/assignment-mission", wait_until="networkidle", timeout=90000)
+        page.wait_for_timeout(3000)
+        mt = body()
+        check("Mission page shows a real mission", "MSN-" in mt, mt[:90].replace(chr(10), " "))
+        check("Real tasking is shown", "TASKING" in mt.upper())
+        check("No fabricated authorization checklist", "Analyst Rao" not in mt)
+        walked = []
+        for target in ("acknowledged", "en_route", "on_station", "searching"):
+            btn = page.get_by_role("button", name=re.compile(
+                "^" + target.replace("_", "[ _]") + "$", re.I))
+            if not btn.count():
+                continue
+            btn.first.click()
+            page.wait_for_timeout(3000)
+            if "confirmed by backend" in body():
+                walked.append(target)
+        check("Mission advanced through several FSM states from the UI",
+              len(walked) >= 2, "walked: " + (" -> ".join(walked) or "none"))
+
+        print("\n### 16. Network hygiene")
         check("No failed network requests", not netfail, str(netfail)[:150])
         unexpected = [c for c in calls if not c.startswith(("200", "304"))
                       and "/escalate" not in c and "/approve" not in c]

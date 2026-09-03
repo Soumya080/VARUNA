@@ -17,7 +17,7 @@
 #
 # Optional extras (not installed by the line below):
 #     pip install -e ".[ml]"     torch / torchvision / smp / mlflow / onnxruntime
-#     pip install -e ".[e2e]"    playwright, for scripts/judge_test.py
+#     pip install -e ".[dev]"    playwright, for scripts/judge_test.py
 #
 # OpenDrift resolves poorly on pip. Prefer:
 #     conda install -c opendrift -c conda-forge opendrift
