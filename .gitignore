@@ -146,3 +146,6 @@ reports/product/_judge_downloads/
 # Runtime operational state (alerts, missions, audit, case snapshots).
 # Machine-local: delete this directory to reset a demo to a clean slate.
 reports/state/
+
+# Captured messages from scripts/smtp_sink.py (local email-path verification)
+reports/product/_smtp_capture/
