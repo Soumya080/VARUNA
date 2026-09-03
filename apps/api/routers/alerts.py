@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -9,10 +10,71 @@ from varuna_infra.authorization import AuthorizationError, Principal
 
 router = APIRouter(prefix="/v1/alerts", tags=["alerts"])
 
+@router.get("")
+def list_alerts(
+    status: str | None = None,
+    severity: str | None = None,
+    case_id: str | None = None,
+    since: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+    svc: AlertLifecycleService = Depends(get_alert_lifecycle_service),
+):
+    """Global alert list with filters — the alert history surface.
+
+    Until now the ONLY way to see an alert was to already know its case_id or
+    its alert_id, which made an "Alert Center" impossible to build honestly.
+
+    `since` is an ISO-8601 timestamp compared against `created_at`.
+    """
+    items = svc.list_all()
+
+    if status:
+        wanted = {s.strip().lower() for s in status.split(",")}
+        items = [a for a in items if a.status.value in wanted]
+    if severity:
+        wanted = {s.strip().lower() for s in severity.split(",")}
+        items = [a for a in items if a.severity.value in wanted]
+    if case_id:
+        items = [a for a in items if a.case_id == case_id]
+    if since:
+        try:
+            cutoff = datetime.fromisoformat(since.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"`since` must be ISO-8601, got {since!r}") from exc
+        items = [a for a in items if a.created_at >= cutoff]
+
+    items.sort(key=lambda a: a.created_at, reverse=True)
+    total = len(items)
+    page = items[offset:offset + max(0, limit)]
+    return {
+        "items": [a.model_dump(mode="json") for a in page],
+        "total": total, "limit": limit, "offset": offset,
+        "returned": len(page),
+    }
+
+
 @router.get("/log")
 def alert_log(svc = Depends(get_alert_service)):
+    """Legacy channel delivery-receipt log.
+
+    NOTE: `get_alert_service()` is deliberately NOT a singleton, so this has
+    always returned an empty list — the AlertService it reads is constructed
+    fresh per request. Rather than paper over that, the real per-alert
+    delivery records now live on each AlertRecord's `deliveries` (see
+    `GET /v1/alerts`), which is what the cockpit reads. This endpoint is kept
+    only so existing callers do not 404, and reports its own emptiness.
+    """
     log = svc.get_delivery_log()
-    return {"items": [asdict(r) for r in log], "count": len(log)}
+    return {
+        "items": [asdict(r) for r in log],
+        "count": len(log),
+        "note": ("Deprecated. This legacy log is per-request and therefore "
+                 "always empty. Use GET /v1/alerts — each alert carries its "
+                 "own `deliveries` with honest per-channel status."),
+    }
 
 
 # --------------------------------------------------------------------------

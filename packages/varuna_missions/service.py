@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import Any, Optional, List
 from datetime import datetime, timezone
@@ -8,10 +9,14 @@ from varuna_missions.repository import InMemoryMissionRepository
 from varuna_infra.authorization import AuditLog, Principal, authorize
 from varuna_infra.rbac import Permission
 
+logger = logging.getLogger(__name__)
+
+
 class MissionService:
     def __init__(self, repo: InMemoryMissionRepository,
                  audit: AuditLog | None = None,
-                 alert_service: Any = None, alert_lifecycle: Any = None):
+                 alert_service: Any = None, alert_lifecycle: Any = None,
+                 alert_orchestrator: Any = None):
         self._repo = repo
         # Owned rather than injected-required so existing constructor call
         # sites keep working; the authorization CHECK is not optional, only
@@ -22,8 +27,11 @@ class MissionService:
         # reusing varuna_alerts' architecture rather than a second alerting
         # path. Optional so every existing construction site (tests,
         # scripts) that doesn't pass these is unaffected.
+        # Legacy collaborators, kept so existing construction sites still
+        # work; `mission.assigned` now goes through the orchestrator instead.
         self._alert_service = alert_service
         self._alert_lifecycle = alert_lifecycle
+        self._alert_orchestrator = alert_orchestrator
 
     def create_mission(self, case_id: str, asset_id: str, tasking: AssetTasking) -> MissionRecord:
         mission = MissionRecord(
@@ -96,36 +104,50 @@ class MissionService:
         return m
 
     def _raise_mission_assigned_alert(self, mission: MissionRecord) -> None:
-        """STEP 7, Phase 5: `mission.assigned` is the second recognized
-        material event `varuna_alerts.materiality.check_materiality()` has
-        always listed but the pipeline never reached, because missions are
-        always created un-approved by the pipeline — this event can only
-        ever fire from here, the one place a mission genuinely becomes
-        ASSIGNED. `gate_state=VALID` is used deliberately: by the time this
-        method runs, `authorize()` has already required and verified a real
-        human's `APPROVE_MISSION` permission — a stronger, more specific
-        gate than the case's evidence-validity state, which this service has
-        no access to (it is never given a case's `ValidityGateResult`).
-        No-op when no alerting was injected (tests, scripts)."""
-        if self._alert_service is None:
+        """`mission.assigned` — the one material event only this method can
+        produce, because the pipeline always creates missions un-approved.
+
+        Routed through the SAME AlertOrchestrator as every other alert. It
+        previously used the legacy `AlertService.route_and_send` +
+        `AlertLifecycleService.sync_from_deliveries` path, which wrote records
+        with a different correlation-key format (`case:event`) into the same
+        store the orchestrator keys as `case|dimension|event|window`. That gave
+        one case two parallel alert systems and produced alerts with no
+        severity basis, no routing decision and no material dimension.
+
+        Failures are logged, never swallowed: an alerting problem must not
+        undo a real dispatch approval, but it must also not be invisible.
+        """
+        if self._alert_orchestrator is None:
             return
         try:
-            results = self._alert_service.route_and_send(
-                event_type="mission.assigned", case_id=mission.case_id,
-                event_timestamp=datetime.now(timezone.utc),
-                gate_state=ValidityState.VALID,
-                subject=f"[{mission.case_id}] mission {mission.mission_id} assigned",
-                body=(
-                    f"mission_id={mission.mission_id} asset_id={mission.asset_id} "
-                    f"approved_by={mission.human_approved_by}"
-                ),
+            from varuna_alerts.material_change import MaterialChange, MaterialDimension
+            from varuna_contracts.operator_case import AlertSeverity
+
+            change = MaterialChange(
+                case_id=mission.case_id,
+                dimension=MaterialDimension.MISSION_STATE,
+                event_type="mission.assigned",
+                previous=MissionState.RESERVED.value,
+                current=mission.state.value,
+                reason=(f"mission {mission.mission_id} authorised by "
+                        f"{mission.human_approved_by} and assigned to "
+                        f"{mission.asset_id}"),
+                severity=AlertSeverity.HIGH,
+                severity_basis=("a human authorised a physical asset dispatch — "
+                                "the highest-consequence transition in the system"),
+                evidence_refs=[str(mission.mission_id)],
+                engine_mode="real",
+                evidence_mode="real",
             )
-        except Exception:
-            return  # an alerting failure must never undo a real dispatch approval
-        if self._alert_lifecycle is not None:
-            self._alert_lifecycle.sync_from_deliveries(
-                case_id=mission.case_id, event_type="mission.assigned",
-                deliveries=results, evidence_mode="real",
+            alert = self._alert_orchestrator.process(change)
+            if alert is not None and hasattr(alert, "mission_id"):
+                alert.mission_id = mission.mission_id
+                self._alert_orchestrator._store.save(alert)
+        except Exception as exc:
+            logger.warning(
+                "mission.assigned alert failed for %s: %s: %s",
+                mission.mission_id, type(exc).__name__, exc,
             )
 
     @property

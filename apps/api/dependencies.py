@@ -114,7 +114,8 @@ def get_mission_service():
         _mission_service_singleton = MissionService(
             repo=_in_memory_mission_repo, audit=_mission_audit_log,
             alert_service=get_alert_service(),
-            alert_lifecycle=get_alert_lifecycle_service())
+            alert_lifecycle=get_alert_lifecycle_service(),
+            alert_orchestrator=get_alert_orchestrator())
     return _mission_service_singleton
 
 def get_prahari_service():
@@ -163,8 +164,18 @@ def get_alert_orchestrator():
     if _alert_orchestrator_singleton is None:
         from varuna_alerts.channel_orchestrator import ChannelOrchestrator
         from varuna_alerts.orchestrator import AlertOrchestrator
+        from varuna_infra.authorization import AuditLog
+        from varuna_infra.jsonl_store import state_dir
+        from varuna_praman.praman import PramanService
+        # PRAMAN and the audit log were both supported by AlertOrchestrator
+        # and neither was ever passed, so alert transitions never reached the
+        # audit trail despite the code being there to write them.
         _alert_orchestrator_singleton = AlertOrchestrator(
-            get_alert_store(), channels=ChannelOrchestrator())
+            get_alert_store(),
+            channels=ChannelOrchestrator(),
+            audit=AuditLog(state_dir() / "alert_audit.jsonl"),
+            praman=PramanService(get_artifact_repo(), get_object_store()),
+        )
     return _alert_orchestrator_singleton
 
 

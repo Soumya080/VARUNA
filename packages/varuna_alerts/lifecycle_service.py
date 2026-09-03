@@ -85,6 +85,10 @@ class AlertLifecycleService:
     def list_by_case(self, case_id: str) -> List[AlertRecord]:
         return self._store.list_by_case(case_id)
 
+    def list_all(self) -> List[AlertRecord]:
+        """Every alert, unfiltered — backs the global alert-history query."""
+        return self._store.all()
+
     def get(self, alert_id: str) -> Optional[AlertRecord]:
         return self._store.get(alert_id)
 

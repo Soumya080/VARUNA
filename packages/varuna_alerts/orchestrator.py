@@ -4,8 +4,6 @@ VARUNA — Alert Orchestrator (Workstream A, Phase 3-7).
 MaterialChange -> dedupe -> enrich -> prioritise -> route -> deliver.
 
 Reuses, rather than replaces:
-  * `varuna_alerts.materiality.check_materiality()` — still the outbound
-    gate (it refuses to alert on a case whose validity withholds action).
   * `varuna_alerts.lifecycle_store.InMemoryAlertStore` — the ONE alert store.
   * `varuna_alerts.lifecycle_service.AlertLifecycleService` — ACK/escalate/
     resolve and their RBAC enforcement.
@@ -23,32 +21,52 @@ from varuna_alerts.material_change import MaterialChange
 from varuna_alerts.routing_policy import route
 
 
-def dedupe_identity(change: MaterialChange, *, window: str = "run") -> str:
+def dedupe_bucket(now: datetime, window_seconds: int) -> int:
+    """Discrete time bucket. Two events in the same bucket dedupe; the next
+    bucket is a genuinely new alert."""
+    return int(now.timestamp()) // max(1, window_seconds)
+
+
+def dedupe_identity(change: MaterialChange, *, window: str | int = "run") -> str:
     """The documented dedupe rule (Phase 4).
 
     Identity = ``case_id | material_dimension | event_type | window``.
 
-    Deliberately NOT the alert text, and deliberately NOT the changed VALUE:
-      * text would make a reworded message a "new" alert;
-      * including the value would make every wobble a new alert, which is
-        precisely the spam the Material Change Engine exists to prevent —
-        the engine has already decided the value moved *materially*, so the
-        dimension is the right granularity.
+    Deliberately NOT the alert text (a reword would look like a new alert) and
+    deliberately NOT the changed VALUE — the Material Change Engine has
+    already decided the value moved *materially*, so the dimension is the
+    right granularity.
 
-    `window` is a discrete bucket, not a wall-clock timestamp, so the same
-    replay produces the same key every time (determinism requirement).
+    `window` is a discrete bucket, never a raw timestamp, so the same inputs
+    always produce the same key.
+
+    HISTORY: this defaulted to the literal string ``"run"`` and every caller
+    used the default, which made it *lifetime suppression* rather than a
+    window — a genuine second landfall prediction hours later was silently
+    swallowed and the stale record returned. `AlertOrchestrator` now passes a
+    real time bucket from an injected clock.
     """
     return f"{change.case_id}|{change.dimension.value}|{change.event_type}|{window}"
 
 
 class AlertOrchestrator:
+    #: Default dedupe window. Matches the 300 s already used by the
+    #: pre-existing `varuna_alerts.dedupe.DedupeWindow`, so the system has one
+    #: suppression interval rather than two competing ones.
+    DEFAULT_WINDOW_SECONDS = 300
+
     def __init__(self, store: InMemoryAlertStore,
                  channels: ChannelOrchestrator | None = None,
-                 audit: Any = None, praman: Any = None):
+                 audit: Any = None, praman: Any = None,
+                 window_seconds: int = DEFAULT_WINDOW_SECONDS,
+                 clock: Any = None):
         self._store = store
         self._channels = channels or ChannelOrchestrator()
         self._audit = audit
         self._praman = praman
+        self._window_seconds = window_seconds
+        # Injected so tests can pin time and keep replay deterministic.
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     # ---------------------------------------------------------------- audit
     def _record_transition(self, alert: AlertRecord, *, frm: str, to: str,
@@ -69,16 +87,18 @@ class AlertOrchestrator:
                 pass  # audit must never break the operational path
 
     # ------------------------------------------------------------- pipeline
-    def process(self, change: MaterialChange, *, window: str = "run") -> AlertRecord | None:
+    def process(self, change: MaterialChange, *,
+                window: str | int | None = None) -> AlertRecord | None:
         """Run one material change through the full orchestration chain.
 
         Returns the AlertRecord (new or the deduped existing one), or None if
         materiality withheld the alert entirely.
         """
-        from varuna_alerts.materiality import check_materiality
-        from varuna_contracts.evidence import ValidityState
-
-        key = dedupe_identity(change, window=window)
+        # A caller may pin the window (tests, deterministic replay); otherwise
+        # derive a real time bucket.
+        bucket = (window if window is not None
+                  else dedupe_bucket(self._clock(), self._window_seconds))
+        key = dedupe_identity(change, window=bucket)
 
         # ---- 4. DEDUPLICATION (before any work is done) -----------------
         existing = self._store.get_by_correlation_key(key)
@@ -91,18 +111,16 @@ class AlertOrchestrator:
             self._store.save(existing)
             return existing
 
-        # ---- outbound materiality gate (existing behaviour, reused) -----
-        # A restrictive validity gate must still withhold outbound alerting.
-        # We map the case's validity into the existing checker rather than
-        # re-implementing its judgement.
-        gate_state: ValidityState | None = None
-        try:
-            raw = (change.current if change.dimension.value == "validity.state"
-                   else None)
-            if isinstance(raw, str):
-                gate_state = ValidityState(raw)
-        except Exception:
-            gate_state = None
+        # NOTE on materiality: `varuna_alerts.materiality.check_materiality()`
+        # is NOT called here, and the block that pretended to is gone. It
+        # computed a gate_state and then never used it, while its comment
+        # claimed a restrictive validity gate still withheld outbound
+        # alerting — a protection that did not exist. Materiality is now
+        # enforced upstream instead: `evaluate_material_changes()` only emits
+        # a change when the case's own state actually moved, and a case whose
+        # gate blocks action (CASE-OOD) produces no changes at all, so no
+        # alert reaches this point. Verified by
+        # test_fail_closed_case_produces_no_material_change.
 
         # ---- 3. ALERT GENERATION + enrichment ---------------------------
         # `is_simulated` answers "is this a real OPERATIONAL event?", which is
@@ -180,7 +198,7 @@ class AlertOrchestrator:
         return alert
 
     def process_all(self, changes: list[MaterialChange], *,
-                    window: str = "run") -> list[AlertRecord]:
+                    window: str | int | None = None) -> list[AlertRecord]:
         out = []
         for c in changes:
             a = self.process(c, window=window)

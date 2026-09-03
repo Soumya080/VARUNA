@@ -91,6 +91,11 @@ class AlertRecord(BaseModel):
     #: Stable dedupe identity. See varuna_alerts.dedupe_identity.
     dedupe_key: str | None = None
     material_dimension: str | None = None
+    #: Typed link to the mission this alert concerns, when it concerns one.
+    #: Previously the mission id existed only inside a free-text body or as a
+    #: bare string in `evidence_refs`, so a UI could not navigate alert ->
+    #: mission without parsing prose.
+    mission_id: str | None = None
     previous_value: Any = None
     current_value: Any = None
     severity_basis: str | None = None
