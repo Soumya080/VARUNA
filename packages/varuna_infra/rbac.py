@@ -16,6 +16,11 @@ class Permission(StrEnum):
     # cases but not drive their scientific pipeline, or vice versa.
     RUN_CASE_STAGE = "run_case_stage"
     APPROVE_MISSION = "approve_mission"
+    # Creating a PROPOSED mission (picking an asset/officer combination) is
+    # lower-stakes than APPROVE_MISSION (authorizing an actual dispatch) —
+    # deliberately a separate permission so a duty officer can draft a
+    # tasking without that also being the two-step approval itself.
+    CREATE_MISSION = "create_mission"
     VIEW_CASE = "view_case"
     VIEW_SENSITIVE = "view_sensitive"
     MODIFY_CONFIG = "modify_config"
@@ -36,6 +41,7 @@ class Permission(StrEnum):
 ROLE_PERMISSIONS: dict[Role, Set[Permission]] = {
     Role.ADMIN: {
         Permission.CREATE_CASE, Permission.RUN_CASE_STAGE, Permission.APPROVE_MISSION,
+        Permission.CREATE_MISSION,
         Permission.VIEW_CASE, Permission.VIEW_SENSITIVE, Permission.MODIFY_CONFIG,
         Permission.MANAGE_USERS, Permission.SUBMIT_OUTCOME, Permission.APPROVE_MODEL,
         Permission.VIEW_DASHBOARD, Permission.TRIGGER_ALERT,
@@ -44,6 +50,7 @@ ROLE_PERMISSIONS: dict[Role, Set[Permission]] = {
     },
     Role.DUTY_OFFICER: {
         Permission.CREATE_CASE, Permission.RUN_CASE_STAGE, Permission.APPROVE_MISSION,
+        Permission.CREATE_MISSION,
         Permission.VIEW_CASE, Permission.VIEW_SENSITIVE, Permission.SUBMIT_OUTCOME,
         Permission.VIEW_DASHBOARD, Permission.TRIGGER_ALERT,
         Permission.ACKNOWLEDGE_ALERT, Permission.ESCALATE_ALERT, Permission.RESOLVE_ALERT,

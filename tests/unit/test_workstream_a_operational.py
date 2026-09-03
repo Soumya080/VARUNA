@@ -227,12 +227,14 @@ def test_dashboard_is_real_and_browser_push_is_honestly_simulated():
     assert "no push was actually transmitted" in by_channel["browser_push"].detail
 
 
-def test_whatsapp_and_zoho_are_not_configured_and_not_critical():
+def test_whatsapp_and_zoho_are_not_offered_as_channels():
+    """Both were adapter-shape-only stubs, removed outright (Phase 0a) —
+    not offered, not just excluded from the default set."""
     report = ChannelOrchestrator.channel_report()
-    assert report["whatsapp"] == "NOT_CONFIGURED"
-    assert report["zoho_cliq"] == "NOT_CONFIGURED"
-    # Zoho must never be required: the default channel set excludes it.
+    assert "whatsapp" not in report
+    assert "zoho_cliq" not in report
     assert "zoho_cliq" not in ChannelOrchestrator().channels
+    assert "whatsapp" not in ChannelOrchestrator().channels
 
 
 # ------------------------------------------------------------- lifecycle

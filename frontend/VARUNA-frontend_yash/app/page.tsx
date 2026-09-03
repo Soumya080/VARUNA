@@ -30,6 +30,7 @@ import {
 } from '@/lib/api'
 import { AlertCenter } from '@/components/cockpit/alert-center'
 import { ChhayaPanelV2 } from '@/components/cockpit/chhaya-panel'
+import { MarineContextPanel } from '@/components/cockpit/marine-context-panel'
 import type { OperatorCase } from '@/lib/operator-case-types'
 import { Card, EvidencePanels, Row, RunTimeline } from '@/components/cockpit/cockpit-panels'
 import { cn } from '@/lib/utils'
@@ -45,17 +46,25 @@ const CaseMap = dynamic(() => import('@/components/cockpit/case-map'), {
   ),
 })
 
+// Phase 5/6: Indian Ocean incidents lead (illustrative reconstructions of
+// real events, see docs/product/INDIAN_OCEAN_FIXTURES.md); the original
+// MC20 fixtures stay fully available but relabelled as the external
+// validation case they are — real Sentinel-1 data, not a reconstruction,
+// but Gulf-of-Mexico-anchored, not India. Never hidden, never merged.
 const SCENARIOS = [
-  { id: 'CASE-VALID', label: 'CASE-VALID', hint: 'Full operational story' },
-  { id: 'CASE-OOD', label: 'CASE-OOD', hint: 'Fail-closed / out of distribution' },
-  { id: 'CASE-SIMULATED', label: 'CASE-SIMULATED', hint: 'Simulated evidence' },
+  { id: 'IND-CASE-01', label: 'IND-CASE-01', hint: '2017 BW Maple / Chennai collision (illustrative reconstruction)', group: 'india' },
+  { id: 'IND-CASE-02', label: 'IND-CASE-02', hint: '2010 MSC Chitra / Mumbai collision (illustrative reconstruction)', group: 'india' },
+  { id: 'IND-CASE-05', label: 'IND-CASE-05', hint: 'Mumbai High platform-source scenario, no vessel (illustrative)', group: 'india' },
+  { id: 'CASE-VALID', label: 'MC20 · CASE-VALID', hint: 'External validation — real Sentinel-1, Gulf of Mexico', group: 'validation' },
+  { id: 'CASE-OOD', label: 'MC20 · CASE-OOD', hint: 'External validation — fail-closed / out of distribution', group: 'validation' },
+  { id: 'CASE-SIMULATED', label: 'MC20 · CASE-SIMULATED', hint: 'External validation — simulated evidence', group: 'validation' },
 ] as const
 
 const STORY = ['OBSERVE', 'DETECT', 'LOCALIZE', 'FORECAST', 'ATTRIBUTE', 'ASSESS', 'RECOMMEND', 'AUTHORIZE', 'RECORD']
 
 export default function MissionCockpit() {
   const { session, isAuthenticated, logout } = useAuth()
-  const [fixture, setFixture] = useState<string>('CASE-VALID')
+  const [fixture, setFixture] = useState<string>('IND-CASE-01')
   const [oc, setOc] = useState<OperatorCase | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [alerts, setAlerts] = useState<AlertLifecycleRecord[]>([])
@@ -216,7 +225,25 @@ export default function MissionCockpit() {
         <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
           Scenario
         </span>
-        {SCENARIOS.map((s) => (
+        <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground/70">Indian Ocean</span>
+        {SCENARIOS.filter((s) => s.group === 'india').map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            title={s.hint}
+            onClick={() => setFixture(s.id)}
+            className={cn(
+              'rounded-sm border px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors',
+              fixture === s.id
+                ? 'border-saffron bg-[color-mix(in_oklch,var(--saffron)_16%,transparent)] text-[color-mix(in_oklch,var(--saffron)_50%,black)]'
+                : 'border-border bg-background text-muted-foreground hover:bg-muted',
+            )}
+          >
+            {s.label}
+          </button>
+        ))}
+        <span className="ml-2 font-mono text-[9px] uppercase tracking-[0.1em] text-muted-foreground/70">External validation</span>
+        {SCENARIOS.filter((s) => s.group === 'validation').map((s) => (
           <button
             key={s.id}
             type="button"
@@ -352,6 +379,7 @@ export default function MissionCockpit() {
         <div className="space-y-2">
           {oc ? <EvidencePanels oc={oc} /> : null}
           <ChhayaPanelV2 />
+          <MarineContextPanel />
         </div>
       </div>
 

@@ -17,8 +17,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
-    KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    Image, KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
+
+from varuna_integration.report_maps import render_case_map
 
 _NAVY = colors.HexColor("#1a2440")
 _SAFFRON = colors.HexColor("#e8871a")
@@ -94,6 +96,22 @@ def build_incident_report(
         "provenance. It is not a validated scientific finding and must not be used "
         "as sole basis for enforcement.", ss["VSub"]))
 
+    # Phase 8c item 1: section index. The report's 16 sections are fixed and
+    # always emitted in this order (even when a section's content is
+    # NOT_AVAILABLE, its heading still appears) — so this list needs no
+    # dynamic page-number tracking to stay accurate.
+    S.append(Paragraph(
+        "1. Case &amp; run metadata &nbsp;·&nbsp; 2. Starting point &nbsp;·&nbsp; "
+        "3. NETRA detection &nbsp;·&nbsp; 4. PRATIVARTAN origin &nbsp;·&nbsp; "
+        "5. CHHAYA hypotheses &nbsp;·&nbsp; 6. NYAYA attribution &nbsp;·&nbsp; "
+        "7. PRAVAAH forecast &nbsp;·&nbsp; 8. Validity gate &nbsp;·&nbsp; "
+        "9. Alert history &nbsp;·&nbsp; 10. Alert routing &nbsp;·&nbsp; "
+        "11. Notification delivery &nbsp;·&nbsp; 12. Mission &amp; authorization &nbsp;·&nbsp; "
+        "13. Authorization audit (PRAMAN) &nbsp;·&nbsp; 14. Provenance &nbsp;·&nbsp; "
+        "15. SMRITI &nbsp;·&nbsp; 16. Decision trace",
+        ss["VMuted"]))
+    S.append(Spacer(1, 6))
+
     sys_status = sec("system_status")
     S.append(Paragraph("1. Case &amp; run metadata", ss["VH2"]))
     S.append(_kv_table([
@@ -120,6 +138,20 @@ def build_incident_report(
          getattr(getattr(sp, "land_classification", None), "value", None)),
         ("Reason", getattr(sp, "reason", None) or "—"),
     ], ss))
+
+    # Phase 8a/8b: static map, plotting the exact origin/landfall coordinates
+    # already rendered as text above and in section 7 — no new computation.
+    map_png = render_case_map(operator_case)
+    if map_png is not None:
+        S.append(Image(io.BytesIO(map_png), width=168 * mm, height=108 * mm))
+        S.append(Paragraph(
+            "Illustrative plot, not a navigational chart. Flat lon/lat projection; "
+            "markers show the origin and any predicted landfalls exactly as tabulated "
+            "above and in §7.", ss["VMuted"]))
+    else:
+        S.append(Paragraph(
+            "NOT_AVAILABLE — no plottable geometry (no origin point and no predicted "
+            "landfalls) exists for this case.", ss["VBody"]))
 
     # ------------------------------------------------ evidence chain
     det = val("detection")
@@ -213,7 +245,40 @@ def build_incident_report(
         S.append(Paragraph("NOT_AVAILABLE — no alerts were generated for this case. For a "
                            "fail-closed case this is the correct outcome.", ss["VBody"]))
 
-    S.append(Paragraph("10. Notification delivery", ss["VH2"]))
+    # Phase 8c item 2: reuses alert.routing data already passed in for
+    # section 9 — no new computation, just a dedicated view of who was
+    # notified and why, matching the real varuna_alerts.routing_policy
+    # decision each alert actually recorded.
+    S.append(Paragraph("10. Alert routing", ss["VH2"]))
+    routing_rows = []
+    for a in alerts:
+        r = getattr(a, "routing", None)
+        if r is None:
+            continue
+        recipients = getattr(r, "recipients", None) or []
+        role_list = ", ".join(getattr(rec, "role", str(rec)) if not isinstance(rec, dict)
+                              else rec.get("role", "?") for rec in recipients)
+        routing_rows.append([
+            getattr(a, "alert_id", "?"),
+            getattr(r, "dimension", None) or (r.get("dimension") if isinstance(r, dict) else "—"),
+            role_list or "—",
+        ])
+    if routing_rows:
+        t = Table([["Alert", "Dimension", "Routed to"]] + routing_rows,
+                  colWidths=[34 * mm, 46 * mm, 88 * mm])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), _NAVY),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#dfe3e8")),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        S.append(t)
+    else:
+        S.append(Paragraph("NOT_AVAILABLE — no routing decisions recorded for this case's alerts.",
+                           ss["VBody"]))
+
+    S.append(Paragraph("11. Notification delivery", ss["VH2"]))
     if channel_report:
         S.append(_kv_table(list(channel_report.items()), ss))
         S.append(Paragraph(
@@ -224,7 +289,7 @@ def build_incident_report(
         S.append(Paragraph("NOT_AVAILABLE — no channel report supplied.", ss["VBody"]))
 
     missions = val("mission") or []
-    S.append(Paragraph("11. Mission &amp; authorization", ss["VH2"]))
+    S.append(Paragraph("12. Mission &amp; authorization", ss["VH2"]))
     if missions:
         m = missions[0]
         S.append(_kv_table([
@@ -238,7 +303,7 @@ def build_incident_report(
             f"NOT_AVAILABLE — {getattr(sec('mission'), 'reason', None) or 'no mission proposed'}",
             ss["VBody"]))
 
-    S.append(Paragraph("12. Authorization audit (PRAMAN)", ss["VH2"]))
+    S.append(Paragraph("13. Authorization audit (PRAMAN)", ss["VH2"]))
     if mission_audit:
         rows = [["When", "Principal", "Role", "Permission", "Allowed"]]
         for e in mission_audit:
@@ -257,7 +322,7 @@ def build_incident_report(
         S.append(Paragraph("NOT_AVAILABLE — no authorization decisions recorded.", ss["VBody"]))
 
     prov = getattr(operator_case, "provenance", None)
-    S.append(Paragraph("13. Provenance", ss["VH2"]))
+    S.append(Paragraph("14. Provenance", ss["VH2"]))
     S.append(_kv_table([
         ("Artifact IDs", len(getattr(prov, "artifact_ids", None) or [])),
         ("Model versions", getattr(prov, "model_versions", None) or "—"),
@@ -265,7 +330,7 @@ def build_incident_report(
         ("Manifest artifact", getattr(prov, "manifest_artifact_id", None) or "NOT_AVAILABLE"),
     ], ss))
 
-    S.append(Paragraph("14. SMRITI — advisory memory", ss["VH2"]))
+    S.append(Paragraph("15. SMRITI — advisory memory", ss["VH2"]))
     if smriti_hits:
         for h in smriti_hits[:5]:
             S.append(Paragraph(
@@ -277,7 +342,7 @@ def build_incident_report(
         S.append(Paragraph("NOT_AVAILABLE — no similar prior cases retrieved.", ss["VBody"]))
 
     dt = getattr(intel, "decision_trace", None) if intel else None
-    S.append(Paragraph("15. Decision trace", ss["VH2"]))
+    S.append(Paragraph("16. Decision trace", ss["VH2"]))
     if dt is not None:
         steps = getattr(dt, "steps", None) or []
         S.append(_kv_table([("Recorded steps", len(steps))], ss))
@@ -291,5 +356,18 @@ def build_incident_report(
         "Generated by VARUNA GRID. Sections marked NOT_AVAILABLE / NOT_CONFIGURED were not "
         "produced by the backend for this run and have not been filled in.", ss["VMuted"]))
 
-    doc.build(S)
+    # Phase 8c item 3: classification banner + page number on EVERY page,
+    # not just visible once at the top of page 1 (the report's own header
+    # Paragraph above only renders on the page it happens to fall on).
+    def _running_header_footer(canvas, doc_):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(_MUTED)
+        canvas.drawString(21 * mm, A4[1] - 10 * mm,
+                          f"VARUNA GRID · Incident Report · {operator_case.case_id}")
+        canvas.drawRightString(A4[0] - 21 * mm, 10 * mm, f"Page {doc_.page}")
+        canvas.drawString(21 * mm, 10 * mm, "Govt. of India · Restricted · For official use only")
+        canvas.restoreState()
+
+    doc.build(S, onFirstPage=_running_header_footer, onLaterPages=_running_header_footer)
     return buf.getvalue()

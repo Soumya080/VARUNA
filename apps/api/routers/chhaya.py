@@ -171,9 +171,13 @@ def investigate(tile_id: str, threshold_sigma: float = 6.0):
         "tile_bbox": rec["bbox"],
         "sensor": rec.get("sensor"),
         "n_ais_positions_in_tile": len(ais_positions),
+        # Real positions, not just the count (Phase 1) — already computed
+        # above by _ais_points_for(), the frontend just never received them.
+        "ais_positions": [{"lon": p.lon, "lat": p.lat} for p in ais_positions],
         "ais_source": str(_AIS_JOIN) if _AIS_JOIN.exists() else None,
         "sar_source": str(path),
         "suitability": suitability,
+        "corridor_recurrence": _corridor_recurrence(bbox),
         "detector_note": (
             "CA-CFAR (classical) on real Sentinel-1 GRD. xView3 Faster-RCNN is NOT used: "
             "its published checkpoint requires a bathymetry input channel that does not "
@@ -181,3 +185,21 @@ def investigate(tile_id: str, threshold_sigma: float = 6.0):
         ),
     }
     return payload
+
+
+_CORRIDOR_RADIUS_KM = 50.0
+
+
+def _corridor_recurrence(bbox: BBox) -> dict:
+    """Real SMRITI recurrence count for this tile's centroid (Phase 1) — a
+    genuine, if simple, count of prior remembered cases nearby, not an
+    estimate. See packages/varuna_smriti/memory.py::corridor_case_count(),
+    whose own docstring already says it feeds CHHAYA's recurrence factor;
+    this endpoint was the first caller to actually use it."""
+    from apps.api.dependencies import get_replay_smriti_store
+
+    lon = (bbox.min_lon + bbox.max_lon) / 2.0
+    lat = (bbox.min_lat + bbox.max_lat) / 2.0
+    store = get_replay_smriti_store()
+    count = store.corridor_case_count(lon, lat, _CORRIDOR_RADIUS_KM)
+    return {"count": count, "radius_km": _CORRIDOR_RADIUS_KM}

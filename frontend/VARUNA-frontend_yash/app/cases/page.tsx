@@ -16,9 +16,11 @@ import { Card, Row } from '@/components/cockpit/cockpit-panels'
 import { StatusBadge } from '@/components/primitives'
 import { EngineModeBadge } from '@/components/evidence-mode-badge'
 import { useAuth } from '@/lib/auth-context'
-import { AuthActionError, createCase, listCases, type CaseRow } from '@/lib/api'
+import {
+  AuthActionError, createCase, listCases, type CaseIntakeDetail, type CaseRow,
+} from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { FilePlus2, RefreshCw, Search, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, FilePlus2, RefreshCw, Search } from 'lucide-react'
 
 function statusTone(s: string) {
   if (s === 'complete') return 'ok' as const
@@ -41,6 +43,10 @@ export default function CasesPage() {
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  const [showDetails, setShowDetails] = useState(false)
+  const [detail, setDetail] = useState({
+    reportedBy: '', lon: '', lat: '', observationSource: '', priority: '', notes: '',
+  })
 
   const load = useCallback(async () => {
     setError(null)
@@ -66,7 +72,7 @@ export default function CasesPage() {
     )
   }, [cases, query])
 
-  async function handleNewCase() {
+  async function handleNewCase(withDetail?: CaseIntakeDetail) {
     setMsg(null)
     if (!isAuthenticated) {
       setMsg({ text: 'NOT AUTHENTICATED — sign in (top right) to create a case.', ok: false })
@@ -74,8 +80,10 @@ export default function CasesPage() {
     }
     setBusy(true)
     try {
-      const created = await createCase()
+      const created = await createCase(undefined, withDetail)
       setMsg({ text: `Case ${created.case_id} created — confirmed by backend.`, ok: true })
+      setShowDetails(false)
+      setDetail({ reportedBy: '', lon: '', lat: '', observationSource: '', priority: '', notes: '' })
       await load()
     } catch (e) {
       if (e instanceof AuthActionError) {
@@ -94,6 +102,19 @@ export default function CasesPage() {
     } finally {
       setBusy(false)
     }
+  }
+
+  function handleCreateWithDetails() {
+    const lon = parseFloat(detail.lon)
+    const lat = parseFloat(detail.lat)
+    const hasLocation = detail.lon.trim() !== '' && detail.lat.trim() !== '' && !Number.isNaN(lon) && !Number.isNaN(lat)
+    handleNewCase({
+      reported_by: detail.reportedBy.trim() || undefined,
+      initial_location: hasLocation ? { lon, lat } : undefined,
+      observation_source: detail.observationSource.trim() || undefined,
+      priority: detail.priority.trim() || undefined,
+      notes: detail.notes.trim() || undefined,
+    })
   }
 
   return (
@@ -118,17 +139,111 @@ export default function CasesPage() {
           <button
             type="button"
             disabled={busy}
-            onClick={handleNewCase}
+            onClick={() => handleNewCase()}
             title={isAuthenticated
-              ? 'Calls POST /v1/cases with your JWT.'
+              ? 'Calls POST /v1/cases with your JWT. No details required.'
               : 'Sign in first — case creation is RBAC-gated.'}
             className="flex items-center gap-1.5 rounded-sm bg-primary px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-primary-foreground hover:bg-[var(--navy-muted)] disabled:opacity-40"
           >
             <FilePlus2 className="h-3.5 w-3.5" />
-            {busy ? 'Creating…' : 'New Case'}
+            {busy ? 'Creating…' : 'Create case now (no details)'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground hover:text-foreground"
+          >
+            {showDetails ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            Add details
           </button>
         </div>
       </div>
+
+      {showDetails && (
+        <Card title="Case intake detail (optional)">
+          <p className="mb-2 text-[12px] text-muted-foreground">
+            Every field below is optional — supply what you have. Nothing is
+            inferred or fabricated for a field you leave blank.
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Reported by</span>
+              <input
+                type="text"
+                value={detail.reportedBy}
+                onChange={(e) => setDetail((d) => ({ ...d, reportedBy: e.target.value }))}
+                placeholder="defaults to your account"
+                className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Observation source</span>
+              <input
+                type="text"
+                value={detail.observationSource}
+                onChange={(e) => setDetail((d) => ({ ...d, observationSource: e.target.value }))}
+                placeholder="e.g. Coast Guard patrol report"
+                className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Initial longitude</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={detail.lon}
+                onChange={(e) => setDetail((d) => ({ ...d, lon: e.target.value }))}
+                placeholder="e.g. 72.60"
+                className="rounded-sm border border-border bg-background px-2 py-1 font-mono text-[12px] text-foreground"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Initial latitude</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={detail.lat}
+                onChange={(e) => setDetail((d) => ({ ...d, lat: e.target.value }))}
+                placeholder="e.g. 18.90"
+                className="rounded-sm border border-border bg-background px-2 py-1 font-mono text-[12px] text-foreground"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Priority (your read)</span>
+              <select
+                value={detail.priority}
+                onChange={(e) => setDetail((d) => ({ ...d, priority: e.target.value }))}
+                className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+              >
+                <option value="">unspecified</option>
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+                <option value="critical">critical</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Notes</span>
+              <textarea
+                value={detail.notes}
+                onChange={(e) => setDetail((d) => ({ ...d, notes: e.target.value }))}
+                rows={2}
+                placeholder="Stored verbatim. Never parsed or acted on automatically."
+                className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={handleCreateWithDetails}
+            className="mt-3 flex items-center gap-1.5 rounded-sm bg-primary px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-primary-foreground hover:bg-[var(--navy-muted)] disabled:opacity-40"
+          >
+            <FilePlus2 className="h-3.5 w-3.5" />
+            {busy ? 'Creating…' : 'Create case with these details'}
+          </button>
+        </Card>
+      )}
 
       {msg && (
         <p

@@ -37,8 +37,11 @@ def test_channel_report_is_honest_about_unconfigured_integrations():
     # No SMTP/SMS configured in the test environment.
     assert channels["email"] == "NOT_CONFIGURED"
     assert channels["sms"] == "NOT_CONFIGURED"
-    assert channels["whatsapp"] == "NOT_CONFIGURED"
-    assert channels["zoho_cliq"] == "NOT_CONFIGURED"
+    # WhatsApp/Zoho Cliq were adapter-shape-only stubs and were removed as
+    # offered channels entirely (Phase 0a) rather than kept as permanent
+    # NOT_CONFIGURED noise.
+    assert "whatsapp" not in channels
+    assert "zoho_cliq" not in channels
     assert "SUCCESS" not in channels.values()
 
 

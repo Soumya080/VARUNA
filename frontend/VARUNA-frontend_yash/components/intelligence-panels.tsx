@@ -8,7 +8,9 @@
  * `OperatorCase.intelligence` (real data, from `CaseIntelligenceService` via
  * `build_product_case()` — ADR-0013).
  */
+import { useState } from 'react'
 import { useOperatorCaseData } from '@/lib/operator-case-context'
+import { submitMemoryFeedback } from '@/lib/api'
 import { EvidenceModeBadge } from './evidence-mode-badge'
 import { InfoTip, SectionLabel, StatusBadge } from './primitives'
 
@@ -244,6 +246,71 @@ export function DecisionTracePanel() {
 /* SMRITI — advisory memory                                            */
 /* ------------------------------------------------------------------ */
 
+function componentsOf(h: { components?: unknown }): Record<string, number> {
+  const c = h.components
+  if (c && typeof c === 'object') return c as Record<string, number>
+  return {}
+}
+
+/** One SMRITI hit's feedback state: not yet judged, or the operator's
+ * verdict — kept local-only until submitted, matching the rest of the
+ * cockpit's "never fabricate a pending action as done" discipline. */
+function MemoryHitFeedback({ caseId, hitCaseId, score, components }: {
+  caseId: string
+  hitCaseId: string
+  score: number
+  components: Record<string, number>
+}) {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [verdict, setVerdict] = useState<boolean | null>(null)
+
+  async function send(useful: boolean) {
+    setState('sending')
+    try {
+      await submitMemoryFeedback(caseId, hitCaseId, useful, {
+        similarityAtRetrieval: score, componentsAtRetrieval: components,
+      })
+      setVerdict(useful)
+      setState('sent')
+    } catch {
+      setState('error')
+    }
+  }
+
+  if (state === 'sent') {
+    return (
+      <span className="font-mono text-[10px] text-muted-foreground">
+        marked {verdict ? 'useful' : 'not useful'} — thank you
+      </span>
+    )
+  }
+
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="font-mono text-[10px] text-muted-foreground">Useful precedent?</span>
+      <button
+        type="button"
+        disabled={state === 'sending'}
+        onClick={() => send(true)}
+        className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] hover:bg-muted disabled:opacity-40"
+      >
+        Yes
+      </button>
+      <button
+        type="button"
+        disabled={state === 'sending'}
+        onClick={() => send(false)}
+        className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] hover:bg-muted disabled:opacity-40"
+      >
+        No
+      </button>
+      {state === 'error' && (
+        <span className="text-[10px] text-destructive">failed — sign in?</span>
+      )}
+    </span>
+  )
+}
+
 export function SmritiPanel() {
   const oc = useOperatorCaseData()
   const hits = oc?.intelligence.memory_hits ?? []
@@ -278,6 +345,16 @@ export function SmritiPanel() {
                 <span>{h.outcome ?? 'outcome unknown'}</span>
                 <span className="italic">{h.provenance_source}</span>
               </div>
+              {oc && (
+                <div className="mt-1.5 border-t border-border/60 pt-1.5">
+                  <MemoryHitFeedback
+                    caseId={oc.case_id}
+                    hitCaseId={h.case_id}
+                    score={h.score}
+                    components={componentsOf(h)}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>

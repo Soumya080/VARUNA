@@ -16,12 +16,12 @@ import { Card, Row } from '@/components/cockpit/cockpit-panels'
 import { StatusBadge } from '@/components/primitives'
 import { useAuth } from '@/lib/auth-context'
 import {
-  approveMission, AuthActionError, cancelMission, listCases, listCaseMissions,
-  missionHistory, missionTransitions, transitionMission,
-  type MissionRow,
+  approveMission, AuthActionError, cancelMission, createMission, listAssets,
+  listCases, listCaseMissions, listPersonnel, missionHistory, missionTransitions,
+  transitionMission, type AssetRow, type CaseRow, type MissionRow, type PersonnelRow,
 } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { Ban, Plane, RefreshCw, ShieldCheck, Ship } from 'lucide-react'
+import { Ban, Plane, PlusCircle, RefreshCw, ShieldCheck, Ship } from 'lucide-react'
 
 function stateTone(s: string) {
   if (['assigned', 'acknowledged', 'en_route', 'on_station', 'searching'].includes(s))
@@ -44,6 +44,14 @@ export default function AssignmentMissionPage() {
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
+
+  // New-assignment form state (Phase 4).
+  const [cases, setCases] = useState<CaseRow[]>([])
+  const [availableAssets, setAvailableAssets] = useState<AssetRow[]>([])
+  const [onDutyOfficers, setOnDutyOfficers] = useState<PersonnelRow[]>([])
+  const [newCaseId, setNewCaseId] = useState('')
+  const [newAssetId, setNewAssetId] = useState('')
+  const [showNewAssignment, setShowNewAssignment] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -69,14 +77,66 @@ export default function AssignmentMissionPage() {
         }
       }
       setMissions(all)
+      setCases(cases)
     } catch {
       setMissions([])
+    }
+    try {
+      const [assetsRes, personnelRes] = await Promise.all([
+        listAssets({ status: 'available' }),
+        listPersonnel({ role: 'duty_officer', onDutyOnly: true }),
+      ])
+      setAvailableAssets(assetsRes.items)
+      setOnDutyOfficers(personnelRes.items)
+    } catch {
+      setAvailableAssets([])
+      setOnDutyOfficers([])
     }
   }, [])
 
   useEffect(() => {
     load()
   }, [load])
+
+  async function handleCreateAssignment() {
+    setMsg(null)
+    if (!isAuthenticated) {
+      setMsg({ text: 'NOT AUTHENTICATED — sign in (top right) first.', ok: false })
+      return
+    }
+    if (!newCaseId || !newAssetId) {
+      setMsg({ text: 'Pick both a case and an available asset.', ok: false })
+      return
+    }
+    setBusy(true)
+    try {
+      const created = await createMission(newCaseId, newAssetId)
+      setMsg({
+        text: `Mission ${created.mission_id} proposed against ${newAssetId} — confirmed by backend. Authorize it below to dispatch.`,
+        ok: true,
+      })
+      setShowNewAssignment(false)
+      setNewCaseId('')
+      setNewAssetId('')
+      await load()
+    } catch (e) {
+      if (e instanceof AuthActionError) {
+        if (e.status === 401) {
+          logout()
+          setMsg({ text: 'NOT AUTHENTICATED — session expired.', ok: false })
+        } else {
+          setMsg({
+            text: `NOT AUTHORIZED — ${session?.role ?? 'your role'} lacks CREATE_MISSION.`,
+            ok: false,
+          })
+        }
+      } else {
+        setMsg({ text: e instanceof Error ? e.message : 'Assignment failed.', ok: false })
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function act(fn: () => Promise<unknown>, okText: string) {
     setMsg(null)
@@ -121,14 +181,79 @@ export default function AssignmentMissionPage() {
               : `${missions.length} mission${missions.length === 1 ? '' : 's'} · live FSM state`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={load}
-          className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:bg-muted"
-        >
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowNewAssignment((v) => !v)}
+            className="flex items-center gap-1.5 rounded-sm bg-primary px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-primary-foreground hover:bg-[var(--navy-muted)]"
+          >
+            <PlusCircle className="h-3.5 w-3.5" /> New assignment
+          </button>
+          <button
+            type="button"
+            onClick={load}
+            className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:bg-muted"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </button>
+        </div>
       </div>
+
+      {showNewAssignment && (
+        <Card title="New assignment">
+          <p className="mb-2 text-[12px] text-muted-foreground">
+            Pick a case and a real, currently-available asset. This proposes
+            the mission only — authorizing dispatch is a separate step below,
+            per the two-step approval gate.
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Case</span>
+              <select
+                value={newCaseId}
+                onChange={(e) => setNewCaseId(e.target.value)}
+                className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+              >
+                <option value="">select a case…</option>
+                {cases.map((c) => <option key={c.case_id} value={c.case_id}>{c.case_id}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Available asset</span>
+              <select
+                value={newAssetId}
+                onChange={(e) => setNewAssetId(e.target.value)}
+                className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] text-foreground"
+              >
+                <option value="">select an asset…</option>
+                {availableAssets.map((a) => (
+                  <option key={a.asset_id} value={a.asset_id}>{a.name} ({a.kind}, {a.home_base})</option>
+                ))}
+              </select>
+              {availableAssets.length === 0 && (
+                <span className="text-[11px] text-muted-foreground">No assets currently available — see Assets.</span>
+              )}
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">On-duty officers (context)</span>
+              <div className="rounded-sm border border-border bg-background px-2 py-1 text-[12px] text-muted-foreground">
+                {onDutyOfficers.length > 0
+                  ? onDutyOfficers.map((p) => p.name).join(', ')
+                  : 'none on duty'}
+              </div>
+            </label>
+          </div>
+          <button
+            type="button"
+            disabled={busy || !newCaseId || !newAssetId}
+            onClick={handleCreateAssignment}
+            className="mt-3 flex items-center gap-1.5 rounded-sm bg-primary px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-primary-foreground hover:bg-[var(--navy-muted)] disabled:opacity-40"
+          >
+            <PlusCircle className="h-3.5 w-3.5" />
+            {busy ? 'Creating…' : 'Propose mission'}
+          </button>
+        </Card>
+      )}
 
       {msg && (
         <p

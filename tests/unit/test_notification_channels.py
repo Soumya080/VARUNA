@@ -47,8 +47,11 @@ def test_real_and_replay_are_unmistakable_in_every_rendering():
     assert "[DRILL]" not in render_subject(REAL_ALERT)
 
     assert "NOT A REAL OPERATIONAL EVENT" in render_text(REPLAY_ALERT)
-    assert render_subject(REPLAY_ALERT).startswith("[DRILL]")
-    assert render_sms(REPLAY_ALERT).startswith("[DRILL]")
+    # Phase 2a: subject/SMS now lead with the message-precedence word
+    # (FLASH/IMMEDIATE/PRIORITY/ROUTINE), so [DRILL] is no longer the first
+    # token — it must still appear, unambiguously, in both.
+    assert "[DRILL]" in render_subject(REPLAY_ALERT)
+    assert "[DRILL]" in render_sms(REPLAY_ALERT)
 
 
 def test_templates_are_not_the_old_debug_stub():
@@ -228,5 +231,13 @@ def test_channel_report_flips_to_real_when_configured(monkeypatch):
     assert report["sms"] == "REAL"
 
 
-def test_zoho_is_never_in_the_default_critical_path():
+def test_whatsapp_and_zoho_are_not_offered_as_channels():
+    """Both were adapter-shape-only stubs and were removed outright (Phase 0a) —
+    not just excluded from the default set."""
+    report = ChannelOrchestrator.channel_report()
+    assert "zoho_cliq" not in report
+    assert "whatsapp" not in report
     assert "zoho_cliq" not in ChannelOrchestrator().channels
+    assert "whatsapp" not in ChannelOrchestrator().channels
+    from varuna_alerts.channel_orchestrator import ADAPTERS
+    assert set(ADAPTERS) == {"dashboard", "browser_push", "email", "sms"}

@@ -29,7 +29,7 @@ at `GoldenCaseWorkflow`, then reconcile `operator_case_view.py` against its
 import uuid
 import time
 import numpy as np
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 
 from varuna_domain.entities import Case, CaseStatus, ScientificStatus, Artifact
@@ -56,11 +56,20 @@ class CaseWorkflow:
         self.praman = PramanService(self.artifacts, object_store)
         self.event_spine = EventSpine(self.events_store)
 
-    def create_case(self, case_id: Optional[str] = None) -> Case:
+    def create_case(self, case_id: Optional[str] = None,
+                     metadata: Optional[Dict[str, Any]] = None) -> Case:
+        """`metadata` (Phase 3, intake form): whatever optional intake detail
+        the caller supplied — reported_by/initial_location/observation_source/
+        priority/notes, or any subset of them. Stored verbatim on
+        `case.metadata`, never parsed or acted on automatically; a case
+        created with none still works exactly as before."""
         case_id = case_id or f"CASE-{uuid.uuid4().hex[:8].upper()}"
         case = Case(case_id)
+        if metadata:
+            case.metadata.update({k: v for k, v in metadata.items() if v is not None})
         self.cases.save(case)
-        self.event_spine.emit("case.created", case_id, actor="workflow")
+        self.event_spine.emit("case.created", case_id, actor="workflow",
+                               payload={"metadata_keys": sorted(case.metadata)} if case.metadata else None)
         return case
 
     def ingest(self, case: Case, slick_lons: np.ndarray, slick_lats: np.ndarray,

@@ -11,7 +11,7 @@ from apps.api.middleware.correlation import CorrelationIdMiddleware
 
 from apps.api.config import settings
 from apps.api.errors import register_error_handlers
-from apps.api.routers import cases, events, health, readiness, missions, prahari, alerts, dashboard, replay, auth, run_stream, reports, chhaya
+from apps.api.routers import cases, events, health, readiness, missions, prahari, alerts, dashboard, replay, auth, run_stream, reports, chhaya, assets, smriti
 
 app = FastAPI(
     title=settings.api_title,
@@ -46,3 +46,5 @@ app.include_router(auth.router)
 app.include_router(run_stream.router)
 app.include_router(reports.router)
 app.include_router(chhaya.router)
+app.include_router(assets.router)
+app.include_router(smriti.router)

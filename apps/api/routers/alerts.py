@@ -2,7 +2,7 @@ from dataclasses import asdict
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from apps.api.dependencies import get_alert_lifecycle_service, get_alert_service
 from apps.api.security import get_principal
@@ -94,6 +94,59 @@ def list_case_alerts(case_id: str, svc: AlertLifecycleService = Depends(get_aler
     return {"items": [a.model_dump(mode="json") for a in svc.list_by_case(case_id)]}
 
 
+@router.get("/routing-policy")
+def routing_policy():
+    """The full alert-routing decision table.
+
+    Registered before /{alert_id} deliberately -- a literal path segment
+    ("routing-policy") must never be swallowed by that catch-all route.
+
+    Enumerated over the 7 `MaterialDimension`s x the 4 operational-urgency
+    severities (LOW/MEDIUM/HIGH/CRITICAL) -- the legacy delivery-structural
+    severities (INFO/WARNING/BLOCKED) describe a send attempt's own outcome,
+    not "how much should an operator care", so they're not part of this
+    who-gets-told-what policy surface and are intentionally left out here.
+
+    Each recipient's `title` is resolved from configs/recipients.yaml's real
+    `name` field (the same registry email/SMS delivery reads) -- never a
+    second, hardcoded title map that could drift out of sync with it.
+
+    Read-only, no alert involved -- this enumerates the REAL, already-
+    deterministic varuna_alerts.routing_policy decision table so "who gets
+    told what" is visible before anything fires, not just reconstructable
+    after the fact from individual alerts' `routing` field. No new routing
+    logic: every row below is `route()`'s real output.
+    """
+    from varuna_alerts.channel_orchestrator import contact_for
+    from varuna_alerts.material_change import MaterialDimension
+    from varuna_alerts.routing_policy import route
+    from varuna_contracts.operator_case import AlertSeverity
+
+    urgency_severities = [
+        AlertSeverity.LOW, AlertSeverity.MEDIUM, AlertSeverity.HIGH, AlertSeverity.CRITICAL,
+    ]
+
+    items = []
+    for dimension in MaterialDimension:
+        for severity in urgency_severities:
+            decision = route(dimension, severity)
+            items.append({
+                "dimension": decision.dimension,
+                "severity": decision.severity,
+                "recipients": [
+                    {
+                        "role": r.role.value,
+                        "title": contact_for(r.role.value).get("name") or r.role.value,
+                        "rbac_role": r.rbac_role,
+                    }
+                    for r in decision.recipients
+                ],
+                "matched_rule": decision.matched_rule,
+                "reason": decision.reason,
+            })
+    return {"items": items}
+
+
 @router.get("/{alert_id}")
 def get_alert(alert_id: str, svc: AlertLifecycleService = Depends(get_alert_lifecycle_service)):
     alert = svc.get(alert_id)
@@ -146,11 +199,30 @@ def resolve_alert(
 # work without fabricating a case or waiting for a material change.
 # --------------------------------------------------------------------------
 
+#: Channel names that used to be offered and are no longer wired to any real
+#: adapter (see varuna_alerts.channel_orchestrator). Rejected explicitly with
+#: a clear reason rather than silently degrading to "no adapter registered",
+#: so a stale client finds out immediately why nothing happened.
+_RETIRED_CHANNELS = {"whatsapp", "zoho_cliq"}
+
+
 class TestNotificationRequest(BaseModel):
     role: str = Field("duty_officer",
                       description="Operational role to notify, per configs/recipients.yaml")
     channels: list[str] | None = Field(
         None, description="Channels to try; defaults to email + sms.")
+
+    @field_validator("channels")
+    @classmethod
+    def _reject_retired_channels(cls, v: list[str] | None) -> list[str] | None:
+        if v:
+            retired = _RETIRED_CHANNELS.intersection(v)
+            if retired:
+                raise ValueError(
+                    f"channel(s) {sorted(retired)} are not offered in this deployment "
+                    "(WhatsApp/Zoho Cliq were adapter-shape-only stubs, removed)"
+                )
+        return v
 
 
 @router.post("/test-notification")

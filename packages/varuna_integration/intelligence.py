@@ -482,7 +482,13 @@ class CaseIntelligenceService:
             {"case_id": h.memory.case_id, "score": round(h.similarity.score, 3),
              "coverage": round(h.similarity.coverage, 3),
              "outcome": h.memory.outcome,
-             "provenance_source": h.memory.provenance_source}
+             "provenance_source": h.memory.provenance_source,
+             # Phase 7: the per-component breakdown that produced `score`,
+             # captured at retrieval time so an operator's later "was this
+             # useful" feedback can be attributed to the exact components
+             # that drove THIS match, not a re-derived (possibly different)
+             # one computed at feedback-submission time.
+             "components": dict(h.similarity.components)}
             for h in retrieval.hits
         ]
         item = ledger.append(

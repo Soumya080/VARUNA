@@ -6,9 +6,10 @@
  * never invents a candidate, a score, or an outcome.
  */
 import { useCallback, useEffect, useState } from 'react'
-import { StatusBadge } from '@/components/primitives'
+import { Meter, StatusBadge } from '@/components/primitives'
 import { Card, Row } from './cockpit-panels'
 import { API_BASE_URL } from '@/lib/api'
+import { isWithinFrame, projectToBBox, type LonLatBBox } from '@/lib/geo-projection'
 
 interface Candidate {
   candidate_id: string
@@ -29,9 +30,12 @@ interface Handoff {
   _input: {
     tile_id: string
     tile_shape: number[]
+    tile_bbox: LonLatBBox
     sensor: string | null
     n_ais_positions_in_tile: number
+    ais_positions: Array<{ lon: number; lat: number }>
     detector_note: string
+    corridor_recurrence: { count: number; radius_km: number } | null
     suitability: {
       suitable_for_cfar: boolean
       peak_sigma_above_mean: number
@@ -49,6 +53,78 @@ const OUTCOME_TONE: Record<string, 'ok' | 'warn' | 'destructive' | 'muted'> = {
   no_supported_vessel: 'muted',
   sar_evidence_unavailable: 'muted',
   invalid_geolocation: 'warn',
+}
+
+/**
+ * Tile-context mini-map (Phase 1). A plain inline SVG, not Leaflet — this
+ * panel lives in a narrow rail and every value plotted here is real backend
+ * data (candidate/AIS positions), never a fabricated basemap. Points outside
+ * the tile bbox by more than a small tolerance are shown at the frame's edge
+ * with a dashed marker rather than silently clipped, so an operator can see
+ * "this candidate's geolocation put it off-tile" instead of nothing.
+ */
+function TileMiniMap({
+  bbox,
+  candidates,
+  aisPositions,
+}: {
+  bbox: LonLatBBox
+  candidates: Candidate[]
+  aisPositions: Array<{ lon: number; lat: number }>
+}) {
+  const clamp = (v: number) => Math.max(2, Math.min(98, v))
+
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      className="h-32 w-full rounded-sm border border-border bg-background"
+      role="img"
+      aria-label="Tile candidate and AIS position map"
+    >
+      <rect x={0.5} y={0.5} width={99} height={99} fill="none" stroke="var(--border)" strokeWidth={0.5} />
+      {/* AIS positions: small teal dots, drawn first so candidates sit on top */}
+      {aisPositions.map((p, i) => {
+        const proj = projectToBBox(p.lon, p.lat, bbox)
+        if (!isWithinFrame(proj)) return null
+        return (
+          <circle
+            key={`ais-${i}`}
+            cx={clamp(proj.x)}
+            cy={clamp(proj.y)}
+            r={1.1}
+            fill="var(--teal)"
+            opacity={0.75}
+          />
+        )
+      })}
+      {/* Candidates: colored/shaped by geolocation validity + outcome tone */}
+      {candidates.map((c) => {
+        if (!c.position) return null
+        const proj = projectToBBox(c.position.lon, c.position.lat, bbox)
+        const outside = !isWithinFrame(proj)
+        const color = !c.geolocation_valid
+          ? 'var(--destructive)'
+          : 'var(--saffron)'
+        return (
+          <circle
+            key={c.candidate_id}
+            cx={clamp(proj.x)}
+            cy={clamp(proj.y)}
+            r={2}
+            fill={color}
+            stroke={outside ? color : 'none'}
+            strokeDasharray={outside ? '1,1' : undefined}
+            strokeWidth={outside ? 0.8 : 0}
+          />
+        )
+      })}
+      {candidates.length === 0 && aisPositions.length === 0 && (
+        <text x={50} y={52} textAnchor="middle" fontSize={5} fill="var(--muted-foreground)">
+          no plottable positions
+        </text>
+      )}
+    </svg>
+  )
 }
 
 export function ChhayaPanelV2() {
@@ -125,13 +201,48 @@ export function ChhayaPanelV2() {
 
       {data && (
         <div className="mt-2 space-y-1.5 border-t border-border pt-2">
+          {data._input.tile_bbox && (
+            <TileMiniMap
+              bbox={data._input.tile_bbox}
+              candidates={data.candidates}
+              aisPositions={data._input.ais_positions ?? []}
+            />
+          )}
+
           <Row label="Detector" value={`${data.detector_source} (${data.detector_mode})`} />
           <Row label="Tile" value={`${data._input.tile_shape.join('×')} px`} />
           <Row label="Sensor" value={data._input.sensor ?? '—'} />
           <Row label="AIS positions in tile" value={data._input.n_ais_positions_in_tile} />
           <Row label="Candidates" value={data.candidates.length} />
+          {data._input.corridor_recurrence && (
+            <Row
+              label={`Prior cases within ${data._input.corridor_recurrence.radius_km}km`}
+              value={
+                <span title="From SMRITI — advisory context only, never a detection factor">
+                  {data._input.corridor_recurrence.count}
+                </span>
+              }
+            />
+          )}
 
           <p className="text-[11px] leading-snug text-muted-foreground">{data.outcome_reason}</p>
+
+          {data._input.suitability && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>Peak signal vs. CFAR threshold</span>
+                <span className="font-mono tabular-nums">
+                  {data._input.suitability.peak_sigma_above_mean.toFixed(1)}σ /{' '}
+                  {data._input.suitability.threshold_sigma.toFixed(1)}σ
+                </span>
+              </div>
+              <Meter
+                value={(data._input.suitability.peak_sigma_above_mean /
+                  data._input.suitability.threshold_sigma) * 100}
+                tone={data._input.suitability.suitable_for_cfar ? 'teal' : 'saffron'}
+              />
+            </div>
+          )}
 
           {data._input.suitability && !data._input.suitability.suitable_for_cfar && (
             <div className="rounded-sm border border-[color-mix(in_oklch,var(--warn)_45%,transparent)] bg-[color-mix(in_oklch,var(--warn)_9%,transparent)] px-2 py-1.5">

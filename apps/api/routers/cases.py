@@ -33,16 +33,32 @@ router = APIRouter(prefix="/v1/cases", tags=["cases"])
 
 from fastapi import HTTPException
 
-@router.post("", response_model=Dict[str, str])
+@router.post("", response_model=Dict[str, Any])
 def create_case(
     req: CreateCaseRequest, workflow: CaseWorkflow = Depends(get_workflow),
     principal: Principal = Depends(get_principal),
 ):
+    """Every field beyond `case_id` is optional (Phase 3) — `{}` still
+    creates a case with zero detail. `reported_by` defaults to the
+    authenticated principal when the caller doesn't supply one, since a case
+    always has a real reporter even when the form was skipped."""
     authorize(principal, Permission.CREATE_CASE, "create_case")
     if workflow.cases.get(req.case_id):
         raise HTTPException(409, f"Case {req.case_id} already exists")
-    case = workflow.create_case(req.case_id)
-    return {"case_id": case.case_id, "status": case.status.value}
+
+    metadata = {
+        "reported_by": req.reported_by or principal.principal_id,
+        "initial_location": req.initial_location.model_dump() if req.initial_location else None,
+        "observation_source": req.observation_source,
+        "priority": req.priority,
+        "notes": req.notes,
+    }
+    case = workflow.create_case(req.case_id, metadata=metadata)
+    return {
+        "case_id": case.case_id,
+        "status": case.status.value,
+        "metadata": case.metadata,
+    }
 
 @router.get("", response_model=Dict[str, Any])
 def list_cases(workflow: CaseWorkflow = Depends(get_workflow)):

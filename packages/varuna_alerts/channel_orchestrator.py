@@ -16,9 +16,13 @@ Channel reality today:
                                 which exists in this repo
   email            REAL when VARUNA_SMTP_HOST is set, else NOT_CONFIGURED
   sms              REAL when VARUNA_SMS_PROVIDER + key are set, else NOT_CONFIGURED
-  whatsapp         NOT_CONFIGURED (adapter shape only)
-  zoho_cliq        NOT_CONFIGURED (optional adapter; explicitly NOT in the
-                                   critical path, per the target architecture)
+
+WhatsApp and Zoho Cliq are deliberately NOT offered as channels. Both were
+adapter-shape-only stubs (no HTTP client, no credentials, no delivery path)
+and offering them alongside four genuinely real/simulated channels made the
+whole channel list read as less trustworthy than it is. If a real WhatsApp
+Business API or Zoho Cliq integration is ever built, add it back here with a
+real adapter function — never re-add a `_unimplemented()` placeholder.
 """
 from __future__ import annotations
 
@@ -207,25 +211,11 @@ def _sms(alert_id: str, role: str, subject: str, body: str) -> NotificationDeliv
     )
 
 
-def _unimplemented(channel: str, note: str):
-    def _adapter(alert_id: str, role: str, subject: str, body: str) -> NotificationDelivery:
-        return NotificationDelivery(
-            alert_id=alert_id, channel=channel, recipient_role=role,
-            status=DeliveryStatus.NOT_CONFIGURED, mode=ChannelMode.NOT_CONFIGURED,
-            detail=note,
-        )
-    return _adapter
-
-
 ADAPTERS = {
     "dashboard": _dashboard,
     "browser_push": _browser_push,
     "email": _email,
     "sms": _sms,
-    "whatsapp": _unimplemented(
-        "whatsapp", "Adapter shape only — no WhatsApp Business API credentials or client."),
-    "zoho_cliq": _unimplemented(
-        "zoho_cliq", "Optional adapter, deliberately NOT in the critical path. Not configured."),
 }
 
 #: Channels attempted for every alert, in priority order. Dashboard first so
@@ -286,6 +276,4 @@ class ChannelOrchestrator:
             "email": (ChannelMode.REAL.value if os.environ.get("VARUNA_SMTP_HOST")
                       else ChannelMode.NOT_CONFIGURED.value),
             "sms": sms_provider_status()["mode"],
-            "whatsapp": ChannelMode.NOT_CONFIGURED.value,
-            "zoho_cliq": ChannelMode.NOT_CONFIGURED.value,
         }

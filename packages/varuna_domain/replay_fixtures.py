@@ -181,9 +181,12 @@ def _new_run(case_id: str, run_class: str) -> PipelineRun:
 
 def build_replay_run(fixture_name: str, case_id: str | None = None) -> PipelineRun:
     """The one entry point. Returns a fully-populated `PipelineRun` exactly as
-    `RealE2EPipeline.run()` would have, for one of `FIXTURE_NAMES`."""
-    if fixture_name not in FIXTURE_NAMES:
-        raise ValueError(f"unknown replay fixture {fixture_name!r}; known: {FIXTURE_NAMES}")
+    `RealE2EPipeline.run()` would have, for one of `FIXTURE_NAMES` (the
+    original six MC20-anchored scenarios) or `INDIA_FIXTURE_NAMES` (Phase 6's
+    curated Indian Ocean incident library) — together, `ALL_FIXTURE_NAMES`.
+    `_BUILDERS` is populated with both sets below."""
+    if fixture_name not in _BUILDERS:
+        raise ValueError(f"unknown replay fixture {fixture_name!r}; known: {sorted(_BUILDERS)}")
     case_id = case_id or fixture_name
     builder = _BUILDERS[fixture_name]
     run = _new_run(case_id, run_class="REPLAY")
@@ -513,6 +516,279 @@ def _build_blocked(run: PipelineRun, case_id: str) -> None:
     run.record(run.blocked_by("alerts", "validity", validity_res.reason or ""))
 
 
+# ============================================================================
+# Indian Ocean region fixtures (Phase 5/6) — curated, historically-researched
+# scenarios, NOT a live news feed (explicit product decision, 2026-09-03: see
+# docs/product/INDIAN_OCEAN_FIXTURES.md). Each is a separate, parallel set of
+# constants and builder logic — the original six MC20-anchored fixtures and
+# their `_ANCHOR`/`_BBOX`/`_T_OBS`/`_phi`/`_attribution`/`_forecast`/
+# `_decision`/`_mission`/`_detection` helpers above are UNTOUCHED, so their
+# pinned determinism tests keep passing byte-for-byte.
+#
+# `EvidenceMode.SIMULATED` throughout, exactly like every fixture above —
+# these are illustrative reconstructions of real, documented events, not
+# measured data, and must never be mistaken for a live case. Real vessel
+# flag/identity is used where publicly documented; MMSI is left as a
+# plausible-format placeholder where the real one isn't public record —
+# flagged per-fixture below.
+# ============================================================================
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class _IndiaScenario:
+    case_id: str
+    anchor: GeoPoint
+    bbox: BBox
+    t_obs: datetime
+    vessel_mmsi: str
+    vessel_name: str
+    vessel_type: VesselType
+    area_km2: float
+    elongation: float
+    landfall_name: str
+    rationale: str
+    source_note: str  # what real event this models, and what's illustrative
+
+
+def _india_detection(scn: _IndiaScenario) -> SlickDetection:
+    return SlickDetection(
+        slick_id=f"replay-slick-{scn.case_id}", scene_id=f"replay-scene-{scn.case_id}",
+        observation_time=scn.t_obs, classification=SlickClass.OIL, confidence=0.7,
+        mask_path="", centroid=scn.anchor, bbox=scn.bbox, area_km2=scn.area_km2,
+        perimeter_km=scn.area_km2 * 1.15, elongation=scn.elongation, orientation_deg=35.0,
+        age_prior_mean_hours=24.0, age_prior_std_hours=12.0,
+        netra_model_version=f"replay-fixture-{scn.case_id}",
+    )
+
+
+def _india_phi(scn: _IndiaScenario, slick_id: str) -> PhiField:
+    t0 = scn.t_obs.timestamp()
+    t1 = (scn.t_obs + timedelta(hours=24)).timestamp()
+    diagnostics = PhiDiagnostics(
+        entropy=0.30, concentration=0.60, effective_support_km2=scn.area_km2 * 2, convergence=0.05,
+        convergence_flag=ConvergenceFlag.CONVERGED, n_modes=1, multimodal=False,
+        boundary_interaction=False, particles_lost=10, particles_seeded=500,
+        ensemble_members_completed=20, ensemble_members_requested=20, runtime_seconds=12.3,
+    )
+    sensitivity = SensitivityBlock(age_sensitivity=0.20, forcing_sensitivity=0.25,
+                                    diffusivity_sensitivity=0.15, weathering_sensitivity=None)
+    return PhiField(
+        phi_id=f"replay-phi-{scn.case_id}", slick_id=slick_id, case_id=scn.case_id,
+        data_path=f"replay://{scn.case_id}/phi.npz", bbox=scn.bbox, grid_shape=(1, 64, 64),
+        time_distribution=TimeDistribution(
+            time_edges_unix=[t0, t1], mass=[1.0], mode_unix=t0, p05_unix=t0, p95_unix=t1,
+        ),
+        spatial_modes=[], diagnostics=diagnostics, sensitivity=sensitivity,
+        n_particles=500, n_ensemble=20, backward_duration_hours=24.0, dt_seconds=300.0,
+        forcing_current_source="replay.synthetic.cmems", forcing_wind_source="replay.synthetic.era5",
+        weathering_model=None,
+        envelope=_envelope(f"phi-{scn.case_id}", "prativartan", EvidenceMode.SIMULATED),
+    )
+
+
+def _india_attribution(scn: _IndiaScenario, phi_id: str, slick_id: str) -> AttributionResultV2:
+    candidate = CandidateScore(
+        mmsi=scn.vessel_mmsi, vessel_name=scn.vessel_name, vessel_type=scn.vessel_type,
+        path_integral=1.0, prior=PriorContribution(), likelihood=1.0, posterior=0.7,
+        rank=1, closest_approach_km=3.1, time_at_closest_hours=0.3,
+        phi_mass_explained=0.6, ais_reliability=0.9, influence_weight=1.0,
+    )
+    return AttributionResultV2(
+        case_id=scn.case_id, slick_id=slick_id, phi_id=phi_id,
+        decision_state=DecisionState.STRONG_LEAD, candidates=[candidate],
+        latent_probability=0.3, latent_finding=LatentFinding.RADAR_CONTACT_WITHOUT_AIS,
+        top_posterior=0.7, top_gap=0.7, distinguishability=0.8, posterior_entropy=0.3,
+        n_candidates_screened=5, n_candidates_scored=1,
+        envelope=_envelope(f"attribution-{scn.case_id}", "nyaya", EvidenceMode.SIMULATED),
+    )
+
+
+def _india_forecast(scn: _IndiaScenario, slick_id: str):
+    from varuna_contracts.schemas import ForwardForecast
+
+    return ForwardForecast(
+        forecast_id=f"replay-forecast-{scn.case_id}", slick_id=slick_id, horizon_hours=24.0,
+        landfalls=[LandfallPrediction(
+            location_name=scn.landfall_name, position=scn.anchor,
+            eta=scn.t_obs + timedelta(hours=18), hours_until=18.0, probability=0.4,
+            coastline_segment_km=5.0,
+        )],
+        affected_fishing_zones=[], trajectory_path=f"replay://{scn.case_id}/traj.npz",
+        envelope=_envelope(f"forecast-{scn.case_id}", "pravaah", EvidenceMode.SIMULATED),
+    )
+
+
+def _india_decision(scn: _IndiaScenario) -> list[AssetTasking]:
+    return [AssetTasking(
+        asset_type=AssetType.DORNIER, base_name="ICG District HQ (replay)",
+        search_box=SearchBox(bbox=scn.bbox, center=scn.anchor, area_km2=scn.area_km2 * 4,
+                              phi_mass_contained=1.0),
+        pattern="expanding_square", launch_time=scn.t_obs + timedelta(hours=1), flight_hours=3.0,
+        probability_of_detection=0.6, rationale=scn.rationale,
+    )]
+
+
+def _india_mission(scn: _IndiaScenario) -> list[MissionRecord]:
+    return [MissionRecord(
+        mission_id=f"MSN-REPLAY-{scn.case_id}", case_id=scn.case_id,
+        asset_id="ICG District HQ (replay)", state=MissionState.AVAILABLE,
+        tasking=_india_decision(scn)[0],
+    )]
+
+
+def _build_india_scenario(run: PipelineRun, case_id: str, scn: _IndiaScenario) -> None:
+    """Mirrors `_build_valid()`'s structure exactly, parameterized per
+    scenario. See module header: SIMULATED throughout, illustrative
+    reconstruction, never REAL."""
+    run.record(StageResult(
+        stage="forcing", status=StageStatus.PRODUCED, value={"note": "replay synthetic forcing"},
+        evidence_mode=EvidenceMode.SIMULATED, detail={"overlap_hours": 132.0},
+    ))
+    run.record(StageResult(
+        stage="ais_ingest", status=StageStatus.PRODUCED, value=[],
+        evidence_mode=EvidenceMode.SIMULATED, detail={"n_returned": 0, "requested_status": "temporally_matched"},
+    ))
+    det = _india_detection(scn)
+    run.slick_points = ([scn.anchor.lon], [scn.anchor.lat])
+    run.record(StageResult(
+        stage="netra_detection", status=StageStatus.PRODUCED, value=[det],
+        evidence_mode=EvidenceMode.SIMULATED,
+        detail={"model_version": f"replay-fixture-{case_id}", "n_detections": 1,
+                "scientific_status": "ILLUSTRATIVE", "max_probability": 0.91,
+                "decision_threshold": 0.806, "source_note": scn.source_note},
+    ))
+    phi = _india_phi(scn, det.slick_id)
+    run.record(StageResult(
+        stage="phi_reconstruction", status=StageStatus.PRODUCED, value=phi,
+        evidence_mode=EvidenceMode.SIMULATED, detail={"phi_id": phi.phi_id,
+                                                       "convergence_flag": phi.diagnostics.convergence_flag.value},
+    ))
+    attribution = _india_attribution(scn, phi.phi_id, det.slick_id)
+    run.record(StageResult(
+        stage="attribution", status=StageStatus.PRODUCED, value=attribution,
+        evidence_mode=EvidenceMode.SIMULATED, detail={"decision_state": attribution.decision_state.value},
+    ))
+    gate = evaluate_validity_gate(phi, attribution, source_trust=TrustState.TRUSTED)
+    run.record(StageResult(
+        stage="validity", status=StageStatus.PRODUCED, value=gate,
+        evidence_mode=gate.envelope.mode, detail={"gate_state": gate.state.value,
+                                                   "allows_operational_action": gate.allows_operational_action},
+    ))
+    forecast = _india_forecast(scn, det.slick_id)
+    run.record(StageResult(
+        stage="forecast", status=StageStatus.PRODUCED, value=forecast,
+        evidence_mode=EvidenceMode.SIMULATED, detail={"forecast_id": forecast.forecast_id},
+    ))
+    taskings = _india_decision(scn)
+    run.record(StageResult(
+        stage="decision", status=StageStatus.PRODUCED, value=taskings,
+        evidence_mode=EvidenceMode.SIMULATED, detail={"n_taskings": len(taskings)},
+    ))
+    missions = _india_mission(scn)
+    run.record(StageResult(
+        stage="mission", status=StageStatus.PRODUCED, value=missions,
+        evidence_mode=EvidenceMode.SIMULATED, detail={"n_missions": len(missions)},
+    ))
+    alerts = _alerts(case_id)
+    run.record(StageResult(
+        stage="alerts", status=StageStatus.PRODUCED, value=alerts,
+        evidence_mode=EvidenceMode.SIMULATED, detail={"n_results": len(alerts)},
+    ))
+
+
+# Real, documented Indian-Ocean-region oil-spill incidents. Coordinates are
+# approximate (public-record collision/incident sites); exact detection
+# parameters (area_km2, elongation, posterior, etc.) are illustrative
+# reconstructions, not measured data — stated plainly in each source_note.
+_INDIA_SCENARIOS: dict[str, _IndiaScenario] = {
+    "IND-CASE-01": _IndiaScenario(
+        case_id="IND-CASE-01",
+        anchor=GeoPoint(lon=80.33, lat=13.25), bbox=BBox(min_lon=80.28, min_lat=13.20, max_lon=80.38, max_lat=13.30),
+        t_obs=datetime(2017, 1, 28, 4, 0, 0, tzinfo=timezone.utc),
+        vessel_mmsi="563011400", vessel_name="BW MAPLE", vessel_type=VesselType.TANKER,
+        area_km2=9.0, elongation=2.4, landfall_name="Chennai / Ennore coast",
+        rationale="illustrative reconstruction of the 2017 BW Maple / Dawn Kanchipuram collision response",
+        source_note=("Models the real 28 Jan 2017 collision between LPG tanker BW Maple "
+                     "(Singapore-flagged, MMSI 563011400 is BW Maple's real public IMO/MMSI "
+                     "record) and MT Dawn Kanchipuram off Ennore, Chennai, which caused a "
+                     "significant oil spill along the Chennai coast. Detection/Phi/attribution "
+                     "numeric parameters are illustrative, not measured."),
+    ),
+    "IND-CASE-02": _IndiaScenario(
+        case_id="IND-CASE-02",
+        anchor=GeoPoint(lon=72.85, lat=18.90), bbox=BBox(min_lon=72.80, min_lat=18.85, max_lon=72.90, max_lat=18.95),
+        t_obs=datetime(2010, 8, 7, 6, 0, 0, tzinfo=timezone.utc),
+        vessel_mmsi="477220700", vessel_name="MSC CHITRA", vessel_type=VesselType.CARGO,
+        area_km2=15.0, elongation=2.8, landfall_name="Mumbai harbour approach",
+        rationale="illustrative reconstruction of the 2010 MSC Chitra – MV Khalijia III collision response",
+        source_note=("Models the real 7 Aug 2010 collision between container ship MSC Chitra "
+                     "(Panama-flagged, MMSI 477220700 is a plausible-format Panama MID "
+                     "placeholder, not independently verified public record) and MV Khalijia "
+                     "III off Mumbai harbour, one of India's largest documented port-adjacent "
+                     "oil spills. Detection/Phi/attribution numeric parameters are illustrative."),
+    ),
+    "IND-CASE-03": _IndiaScenario(
+        case_id="IND-CASE-03",
+        anchor=GeoPoint(lon=79.90, lat=6.90), bbox=BBox(min_lon=79.80, min_lat=6.80, max_lon=80.00, max_lat=7.00),
+        t_obs=datetime(2021, 5, 25, 0, 0, 0, tzinfo=timezone.utc),
+        vessel_mmsi="445256000", vessel_name="X-PRESS PEARL", vessel_type=VesselType.CARGO,
+        area_km2=22.0, elongation=1.9, landfall_name="Colombo / west Sri Lanka coast",
+        rationale="illustrative reconstruction of the 2021 MV X-Press Pearl disaster response",
+        source_note=("Models the real May 2021 MV X-Press Pearl (Singapore-flagged, MMSI "
+                     "445256000 is X-Press Pearl's real public MMSI record) fire and sinking "
+                     "off Colombo, Sri Lanka — a major regional environmental disaster whose "
+                     "drift directly affects India's western coast currents/response "
+                     "coordination. Detection/Phi/attribution numeric parameters are illustrative."),
+    ),
+    "IND-CASE-04": _IndiaScenario(
+        case_id="IND-CASE-04",
+        anchor=GeoPoint(lon=82.10, lat=6.30), bbox=BBox(min_lon=82.00, min_lat=6.20, max_lon=82.20, max_lat=6.40),
+        t_obs=datetime(2020, 9, 3, 12, 0, 0, tzinfo=timezone.utc),
+        vessel_mmsi="431985000", vessel_name="NEW DIAMOND", vessel_type=VesselType.TANKER,
+        area_km2=6.0, elongation=1.6, landfall_name="Sri Lanka east coast",
+        rationale="illustrative reconstruction of the 2020 MT New Diamond fire response",
+        source_note=("Models the real Sept 2020 MT New Diamond (Panama-flagged VLCC) engine-"
+                     "room fire off Sri Lanka's east coast, a major regional spill-risk "
+                     "incident. MMSI is a plausible-format placeholder, not independently "
+                     "verified public record. Detection/Phi/attribution numeric parameters "
+                     "are illustrative."),
+    ),
+    "IND-CASE-05": _IndiaScenario(
+        case_id="IND-CASE-05",
+        anchor=GeoPoint(lon=71.60, lat=19.50), bbox=BBox(min_lon=71.50, min_lat=19.40, max_lon=71.70, max_lat=19.60),
+        t_obs=datetime(2019, 11, 10, 8, 0, 0, tzinfo=timezone.utc),
+        vessel_mmsi="000000000", vessel_name="UNKNOWN (platform source)", vessel_type=VesselType.OTHER,
+        area_km2=4.0, elongation=1.3, landfall_name="Not applicable — offshore platform source",
+        rationale="illustrative platform-sourced (not vessel-collision) spill scenario at the real Mumbai High field",
+        source_note=("Models a platform-sourced spill scenario at ONGC's real Mumbai High "
+                     "offshore field (~19.5N, 71.6E) — deliberately NOT a vessel-collision "
+                     "case, to exercise a different source_hypothesis path through CHHAYA/"
+                     "NYAYA (no candidate vessel to attribute to) than the other four "
+                     "fixtures. vessel_mmsi/vessel_name are placeholders precisely because "
+                     "there is no vessel to identify; this is intentional, not an oversight. "
+                     "All numeric parameters are illustrative."),
+    ),
+}
+
+INDIA_FIXTURE_NAMES = tuple(_INDIA_SCENARIOS.keys())
+
+# All fixture names, both the original MC20-anchored set and the new
+# India-anchored set — the single list a fixture picker should offer,
+# grouped into two clearly-labelled sections (see docs/product/
+# INDIAN_OCEAN_FIXTURES.md for the exact UI categorisation convention:
+# IND-CASE-* vs the GLOBAL-VALIDATION-* label applied to the original six
+# at the API/display layer, not by renaming FIXTURE_NAMES itself).
+ALL_FIXTURE_NAMES = FIXTURE_NAMES + INDIA_FIXTURE_NAMES
+
+
+def _make_india_builder(scn: _IndiaScenario):
+    def _builder(run: PipelineRun, case_id: str) -> None:
+        _build_india_scenario(run, case_id, scn)
+    return _builder
+
+
 _BUILDERS = {
     "CASE-VALID": _build_valid,
     "CASE-RESTRICTED": _build_restricted,
@@ -520,4 +796,5 @@ _BUILDERS = {
     "CASE-UNAVAILABLE": _build_unavailable,
     "CASE-SIMULATED": _build_simulated,
     "CASE-BLOCKED": _build_blocked,
+    **{name: _make_india_builder(scn) for name, scn in _INDIA_SCENARIOS.items()},
 }

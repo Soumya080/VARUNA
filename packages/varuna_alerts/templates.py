@@ -14,10 +14,35 @@ from __future__ import annotations
 import html
 from typing import Any
 
-__all__ = ["AlertTemplates", "render_subject", "render_text", "render_html", "render_sms"]
+__all__ = [
+    "AlertTemplates", "render_subject", "render_text", "render_html", "render_sms",
+    "precedence_for",
+]
 
 #: SMS is billed and truncated per segment; keep well inside 2 segments.
 SMS_MAX_CHARS = 300
+
+#: Message-precedence vocabulary (Phase 2a), matching standard Indian
+#: armed-forces/Coast Guard signal-traffic convention — FLASH/IMMEDIATE/
+#: PRIORITY/ROUTINE — layered on top of the existing operational-urgency
+#: severity scale, not replacing it. `varuna_contracts.operator_case.
+#: AlertSeverity`'s legacy delivery-structural values (INFO/WARNING/BLOCKED)
+#: fall back to ROUTINE/PRIORITY since they describe a send attempt's own
+#: outcome, not operational urgency.
+_PRECEDENCE = {
+    "critical": "FLASH",
+    "high": "IMMEDIATE",
+    "medium": "PRIORITY",
+    "warning": "PRIORITY",
+    "low": "ROUTINE",
+    "info": "ROUTINE",
+    "blocked": "ROUTINE",
+}
+
+
+def precedence_for(severity: Any) -> str:
+    key = str(getattr(severity, "value", severity) or "").lower()
+    return _PRECEDENCE.get(key, "ROUTINE")
 
 
 def _f(alert: Any, name: str, default: Any = None) -> Any:
@@ -42,43 +67,58 @@ def render_subject(alert: Any) -> str:
     case = _f(alert, "case_id", "unknown-case")
     dim = _f(alert, "material_dimension") or _f(alert, "event_type", "alert")
     prefix = "" if (_f(alert, "engine_mode") or "").lower() == "real" else "[DRILL] "
-    return f"{prefix}[VARUNA {sev}] {case} — {dim}"
+    prec = precedence_for(_f(alert, "severity", "info"))
+    return f"{prec} — {prefix}[VARUNA {sev}] {case} — {dim}"
 
 
 def render_text(alert: Any) -> str:
+    """Formal message-block format: PRECEDENCE / FROM / TO / SUBJECT /
+    SITUATION / ACTION REQUIRED / ACKNOWLEDGE — matching Indian Coast
+    Guard/Navy signal-traffic convention, built entirely from data already
+    available on `alert` (no new fields, formatting only)."""
+    prec = precedence_for(_f(alert, "severity", "info"))
+    sev = str(_f(alert, "severity", "—")).upper()
+    case = _f(alert, "case_id", "—")
+    dim = _f(alert, "material_dimension") or _f(alert, "event_type", "—")
+
+    routing = _f(alert, "routing") or {}
+    recipients = routing.get("recipients") if isinstance(routing, dict) else None
+    to_line = ", ".join(r.get("role", "?") for r in recipients) if recipients else "Duty Officer (default)"
+
     lines = [
         _mode_banner(alert),
         "",
-        f"Case:      {_f(alert, 'case_id', '—')}",
-        f"Severity:  {str(_f(alert, 'severity', '—')).upper()}",
-        f"Changed:   {_f(alert, 'material_dimension') or _f(alert, 'event_type', '—')}",
-        f"Raised:    {_f(alert, 'created_at', '—')}",
+        f"PRECEDENCE:  {prec}",
+        f"FROM:        VARUNA GRID — automated evidence-driven alerting",
+        f"TO:          {to_line}",
+        f"SUBJECT:     Case {case} — {dim} (severity {sev})",
         "",
-        "What changed",
+        "SITUATION",
         f"  {_f(alert, 'reason', '—')}",
     ]
     basis = _f(alert, "severity_basis")
     if basis:
-        lines += ["", "Why this severity", f"  {basis}"]
+        lines += ["", "  Why this severity", f"  {basis}"]
 
     prev, cur = _f(alert, "previous_value"), _f(alert, "current_value")
     if prev is not None or cur is not None:
-        lines += ["", f"Previous:  {prev}", f"Now:       {cur}"]
-
-    routing = _f(alert, "routing") or {}
-    recipients = routing.get("recipients") if isinstance(routing, dict) else None
-    if recipients:
-        roles = ", ".join(r.get("role", "?") for r in recipients)
-        lines += ["", f"Routed to: {roles}"]
+        lines += ["", f"  Previous: {prev}", f"  Now:      {cur}"]
 
     refs = _f(alert, "evidence_refs") or []
     if refs:
-        lines += ["", "Evidence:  " + ", ".join(str(r) for r in refs)]
+        lines += ["", "  Evidence: " + ", ".join(str(r) for r in refs)]
 
     lines += [
         "",
-        "Acknowledge in the VARUNA cockpit. This message is a notification "
-        "only — acknowledging by replying has no effect.",
+        "ACTION REQUIRED",
+        f"  Review case {case} in the VARUNA cockpit and act per your role's "
+        f"standing orders for a {prec} precedence message.",
+        "",
+        "ACKNOWLEDGE",
+        "  Acknowledge in the VARUNA cockpit. This message is a notification "
+        "only — replying to it has no effect.",
+        "",
+        f"Raised: {_f(alert, 'created_at', '—')}",
     ]
     return "\n".join(lines)
 
@@ -128,7 +168,7 @@ def render_html(alert: Any) -> str:
   <div style="height:3px;background:linear-gradient(90deg,#e8871a 33%,#ffffff 33% 66%,#1a7f5a 66%)"></div>
   <div style="background:{banner_bg};color:#ffffff;padding:8px 20px;font-size:12px;
               letter-spacing:.08em;text-transform:uppercase;font-weight:600">
-    {e(_mode_banner(alert))}
+    {e(precedence_for(_f(alert, "severity", "info")))} — {e(_mode_banner(alert))}
   </div>
   <div style="padding:20px">
     <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#5b6472">
@@ -152,13 +192,16 @@ def render_html(alert: Any) -> str:
 
 
 def render_sms(alert: Any) -> str:
-    """Short, unambiguous, and truncated on a word boundary."""
+    """Short, unambiguous, and truncated on a word boundary. Leads with
+    precedence — the one word a duty officer scanning a phone screen at
+    0200 needs before anything else."""
     prefix = "" if (_f(alert, "engine_mode") or "").lower() == "real" else "[DRILL] "
+    prec = precedence_for(_f(alert, "severity", "info"))
     sev = str(_f(alert, "severity", "")).upper()
     case = _f(alert, "case_id", "?")
     dim = _f(alert, "material_dimension") or _f(alert, "event_type", "alert")
     reason = str(_f(alert, "reason", "") or "")
-    msg = f"{prefix}VARUNA {sev}: {case} — {dim}. {reason} Acknowledge in the cockpit."
+    msg = f"{prec} {prefix}VARUNA {sev}: {case} — {dim}. {reason} Acknowledge in the cockpit."
     if len(msg) <= SMS_MAX_CHARS:
         return msg
     cut = msg[:SMS_MAX_CHARS - 1].rsplit(" ", 1)[0]

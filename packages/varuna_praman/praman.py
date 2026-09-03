@@ -1,7 +1,19 @@
 """
 VARUNA GRID — PRAMAN: Provenance + Artifact Manager.
 
-In-memory implementation for local demo. No MinIO required.
+Content-hashed artifact registry: register_artifact/get/list_by_case/verify.
+Backed by `InMemoryArtifactRepository` by default, or
+`varuna_infra.postgres_repos.PostgresArtifactRepository` when
+`settings.use_postgres` is set (ADR-0004) — see `apps/api/dependencies.py::
+get_artifact_repo()`. No MinIO required either way; large binary payloads go
+through the optional `ObjectStore` passed to `__init__`.
+
+RELATIONSHIP TO THE EVIDENCE LEDGER: this class only stores artifacts and
+verifies their integrity — it does not reason about the evidence graph
+(revision history, contradictions between items). That reasoning is real and
+already implemented in `varuna_evidence.ledger.EvidenceLedger`. Read together,
+the two form the full PRAMAN claim ("evidence/provenance is real"); neither
+one alone is. See `docs/product/PRAMAN.md`.
 """
 import hashlib
 import json

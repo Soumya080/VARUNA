@@ -118,6 +118,34 @@ def get_mission_service():
             alert_orchestrator=get_alert_orchestrator())
     return _mission_service_singleton
 
+_asset_service_singleton = None
+_personnel_service_singleton = None
+
+def get_asset_service():
+    """Phase 4. Same singleton/persistence pattern as `get_mission_service()`
+    above — seeded once from `varuna_assets.seed` if the persisted store is
+    genuinely empty, never re-seeded over a real status change."""
+    global _asset_service_singleton
+    if _asset_service_singleton is None:
+        from varuna_assets.repository import InMemoryAssetRepository
+        from varuna_assets.seed import SEED_ASSETS
+        from varuna_assets.service import AssetService
+        from varuna_infra.jsonl_store import state_dir
+        repo = InMemoryAssetRepository(state_dir() / "assets.jsonl", seed=SEED_ASSETS)
+        _asset_service_singleton = AssetService(repo)
+    return _asset_service_singleton
+
+def get_personnel_service():
+    global _personnel_service_singleton
+    if _personnel_service_singleton is None:
+        from varuna_assets.repository import InMemoryPersonnelRepository
+        from varuna_assets.seed import SEED_PERSONNEL
+        from varuna_assets.service import PersonnelService
+        from varuna_infra.jsonl_store import state_dir
+        repo = InMemoryPersonnelRepository(state_dir() / "personnel.jsonl", seed=SEED_PERSONNEL)
+        _personnel_service_singleton = PersonnelService(repo)
+    return _personnel_service_singleton
+
 def get_prahari_service():
     from varuna_domain.prahari.service import PrahariService
     from varuna_domain.prahari.mock import MockPrahariProvider
@@ -253,3 +281,15 @@ def get_replay_smriti_store():
         path = Path(__file__).resolve().parents[2] / "reports" / "demo" / "api_replay_smriti_memory.jsonl"
         _golden_smriti_store = SmritiStore(path)
     return _golden_smriti_store
+
+_smriti_feedback_store_singleton = None
+
+def get_smriti_feedback_store():
+    """Phase 7. Separate JSONL file from SmritiStore's own — see
+    varuna_smriti.feedback module docstring for why."""
+    global _smriti_feedback_store_singleton
+    if _smriti_feedback_store_singleton is None:
+        from varuna_infra.jsonl_store import state_dir
+        from varuna_smriti.feedback import SmritiFeedbackStore
+        _smriti_feedback_store_singleton = SmritiFeedbackStore(state_dir() / "smriti_feedback.jsonl")
+    return _smriti_feedback_store_singleton

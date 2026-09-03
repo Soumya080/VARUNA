@@ -1,9 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from apps.api.dependencies import get_mission_service
+from apps.api.dependencies import get_asset_service, get_mission_service
 from apps.api.security import get_principal
-from varuna_infra.authorization import AuthorizationError, Principal
+from varuna_assets.service import AssetService
+from varuna_contracts.assets import AssetStatus
+from varuna_contracts.schemas import AssetTasking
+from varuna_infra.authorization import AuthorizationError, Principal, authorize
+from varuna_infra.rbac import Permission
 from varuna_contracts.states import MISSION_TRANSITIONS, MissionState
 from varuna_missions.service import MissionService
 
@@ -13,6 +17,46 @@ router = APIRouter(prefix="/v1/missions", tags=["missions"])
 def list_missions(svc: MissionService = Depends(get_mission_service)):
     missions = svc.list_active()
     return {"items": [m.model_dump(mode="json") for m in missions]}
+
+
+class CreateMissionRequest(BaseModel):
+    case_id: str = Field(..., min_length=1)
+    asset_id: str = Field(..., min_length=1)
+    tasking: AssetTasking | None = None
+
+
+@router.post("")
+def create_mission(
+    body: CreateMissionRequest,
+    svc: MissionService = Depends(get_mission_service),
+    assets: AssetService = Depends(get_asset_service),
+    principal: Principal = Depends(get_principal),
+):
+    """Phase 4 — the previously-missing `POST /v1/missions`: an operator
+    picks a real, currently-available `Asset` (from `GET /v1/assets`) and
+    this creates a PROPOSED (state=AVAILABLE) mission against it. This is
+    NOT the approval step — `POST /{mission_id}/approve` remains the one
+    place a physical dispatch is actually authorized, per
+    `MissionService.approve_and_assign()`'s two-step gate.
+    """
+    try:
+        authorize(principal, Permission.CREATE_MISSION,
+                  operation="mission.create", subject_id=body.case_id)
+    except AuthorizationError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+    asset = assets.get(body.asset_id)
+    if asset is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown asset {body.asset_id!r}. See GET /v1/assets for real, valid ids.")
+    if asset.status != AssetStatus.AVAILABLE:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Asset {body.asset_id!r} is {asset.status.value}, not available.")
+
+    mission = svc.create_mission(body.case_id, body.asset_id, tasking=body.tasking)
+    return mission.model_dump(mode="json")
 
 @router.get("/{mission_id}")
 def get_mission(mission_id: str, svc: MissionService = Depends(get_mission_service)):

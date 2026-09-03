@@ -18,6 +18,15 @@ Two design rules it enforces structurally:
    to NYAYA/the Validity Gate, which have the scientific contracts for it.
    A ledger that silently picked a winner would be making attribution
    decisions in a data structure.
+
+RELATIONSHIP TO PRAMAN: product/design docs describe "PRAMAN" as VARUNA's
+evidence-chain/provenance guarantee (revision-never-destroys, contradiction-
+recorded-not-resolved) — that guarantee is implemented HERE, not in
+`varuna_praman`. `varuna_praman.praman.PramanService` is the complementary
+piece: a content-hashed artifact registry (register/get/list_by_case/verify),
+optionally Postgres-backed (ADR-0004). Read together, this module plus
+`PramanService` are the full PRAMAN claim; neither one alone is. See
+`docs/product/PRAMAN.md`.
 """
 from __future__ import annotations
 

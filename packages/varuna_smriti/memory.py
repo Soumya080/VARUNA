@@ -140,6 +140,11 @@ class MemoryRetrieval(BaseModel):
         "evidence, alter a validity verdict, or supply a value the current case "
         "did not measure."
     )
+    # Phase 7 (adaptive reweighting) — inspectable, never silent. "base" for
+    # every existing caller that doesn't pass `weights=`; "adaptive" only
+    # when a caller explicitly opts in with a feedback-derived override.
+    weights_used: dict[str, float] = Field(default_factory=lambda: dict(SIMILARITY_WEIGHTS))
+    weights_source: str = "base"
 
 
 class SmritiStore:
@@ -215,7 +220,8 @@ class SmritiStore:
 
     def retrieve_similar_cases(self, query: CaseMemory, *, limit: int = 5,
                                min_score: float = 0.0,
-                               min_coverage: float = 0.25) -> MemoryRetrieval:
+                               min_coverage: float = 0.25,
+                               weights: dict[str, float] | None = None) -> MemoryRetrieval:
         """
         Structured nearest neighbours.
 
@@ -223,17 +229,29 @@ class SmritiStore:
         near-empty records trivially "match" on the one field they share. A hit
         assessed on less than a quarter of the total weight is not returned,
         because that similarity number would be an artefact of missing data.
+
+        `weights` (Phase 7, optional): override `SIMILARITY_WEIGHTS` with a
+        feedback-derived adaptive set (see `feedback.py::compute_adaptive_
+        weights()`). Omitted by every existing caller, which reproduces the
+        exact base-weight result unchanged. The chosen weights are always
+        recorded on the result (`weights_used`/`weights_source`) — never a
+        silent substitution.
         """
+        active_weights = weights if weights is not None else SIMILARITY_WEIGHTS
         hits: list[MemoryHit] = []
         for other in self._cache.values():
             if other.case_id == query.case_id:
                 continue
-            breakdown = self._similarity(query, other)
+            breakdown = self._similarity(query, other, weights=active_weights)
             if breakdown.coverage < min_coverage or breakdown.score < min_score:
                 continue
             hits.append(MemoryHit(memory=other, similarity=breakdown))
         hits.sort(key=lambda h: (h.similarity.score, h.memory.case_id), reverse=True)
-        return MemoryRetrieval(query_case_id=query.case_id, hits=hits[:limit])
+        return MemoryRetrieval(
+            query_case_id=query.case_id, hits=hits[:limit],
+            weights_used=dict(active_weights),
+            weights_source="adaptive" if weights is not None else "base",
+        )
 
     def retrieve_relevant_evidence(self, query: CaseMemory, *,
                                    limit: int = 5) -> MemoryRetrieval:
@@ -273,7 +291,9 @@ class SmritiStore:
 
     # -------------------------------------------------------------- similarity
 
-    def _similarity(self, a: CaseMemory, b: CaseMemory) -> SimilarityBreakdown:
+    def _similarity(self, a: CaseMemory, b: CaseMemory,
+                    weights: dict[str, float] | None = None) -> SimilarityBreakdown:
+        active_weights = weights if weights is not None else SIMILARITY_WEIGHTS
         comps: dict[str, float] = {}
         unavailable: list[str] = []
 
@@ -336,13 +356,13 @@ class SmritiStore:
         else:
             unavailable.append("temporal")
 
-        assessable = sum(SIMILARITY_WEIGHTS[k] for k in comps)
-        total_w = sum(SIMILARITY_WEIGHTS.values())
+        assessable = sum(active_weights[k] for k in comps)
+        total_w = sum(active_weights.values())
         if assessable <= 0:
             return SimilarityBreakdown(components={}, unavailable=unavailable,
                                        score=0.0, coverage=0.0)
         # Renormalise over the assessable components so a case with missing
         # fields is not penalised as if it had scored zero on them.
-        score = sum(comps[k] * SIMILARITY_WEIGHTS[k] for k in comps) / assessable
+        score = sum(comps[k] * active_weights[k] for k in comps) / assessable
         return SimilarityBreakdown(components=comps, unavailable=unavailable,
                                    score=score, coverage=assessable / total_w)

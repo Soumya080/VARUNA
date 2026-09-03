@@ -258,6 +258,132 @@ export function getOperationalSummary(caseId: string): Promise<OperationalSummar
   return getJson(`/v1/cases/${encodeURIComponent(caseId)}/operational-summary`)
 }
 
+export interface TestNotificationResult {
+  requested_by: string
+  role: string
+  channels: Record<string, string>
+  results: NotificationDeliveryView[]
+}
+
+/**
+ * POST /v1/alerts/test-notification — admin-only. Fires a REAL, clearly
+ * test-marked notification through whichever channels are asked for (default
+ * email+sms) and returns exactly what each channel reported. A
+ * NOT_CONFIGURED result is a successful, honest call, not an error — only a
+ * network/auth failure throws.
+ */
+export function testNotification(
+  role: string,
+  channels?: string[],
+): Promise<TestNotificationResult> {
+  return postJsonWithBody('/v1/alerts/test-notification', { role, channels })
+}
+
+// ────────────────────────── Phase 4: assets & personnel ──────────────────────────
+
+export interface AssetRow {
+  asset_id: string
+  name: string
+  kind: string
+  home_base: string
+  status: 'available' | 'deployed' | 'maintenance' | 'unavailable'
+  current_position: { lon: number; lat: number } | null
+  endurance_hours: number | null
+  crew_size: number | null
+  notes: string | null
+}
+
+export interface PersonnelRow {
+  personnel_id: string
+  name: string
+  rank: string | null
+  role: 'duty_officer' | 'supervisor' | 'field_operator'
+  base: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  on_duty: boolean
+}
+
+/** GET /v1/assets — pass status:'available' for the mission-assignment
+ * picker, or omit it to see the full fleet including deployed/maintenance. */
+export function listAssets(params?: { status?: string; kind?: string }): Promise<{ items: AssetRow[] }> {
+  const q = new URLSearchParams()
+  if (params?.status) q.set('status', params.status)
+  if (params?.kind) q.set('kind', params.kind)
+  const qs = q.toString()
+  return getJson(`/v1/assets${qs ? `?${qs}` : ''}`)
+}
+
+export function getAsset(assetId: string): Promise<AssetRow> {
+  return getJson(`/v1/assets/${encodeURIComponent(assetId)}`)
+}
+
+export function listPersonnel(params?: { role?: string; onDutyOnly?: boolean }): Promise<{ items: PersonnelRow[] }> {
+  const q = new URLSearchParams()
+  if (params?.role) q.set('role', params.role)
+  if (params?.onDutyOnly) q.set('on_duty_only', 'true')
+  const qs = q.toString()
+  return getJson(`/v1/personnel${qs ? `?${qs}` : ''}`)
+}
+
+export interface CreatedMission {
+  mission_id: string
+  case_id: string
+  asset_id: string
+  state: string
+}
+
+/** POST /v1/missions — create a PROPOSED mission against a real, currently
+ * AVAILABLE asset. NOT the approval step — call `approveMission()` after
+ * this to actually authorise dispatch, exactly as the existing FSM requires. */
+export function createMission(
+  caseId: string,
+  assetId: string,
+  tasking?: Record<string, unknown>,
+): Promise<CreatedMission> {
+  return postJsonWithBody('/v1/missions', { case_id: caseId, asset_id: assetId, tasking: tasking ?? null })
+}
+
+// ────────────────────────── Phase 7: SMRITI feedback ──────────────────────────
+
+/**
+ * POST /v1/cases/{caseId}/memory-feedback — records whether a retrieved
+ * SMRITI hit was actually a useful precedent. Feeds the adaptive
+ * reweighting mechanism (packages/varuna_smriti/feedback.py); never alters
+ * current case evidence — `MemoryRetrieval.advisory_only` stays true either way.
+ */
+export function submitMemoryFeedback(
+  caseId: string,
+  retrievedCaseId: string,
+  useful: boolean,
+  opts?: { similarityAtRetrieval?: number; componentsAtRetrieval?: Record<string, number> },
+): Promise<Record<string, unknown>> {
+  return postJsonWithBody(`/v1/cases/${encodeURIComponent(caseId)}/memory-feedback`, {
+    retrieved_case_id: retrievedCaseId,
+    useful,
+    similarity_at_retrieval: opts?.similarityAtRetrieval ?? 0,
+    components_at_retrieval: opts?.componentsAtRetrieval ?? {},
+  })
+}
+
+export interface RoutingPolicyRow {
+  dimension: string
+  severity: string
+  recipients: Array<{ role: string; title: string; rbac_role: string | null }>
+  matched_rule: string
+  reason: string
+}
+
+/**
+ * GET /v1/alerts/routing-policy — the full, static alert-routing decision
+ * table (who gets told what, before any alert has fired), enumerated
+ * straight from the real deterministic `varuna_alerts.routing_policy.route()`
+ * function. Not a live alert; nothing here is delivered.
+ */
+export function getRoutingPolicy(): Promise<{ items: RoutingPolicyRow[] }> {
+  return getJson('/v1/alerts/routing-policy')
+}
+
 /** The incident PDF URL. Exported for display/debugging only — prefer
  * `downloadReport()`, which surfaces backend errors instead of hiding them. */
 export function reportUrl(caseId: string): string {
@@ -411,8 +537,27 @@ export function listCases(): Promise<{ items: CaseRow[]; total: number }> {
 }
 
 /** POST /v1/cases — RBAC-gated; requires CREATE_CASE. */
-export function createCase(caseId?: string): Promise<{ case_id: string; status: string }> {
-  return postJsonWithBody('/v1/cases', caseId ? { case_id: caseId } : {})
+export interface CaseIntakeDetail {
+  reported_by?: string
+  initial_location?: { lon: number; lat: number }
+  observation_source?: string
+  priority?: string
+  notes?: string
+}
+
+/**
+ * POST /v1/cases. Every field beyond `caseId` is optional (Phase 3) — the
+ * genuine one-click path (`createCase()` with no arguments) still posts an
+ * effectively-empty body and works exactly as before. `detail` is never
+ * required.
+ */
+export function createCase(
+  caseId?: string,
+  detail?: CaseIntakeDetail,
+): Promise<{ case_id: string; status: string; metadata: Record<string, unknown> }> {
+  const body: Record<string, unknown> = { ...(detail ?? {}) }
+  if (caseId) body.case_id = caseId
+  return postJsonWithBody('/v1/cases', body)
 }
 
 /** GET /v1/alerts — global list with filters. */

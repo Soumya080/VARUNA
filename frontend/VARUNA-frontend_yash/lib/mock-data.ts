@@ -5,6 +5,7 @@
  * model pipeline is available, replace these constants with API calls that
  * return the same shapes — no component should need to change.
  */
+import { projectToBBox } from './geo-projection'
 
 /* ------------------------------------------------------------------ */
 /* Geographic projection                                               */
@@ -27,11 +28,14 @@ export interface GeoPoint {
   lng: number
 }
 
-/** Project a geographic point to overlay percentage coordinates (0–100). */
+/** Project a geographic point to overlay percentage coordinates (0–100).
+ * Delegates to the shared `lib/geo-projection.ts` math (Phase 1) so this
+ * mock-only helper and real-data panels never drift onto two formulas. */
 export function project({ lat, lng }: GeoPoint): { x: number; y: number } {
-  const x = ((lng - MAP_BOUNDS.lngMin) / (MAP_BOUNDS.lngMax - MAP_BOUNDS.lngMin)) * 100
-  const y = ((MAP_BOUNDS.latMax - lat) / (MAP_BOUNDS.latMax - MAP_BOUNDS.latMin)) * 100
-  return { x, y }
+  return projectToBBox(lng, lat, {
+    min_lon: MAP_BOUNDS.lngMin, max_lon: MAP_BOUNDS.lngMax,
+    min_lat: MAP_BOUNDS.latMin, max_lat: MAP_BOUNDS.latMax,
+  })
 }
 
 export function formatLat(lat: number): string {
@@ -502,6 +506,10 @@ export const TOP_NAV_ROUTES: Record<string, string> = {
   'Alerts': '/alerts',
   'Missions': '/missions',
   'Assignment': '/assignment-mission',
+  // Phase 4: real now (GET /v1/assets, /v1/personnel) — added to nav per
+  // this file's own documented policy above (only genuinely backend-driven
+  // routes belong here).
+  'Assets': '/assets',
 }
 
 /* ------------------------------------------------------------------ */

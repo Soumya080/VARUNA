@@ -49,21 +49,30 @@ from apps.api.dependencies import (
     get_replay_smriti_store,
 )
 from varuna_contracts.operator_case import OperatorCase
-from varuna_domain.replay_fixtures import FIXTURE_NAMES
+from varuna_domain.replay_fixtures import ALL_FIXTURE_NAMES, FIXTURE_NAMES, INDIA_FIXTURE_NAMES
 from varuna_integration.product_case import build_product_case
 
 router = APIRouter(prefix="/v1/replay", tags=["replay"])
 
-# fixture_name -> fully composed OperatorCase. Bounded by FIXTURE_NAMES (6
-# entries), so this cannot grow unbounded. Process-lifetime, like the other
-# in-memory singletons in apps.api.dependencies.
+# fixture_name -> fully composed OperatorCase. Bounded by ALL_FIXTURE_NAMES
+# (11 entries: the original 6 MC20-anchored + Phase 6's 5 Indian Ocean
+# incident fixtures), so this cannot grow unbounded. Process-lifetime, like
+# the other in-memory singletons in apps.api.dependencies.
 _COMPOSED_CACHE: dict[str, OperatorCase] = {}
 
 
 @router.get("/fixtures")
 def list_replay_fixtures() -> dict:
-    """The set of valid `fixture_name` values for `GET /v1/replay/{fixture_name}`."""
-    return {"fixtures": list(FIXTURE_NAMES)}
+    """The set of valid `fixture_name` values for `GET /v1/replay/{fixture_name}`,
+    grouped so a picker can show Indian-Ocean incidents and the original
+    external-validation (MC20, Gulf of Mexico) case as clearly separate,
+    never-merged sections — per the product decision recorded in
+    docs/product/INDIAN_OCEAN_FIXTURES.md."""
+    return {
+        "fixtures": list(ALL_FIXTURE_NAMES),
+        "india_incidents": list(INDIA_FIXTURE_NAMES),
+        "global_validation": list(FIXTURE_NAMES),
+    }
 
 
 @router.get("/{fixture_name}", response_model=OperatorCase)
@@ -88,10 +97,10 @@ def get_replay_operator_case(
     hit that failure mode because the intelligence is already inside it.
     `?refresh=true` forces a genuine re-execution.
     """
-    if fixture_name not in FIXTURE_NAMES:
+    if fixture_name not in ALL_FIXTURE_NAMES:
         raise HTTPException(
             status_code=404,
-            detail=f"Unknown replay fixture {fixture_name!r}. Known: {list(FIXTURE_NAMES)}",
+            detail=f"Unknown replay fixture {fixture_name!r}. Known: {list(ALL_FIXTURE_NAMES)}",
         )
     cached = _COMPOSED_CACHE.get(fixture_name)
     if cached is not None and not refresh:

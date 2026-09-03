@@ -13,6 +13,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AlertCenter } from '@/components/cockpit/alert-center'
 import { Card } from '@/components/cockpit/cockpit-panels'
+import { NotificationTestPanel } from '@/components/cockpit/notification-test-panel'
+import { RoutingPolicyPanel } from '@/components/cockpit/routing-policy-panel'
 import { StatusBadge } from '@/components/primitives'
 import { useAuth } from '@/lib/auth-context'
 import {
@@ -198,6 +200,14 @@ export default function AlertsPage() {
 
       <div className="mt-3">
         <AlertCenter alerts={alerts} channels={channels} onAction={onAction} busy={busy} />
+      </div>
+
+      <div className="mt-3">
+        <RoutingPolicyPanel />
+      </div>
+
+      <div className="mt-3">
+        <NotificationTestPanel isAdmin={session?.role === 'admin'} />
       </div>
     </>
   )
