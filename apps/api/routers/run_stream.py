@@ -34,7 +34,10 @@ from typing import Any, Iterator
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
-from apps.api.dependencies import get_golden_case_workflow, get_replay_smriti_store
+from apps.api.dependencies import (
+    get_alert_orchestrator, get_case_snapshot_store, get_golden_case_workflow,
+    get_replay_smriti_store,
+)
 from varuna_domain.replay_fixtures import FIXTURE_NAMES
 
 router = APIRouter(prefix="/v1/run", tags=["run"])
@@ -102,6 +105,8 @@ def stream_run(
     fixture_name: str,
     workflow=Depends(get_golden_case_workflow),
     smriti=Depends(get_replay_smriti_store),
+    orchestrator=Depends(get_alert_orchestrator),
+    snapshots=Depends(get_case_snapshot_store),
 ):
     if fixture_name not in FIXTURE_NAMES:
         raise HTTPException(
@@ -148,11 +153,52 @@ def stream_run(
         from apps.api.routers import replay as _replay
         _replay._COMPOSED_CACHE[fixture_name] = operator_case
 
+        # ---- operational chain (Material Change -> Alerts -> SMRITI) -----
+        # This previously ran ONLY from `GET /v1/replay/{fixture}`, so
+        # pressing RUN VARUNA executed the science and produced no alerts at
+        # all — the alert engine looked dead from the cockpit. Run it here
+        # too, over the case we just composed.
+        op_summary: dict[str, Any] = {}
+        op_error: str | None = None
+        try:
+            from varuna_integration.operational_loop import run_operational_loop
+
+            op_summary = run_operational_loop(
+                operator_case, snapshots=snapshots, orchestrator=orchestrator,
+                event_spine=getattr(workflow, "event_spine", None),
+                smriti_store=smriti, run_id=run_id,
+            )
+        except Exception as exc:
+            # Surface it as a stream event rather than swallowing it: a
+            # silent alerting failure is indistinguishable from "nothing was
+            # material", which is a dangerous thing to be wrong about.
+            op_error = f"{type(exc).__name__}: {exc}"
+
         stages = getattr(result.run, "stages", {}) or {}
         intel = operator_case.intelligence
 
         for name in STAGE_ORDER:
             pipeline_stage = _PIPELINE_STAGE[name]
+
+            if name == "ALERT":
+                # Report the orchestrator's real outcome, not the pipeline's
+                # legacy delivery-receipt stage.
+                if op_error is not None:
+                    yield _sse(_stage_event(
+                        name, "error", t_compose, reason=op_error,
+                        case_id=case_id, run_id=run_id))
+                else:
+                    n = int(op_summary.get("n_alerts", 0) or 0)
+                    n_changes = int(op_summary.get("n_material_changes", 0) or 0)
+                    yield _sse(_stage_event(
+                        name, "produced" if n else "not_yet_produced", t_compose,
+                        reason=(None if n else
+                                "no material change met the operator-attention "
+                                "threshold for this case"),
+                        case_id=case_id, run_id=run_id,
+                        detail={"n_alerts": n, "n_material_changes": n_changes,
+                                "alert_ids": op_summary.get("alerts", [])}))
+                continue
 
             if pipeline_stage is not None:
                 sr = stages.get(pipeline_stage)
@@ -218,6 +264,10 @@ def stream_run(
                     "workflow_ms": round(t_run, 1),
                     "compose_ms": round(t_compose - t_run, 1),
                     "recommendation": operator_case.recommendation.value,
+                    "n_alerts": op_summary.get("n_alerts", 0),
+                    "n_material_changes": op_summary.get("n_material_changes", 0),
+                    "smriti_written": op_summary.get("smriti_written", False),
+                    "operational_error": op_error,
                     "engine_mode": operator_case.system_status.engine_mode})
 
     return StreamingResponse(

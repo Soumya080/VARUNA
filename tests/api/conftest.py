@@ -15,6 +15,28 @@ import apps.api.dependencies as deps
 import apps.api.routers.replay as replay_router
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _isolate_persisted_state(tmp_path_factory):
+    """Point persisted operational state at a throwaway directory.
+
+    Phase 1 made alerts/missions/audit disk-backed under `reports/state`.
+    Without this, the suite would read and mutate the SAME files the running
+    API uses — so whatever a developer had clicked in the cockpit would leak
+    into test expectations (and vice versa). Observed for real: a stray
+    `mission.assigned` alert from a manual run broke two unrelated tests.
+    """
+    import os
+
+    d = tmp_path_factory.mktemp("varuna_state")
+    old = os.environ.get("VARUNA_STATE_DIR")
+    os.environ["VARUNA_STATE_DIR"] = str(d)
+    yield
+    if old is None:
+        os.environ.pop("VARUNA_STATE_DIR", None)
+    else:
+        os.environ["VARUNA_STATE_DIR"] = old
+
+
 @pytest.fixture(autouse=True)
 def _isolated_alert_and_mission_singletons():
     def _reset():

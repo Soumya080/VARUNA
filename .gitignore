@@ -142,3 +142,7 @@ reports/product/_judge_downloads/
 !data/gold/events/mc20_v0_1/
 !data/gold/events/mc20_v0_1/**
 !data/gold/events/mc20_v0_1/**/*.npy
+
+# Runtime operational state (alerts, missions, audit, case snapshots).
+# Machine-local: delete this directory to reset a demo to a clean slate.
+reports/state/

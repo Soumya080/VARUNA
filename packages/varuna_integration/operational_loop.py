@@ -20,26 +20,62 @@ keys.
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from varuna_alerts.material_change import MaterialChange, evaluate_material_changes
 
 
 class CaseSnapshotStore:
-    """Last-seen composed case per case_id. In-process and deterministic;
-    no TTL, no clock dependence."""
+    """Last-seen composed case per case_id — the baseline the Material
+    Change Engine diffs against. Deterministic; no TTL, no clock dependence.
 
-    def __init__(self) -> None:
+    Optionally disk-backed. Without persistence, restarting the API made
+    every case look brand new, so the next run re-fired "first detection
+    produced" and "attribution produced" as though they had never been
+    seen — spamming an operator with alerts they had already handled.
+
+    Snapshots are stored as the serialised OperatorCase JSON. On load they
+    are kept as plain dicts: `evaluate_material_changes()` reads through
+    `_get()`, which handles dicts and pydantic objects alike, so no
+    re-validation is needed and a contract change cannot break startup.
+    """
+
+    def __init__(self, path: "str | Path | None" = None) -> None:
         self._snapshots: dict[str, Any] = {}
+        self._store = None
+        if path is not None:
+            import json as _json
+
+            from varuna_infra.jsonl_store import KeyedJsonlStore
+
+            self._store = KeyedJsonlStore(
+                path,
+                key=lambda rec: rec["case_id"],
+                loads=_json.loads,
+                dumps=lambda rec: _json.dumps(rec, sort_keys=True, default=str),
+            )
+            for rec in self._store.all():
+                self._snapshots[rec["case_id"]] = rec.get("case")
+
+    @property
+    def persisted(self) -> bool:
+        return self._store is not None
 
     def get(self, case_id: str) -> Any:
         return self._snapshots.get(case_id)
 
     def put(self, case_id: str, case: Any) -> None:
         self._snapshots[case_id] = case
+        if self._store is not None:
+            payload = (case.model_dump(mode="json")
+                       if hasattr(case, "model_dump") else case)
+            self._store.put({"case_id": case_id, "case": payload})
 
     def clear(self) -> None:
         self._snapshots.clear()
+        if self._store is not None:
+            self._store.clear()
 
 
 def _to_case_memory(operator_case: Any, run_id: str | None):

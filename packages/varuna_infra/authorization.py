@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -93,13 +94,38 @@ class AuditEntry(BaseModel):
 
 
 class AuditLog:
-    """In-memory audit sink. PRAMAN persists these into the case record."""
+    """Authorization audit sink.
 
-    def __init__(self) -> None:
+    Optionally disk-backed: pass `path=` and the trail survives a restart.
+    An audit log that evaporates when the process exits cannot answer "who
+    authorised this dispatch?" the next morning, which is the only question
+    it exists to answer.
+
+    Append-only on disk (never rewritten wholesale) so a crash part-way
+    through a write cannot lose earlier decisions.
+    """
+
+    def __init__(self, path: "str | Path | None" = None) -> None:
         self._entries: list[AuditEntry] = []
+        self._store = None
+        if path is not None:
+            from varuna_infra.jsonl_store import AppendJsonlStore
+
+            self._store = AppendJsonlStore(
+                path,
+                loads=AuditEntry.model_validate_json,
+                dumps=lambda e: e.model_dump_json(),
+            )
+            self._entries = self._store.all()
+
+    @property
+    def persisted(self) -> bool:
+        return self._store is not None
 
     def record(self, entry: AuditEntry) -> AuditEntry:
         self._entries.append(entry)
+        if self._store is not None:
+            self._store.append(entry)
         return entry
 
     def all(self) -> list[AuditEntry]:

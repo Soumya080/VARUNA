@@ -107,9 +107,10 @@ def get_mission_service():
     from varuna_missions.service import MissionService
     if _mission_service_singleton is None:
         from varuna_infra.authorization import AuditLog
+        from varuna_infra.jsonl_store import state_dir
         from varuna_missions.repository import InMemoryMissionRepository
-        _in_memory_mission_repo = InMemoryMissionRepository()
-        _mission_audit_log = AuditLog()
+        _in_memory_mission_repo = InMemoryMissionRepository(state_dir() / "missions.jsonl")
+        _mission_audit_log = AuditLog(state_dir() / "mission_audit.jsonl")
         _mission_service_singleton = MissionService(
             repo=_in_memory_mission_repo, audit=_mission_audit_log,
             alert_service=get_alert_service(),
@@ -143,11 +144,16 @@ _alert_store_singleton = None
 
 
 def get_alert_store():
-    """The ONE alert store (Workstream A: no second store)."""
+    """The ONE alert store (Workstream A: no second store).
+
+    Disk-backed since Phase 1: acknowledgements, escalations and resolutions
+    are human decisions and must survive an API restart.
+    """
     global _alert_store_singleton
     if _alert_store_singleton is None:
         from varuna_alerts.lifecycle_store import InMemoryAlertStore
-        _alert_store_singleton = InMemoryAlertStore()
+        from varuna_infra.jsonl_store import state_dir
+        _alert_store_singleton = InMemoryAlertStore(state_dir() / "alerts.jsonl")
     return _alert_store_singleton
 
 
@@ -163,10 +169,13 @@ def get_alert_orchestrator():
 
 
 def get_case_snapshot_store():
+    """Material-change baseline. Persisted so a restart does not make every
+    case look new and re-fire alerts an operator already handled."""
     global _snapshot_store_singleton
     if _snapshot_store_singleton is None:
+        from varuna_infra.jsonl_store import state_dir
         from varuna_integration.operational_loop import CaseSnapshotStore
-        _snapshot_store_singleton = CaseSnapshotStore()
+        _snapshot_store_singleton = CaseSnapshotStore(state_dir() / "case_snapshots.jsonl")
     return _snapshot_store_singleton
 
 def get_alert_lifecycle_service():
@@ -176,7 +185,13 @@ def get_alert_lifecycle_service():
     global _alert_lifecycle_singleton
     if _alert_lifecycle_singleton is None:
         from varuna_alerts.lifecycle_service import AlertLifecycleService
-        _alert_lifecycle_singleton = AlertLifecycleService(get_alert_store())
+        from varuna_infra.authorization import AuditLog
+        from varuna_infra.jsonl_store import state_dir
+        # Pass an AuditLog explicitly. AlertLifecycleService defaults one away
+        # internally, which made the alert authorization trail unreadable even
+        # at runtime, let alone after a restart.
+        _alert_lifecycle_singleton = AlertLifecycleService(
+            get_alert_store(), audit=AuditLog(state_dir() / "alert_audit.jsonl"))
     return _alert_lifecycle_singleton
 
 # --------------------------------------------------------------------------
