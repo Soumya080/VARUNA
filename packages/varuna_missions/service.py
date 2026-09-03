@@ -33,12 +33,20 @@ class MissionService:
         self._alert_lifecycle = alert_lifecycle
         self._alert_orchestrator = alert_orchestrator
 
-    def create_mission(self, case_id: str, asset_id: str, tasking: AssetTasking) -> MissionRecord:
+    def create_mission(self, case_id: str, asset_id: str,
+                       tasking: AssetTasking | None = None) -> MissionRecord:
+        """Create an un-approved mission.
+
+        `tasking` is now STORED (ADR-0015). It was previously accepted and
+        silently discarded, so the search box, pattern and launch window
+        ABHIYAN computed never reached the mission an operator authorised.
+        """
         mission = MissionRecord(
             mission_id=f"MSN-{uuid.uuid4().hex[:8].upper()}",
             case_id=case_id,
             asset_id=asset_id,
             state=MissionState.AVAILABLE,
+            tasking=tasking,
         )
         self._repo.save(mission)
         return mission
@@ -155,11 +163,32 @@ class MissionService:
         """Authorization decisions taken through this service, allow and deny."""
         return self._audit
 
-    def transition(self, mission_id: str, new_state: MissionState, *, reason: Optional[str] = None) -> MissionRecord:
+    def transition(self, mission_id: str, new_state: MissionState, *,
+                   principal: Principal, reason: Optional[str] = None) -> MissionRecord:
+        """Advance a mission through the FSM.
+
+        `principal` is REQUIRED and authorized BEFORE any mutation. This
+        method previously performed no authorization check at all and
+        silently discarded `reason`; it was unrouted, which was the only
+        thing preventing an open hole. Exposing the FSM over HTTP (ADR-0015)
+        makes both defects load-bearing, so both are fixed here.
+
+        Ordering matters for the same reason it does in approve_and_assign:
+        a permission check after a state change leaves a partially
+        transitioned mission behind on denial.
+        """
         m = self._repo.get(mission_id)
         if m is None:
             raise ValueError(f"Mission {mission_id} not found")
+
+        authorize(principal, Permission.APPROVE_MISSION,
+                  operation=f"mission.transition.{new_state.value}",
+                  subject_id=mission_id, audit=self._audit)
+
         m.transition(new_state)
+        if reason:
+            m.state_change_reasons = [*m.state_change_reasons,
+                                      (new_state.value, reason)]
         self._repo.save(m)
         return m
 

@@ -95,7 +95,8 @@ class MissionNotCancellableError(Exception):
         )
 
 
-def cancel_mission(service: MissionService, mission_id: str) -> MissionRecord:
+def cancel_mission(service: MissionService, mission_id: str, *,
+                   principal, reason: str | None = None) -> MissionRecord:
     """
     Interim "CANCELLED" for a mission that has already been assigned or
     later: REASSIGNED -> CLOSED, both already-legal transitions
@@ -108,5 +109,7 @@ def cancel_mission(service: MissionService, mission_id: str) -> MissionRecord:
         raise ValueError(f"Mission {mission_id} not found")
     if not is_legal_mission_transition(mission.state, MissionState.REASSIGNED):
         raise MissionNotCancellableError(mission)
-    service.transition(mission_id, MissionState.REASSIGNED)
-    return service.transition(mission_id, MissionState.CLOSED)
+    service.transition(mission_id, MissionState.REASSIGNED,
+                       principal=principal, reason=reason)
+    return service.transition(mission_id, MissionState.CLOSED,
+                              principal=principal, reason=reason)

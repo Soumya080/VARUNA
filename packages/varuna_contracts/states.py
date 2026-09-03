@@ -14,6 +14,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from varuna_contracts.schemas import AssetTasking
+
 __all__ = [
     "MISSION_TRANSITIONS",
     "CaseLifecycle",
@@ -192,7 +194,19 @@ class MissionRecord(_Base):
     human_approved_by: str | None = None      # user id — required before ASSIGNED
     human_override_reason: str | None = None
 
+    #: What this mission is actually tasked to do — search box, pattern,
+    #: launch window, flight hours, PoD, rationale. ABHIYAN computes it in the
+    #: pipeline decision stage and it was previously discarded at
+    #: MissionService.create_mission(), so a mission carried only an asset
+    #: base-name string and a map UI had nothing to draw. Optional so records
+    #: written before ADR-0015 stay valid. See ADR-0015.
+    tasking: AssetTasking | None = None
+
     state_history: list[tuple[str, datetime]] = Field(default_factory=list)
+    #: (state, reason) for transitions that carried one. `state_history`
+    #: records WHEN a state changed; for a physical dispatch, WHY matters
+    #: more. See ADR-0015.
+    state_change_reasons: list[tuple[str, str]] = Field(default_factory=list)
 
     def transition(self, dst: MissionState, *, at: datetime | None = None) -> None:
         if not is_legal_mission_transition(self.state, dst):

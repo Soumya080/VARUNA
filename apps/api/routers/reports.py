@@ -108,3 +108,13 @@ def operational_summary(case_id: str, alerts_svc=Depends(get_alert_lifecycle_ser
         "missions": [m.model_dump(mode="json") for m in missions.list_by_case(case_id)],
         "channels": ChannelOrchestrator.channel_report(),
     }
+
+
+@router.get("/{case_id}/missions")
+def case_missions(case_id: str, missions=Depends(get_mission_service)):
+    """Missions for a case. `MissionService.list_by_case` existed but was
+    unrouted, so a case UI could not show its own missions."""
+    return {
+        "case_id": case_id,
+        "items": [m.model_dump(mode="json") for m in missions.list_by_case(case_id)],
+    }

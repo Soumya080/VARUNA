@@ -34,6 +34,13 @@ from varuna_missions.service import MissionService
 pytestmark = pytest.mark.unit
 
 
+# ADR-0015: MissionService.transition() now REQUIRES an authorized
+# principal. These tests previously drove the FSM with no authorization
+# check at all, so passing one here strengthens them rather than
+# working around the change.
+_APPROVER = Principal(principal_id="officer", role="duty_officer")
+
+
 def _envelope(mode="simulated", artifact_id="e1"):
     from varuna_contracts.evidence import EvidenceMode
     return EvidenceEnvelope(
@@ -181,7 +188,7 @@ def test_cancel_proposed_mission_raises_named_gap_error():
     )[0]
     mission = svc.create_mission(case_id="C1", asset_id=tasking.base_name, tasking=tasking)
     with pytest.raises(MissionNotCancellableError):
-        cancel_mission(svc, mission.mission_id)
+        cancel_mission(svc, mission.mission_id, principal=_APPROVER)
 
 
 def test_cancel_assigned_mission_uses_reassigned_then_closed():
@@ -193,7 +200,7 @@ def test_cancel_assigned_mission_uses_reassigned_then_closed():
     svc.approve_and_assign(
         mission.mission_id, approved_by="watch_officer_1",
         principal=Principal(principal_id="watch_officer_1", role="duty_officer"))
-    cancelled = cancel_mission(svc, mission.mission_id)
+    cancelled = cancel_mission(svc, mission.mission_id, principal=_APPROVER)
     assert cancelled.state is MissionState.CLOSED
     assert cancelled.state_history[-2][0] == MissionState.REASSIGNED.value
     assert cancelled.state_history[-1][0] == MissionState.CLOSED.value
