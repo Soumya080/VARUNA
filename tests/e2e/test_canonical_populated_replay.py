@@ -112,6 +112,11 @@ def _strip_volatile(obj):
     volatile_keys = {
         "generated_at", "created_at", "computed_at", "evaluated_at",
         "timestamp", "artifact_ids", "idempotency_key",
+        # ADR-0017: _phi() now calls the real backward-ensemble engine, which
+        # generates a UUID-based phi_id and writes a .npz to a temp directory
+        # with that ID in the filename. These are process artifacts (like
+        # timestamps), not content-derived — strip them for determinism.
+        "data_path", "phi_id",
     }
     if isinstance(obj, dict):
         return {k: _strip_volatile(v) for k, v in obj.items() if k not in volatile_keys}

@@ -152,6 +152,58 @@ export interface ForwardForecastValue {
   envelope: { mode: EvidenceModeValue; case_id: string | null; [key: string]: unknown }
 }
 
+/** ADR-0017 — one point on the derived backward-drift centroid path. */
+export interface BackdriftPathPoint {
+  time_hours: number   // hours before observation (age) — always >= 0
+  lon: number
+  lat: number
+  mass_fraction: number // this time-slice's share of total Phi mass
+}
+
+/** Mirrors `varuna_contracts.phi.PhiField` — the complete origin-probability artifact. */
+export interface PhiFieldValue {
+  phi_id: string
+  slick_id: string
+  case_id: string
+  data_path: string
+  bbox: BBoxValue
+  grid_shape: [number, number, number]
+  n_particles: number
+  n_ensemble: number
+  backward_duration_hours: number
+  dt_seconds: number
+  forcing_current_source: string
+  forcing_wind_source: string
+  weathering_model: string | null
+  diagnostics: {
+    entropy: number
+    concentration: number
+    effective_support_km2: number
+    convergence: number
+    convergence_flag: string
+    n_modes: number
+    multimodal: boolean
+    boundary_interaction: boolean
+    particles_lost: number
+    particles_seeded: number
+    ensemble_members_completed: number
+    ensemble_members_requested: number
+    runtime_seconds: number
+  }
+  sensitivity: {
+    age_sensitivity: number
+    forcing_sensitivity: number
+    diffusivity_sensitivity: number
+    weathering_sensitivity: number | null
+  } | null
+  /** ADR-0017. Null = not computed, never "computed and empty". */
+  backdrift_path: BackdriftPathPoint[] | null
+  spatial_modes: Array<{ centroid: { lon: number; lat: number }; mass: number; area_km2: number; peak_time_unix: number; separation_km: number | null }>
+  time_distribution: { time_edges_unix: number[]; mass: number[]; mode_unix: number; p05_unix: number; p95_unix: number }
+  envelope: { mode: EvidenceModeValue; [key: string]: unknown }
+  [key: string]: unknown
+}
+
 export interface AssetTaskingValue {
   [key: string]: unknown
 }
@@ -402,7 +454,7 @@ export interface OperatorCase {
   system_status: SystemStatusView
   observation: SectionEnvelope<ObservationView>
   detection: SectionEnvelope<SlickDetectionValue>
-  origin: SectionEnvelope<Record<string, unknown>>
+  origin: SectionEnvelope<PhiFieldValue>
   ais: SectionEnvelope<AISCandidateView[]>
   attribution: SectionEnvelope<AttributionResultValue>
   validity: SectionEnvelope<ValidityGateResultValue>

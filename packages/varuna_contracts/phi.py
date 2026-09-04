@@ -20,6 +20,7 @@ from varuna_contracts.evidence import EvidenceEnvelope
 from varuna_contracts.schemas import BBox, GeoPoint
 
 __all__ = [
+    "BackdriftPathPoint",
     "ConvergenceFlag",
     "PhiDiagnostics",
     "PhiField",
@@ -51,6 +52,24 @@ class SpatialMode(_Base):
     area_km2: float = Field(..., ge=0)
     peak_time_unix: float
     separation_km: float | None = Field(None, ge=0)  # distance to nearest other mode
+
+
+class BackdriftPathPoint(_Base):
+    """One point on the derived backward-drift path — ADR-0017.
+
+    This is the probability-mass-weighted centroid of the Phi field's
+    spatial slice at ONE time bin. It is NOT a single true particle's
+    trajectory — Phi is a distribution over an ensemble of particles, and a
+    centroid is only a faithful one-line summary of it. It is most
+    misleading exactly when `PhiDiagnostics.multimodal` is True (the field
+    genuinely disagrees with itself about where the mass is); a consumer
+    MUST check `multimodal` before presenting this path as "the" answer
+    rather than "the mean of a set of competing answers".
+    """
+    time_hours: float          # hours before observation (backward) — age, always >= 0
+    lon: float = Field(..., ge=-180, le=180)
+    lat: float = Field(..., ge=-90, le=90)
+    mass_fraction: float = Field(..., ge=0, le=1)  # this time slice's share of total Phi mass
 
 
 class TimeDistribution(_Base):
@@ -168,6 +187,12 @@ class PhiField(_Base):
     # explicitly request it. The validity gate treats None as
     # PHI_DIAGNOSTICS_UNAVAILABLE (blocking).
     sensitivity: SensitivityBlock | None = None
+
+    # ADR-0017. None means "not computed" (same convention as `sensitivity`
+    # above), never "computed and found empty". Unlike `sensitivity`, this
+    # is cheap (a byproduct of the histogram already built) and is expected
+    # to be populated whenever `phi_builder.build_phi_field()` runs.
+    backdrift_path: list[BackdriftPathPoint] | None = None
 
     n_particles: int = Field(..., gt=0)
     n_ensemble: int = Field(..., gt=0)

@@ -253,6 +253,9 @@ def _strip_volatile(obj):
         "generated_at", "created_at", "computed_at", "evaluated_at",
         "timestamp", "artifact_ids", "idempotency_key", "selected_at",
         "executed_at", "at", "action_id", "recorded_at",
+        # ADR-0017: _phi() real engine calls generate a unique UUID phi_id
+        # and temp file data_path per execution.
+        "data_path", "phi_id",
     }
     if isinstance(obj, dict):
         return {k: _strip_volatile(v) for k, v in obj.items() if k not in volatile_keys}

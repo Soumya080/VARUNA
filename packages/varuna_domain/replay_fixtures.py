@@ -29,6 +29,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import numpy as np
+
+from varuna_prativartan.cube_field import PHI_EPOCH
+
 from varuna_contracts.decision import (
     AttributionResultV2, CandidateScore, DecisionState, HistoricalReconstruction,
     LatentFinding, PriorContribution,
@@ -82,31 +86,92 @@ def _detection(mode_label: str) -> SlickDetection:
     )
 
 
+def _cached_mc20_backdrift_reference() -> PhiField | None:
+    """ADR-0017: `CASE-VALID`'s Φ field, precomputed once by
+    `scripts/build_mc20_backdrift_reference.py` against REAL, already-
+    persisted ERA5/CMEMS forcing cubes for the real MC20/Taylor Energy
+    site — not recomputed on every request. Returns None (never raises) if
+    the build script hasn't been run in this checkout, so `_phi()` always
+    has a working fallback."""
+    import json
+    from pathlib import Path
+
+    path = (Path(__file__).resolve().parents[2] / "data" / "gold" / "events"
+            / "mc20_v0_1" / "prativartan" / "phi_field.json")
+    if not path.exists():
+        return None
+    try:
+        return PhiField.model_validate_json(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
 def _phi(case_id: str, slick_id: str, mode: EvidenceMode, *, with_sensitivity: bool) -> PhiField:
-    t0 = _T_OBS.timestamp()
-    t1 = (_T_OBS + timedelta(hours=24)).timestamp()
-    diagnostics = PhiDiagnostics(
-        entropy=0.30, concentration=0.60, effective_support_km2=25.0, convergence=0.05,
-        convergence_flag=ConvergenceFlag.CONVERGED, n_modes=1, multimodal=False,
-        boundary_interaction=False, particles_lost=10, particles_seeded=500,
-        ensemble_members_completed=20, ensemble_members_requested=20, runtime_seconds=12.3,
+    """ADR-0017: this used to hand-author `PhiDiagnostics` as literal
+    constants (`entropy=0.30`, `convergence_flag=CONVERGED`, always
+    `n_modes=1`...) rather than ever running the real backward-ensemble
+    engine — meaning no demo case's Φ field was ever genuinely computed,
+    only authored to look plausible. `run_backward_ensemble` completes in
+    well under a second even at the full 500-particle/20-ensemble config
+    (measured this session), so there is no performance reason not to
+    compute it for real.
+
+    `CASE-VALID` — the one fixture with real forcing data available for its
+    real anchor point — loads the cached REAL-forcing reference (see
+    `_cached_mc20_backdrift_reference`) when present, falling back to the
+    same synthetic-engine computation every other fixture uses if the
+    reference hasn't been built in this checkout. Every other fixture runs
+    the real engine on `SyntheticModelCurrentField`/`SyntheticWindField` —
+    a genuine computation, evidence_mode unchanged (still exactly what the
+    caller passed), only the NUMBERS are no longer authored constants.
+    """
+    # `case_id` here is whatever the caller passed for THIS phi field's
+    # identity (e.g. "REPLAY-CASE-VALID" via the API router's
+    # `f"REPLAY-{fixture_name}"` convention, or the bare fixture name via
+    # direct calls to `build_replay_run`) — match on suffix so the cached
+    # real-forcing reference is found either way.
+    if "CASE-VALID" in case_id:
+        cached = _cached_mc20_backdrift_reference()
+        if cached is not None:
+            return cached.model_copy(update={
+                "case_id": case_id, "slick_id": slick_id,
+                "envelope": _envelope(f"phi-{case_id}", "prativartan", mode),
+                "sensitivity": (
+                    SensitivityBlock(age_sensitivity=0.20, forcing_sensitivity=0.25,
+                                     diffusivity_sensitivity=0.15, weathering_sensitivity=None)
+                    if with_sensitivity else None
+                ),
+            })
+
+    from varuna_prativartan.config import PratiConfig
+    from varuna_prativartan.current_field import SyntheticModelCurrentField, SyntheticWindField
+    from varuna_prativartan.ensemble import run_backward_ensemble
+    from varuna_prativartan.phi_builder import build_phi_field
+
+    obs_time_hours = (_T_OBS - PHI_EPOCH).total_seconds() / 3600.0
+    config = PratiConfig(n_particles=500, n_ensemble=20, backward_duration_hours=24.0, seed=42)
+    ensemble_res = run_backward_ensemble(
+        obs_lons=np.array([_ANCHOR.lon]), obs_lats=np.array([_ANCHOR.lat]),
+        obs_time_hours=obs_time_hours,
+        current=SyntheticModelCurrentField(), wind=SyntheticWindField(), config=config,
     )
-    sensitivity = (
-        SensitivityBlock(age_sensitivity=0.20, forcing_sensitivity=0.25,
-                         diffusivity_sensitivity=0.15, weathering_sensitivity=None)
-        if with_sensitivity else None
-    )
-    return PhiField(
-        phi_id=f"replay-phi-{case_id}", slick_id=slick_id, case_id=case_id,
-        data_path=f"replay://{case_id}/phi.npz", bbox=_BBOX, grid_shape=(1, 64, 64),
-        time_distribution=TimeDistribution(
-            time_edges_unix=[t0, t1], mass=[1.0], mode_unix=t0, p05_unix=t0, p95_unix=t1,
-        ),
-        spatial_modes=[], diagnostics=diagnostics, sensitivity=sensitivity,
-        n_particles=500, n_ensemble=20, backward_duration_hours=24.0, dt_seconds=300.0,
+    phi = build_phi_field(
+        ensemble_results=ensemble_res, case_id=case_id, slick_id=slick_id,
+        input_envelope=_envelope(f"phi-input-{case_id}", "prativartan", mode),
+        obs_time_hours=obs_time_hours, age_prior_mean_hours=24.0, age_prior_std_hours=12.0,
+        config=config, runtime_seconds=0.0,
         forcing_current_source="replay.synthetic.cmems", forcing_wind_source="replay.synthetic.era5",
-        weathering_model=None, envelope=_envelope(f"phi-{case_id}", "prativartan", mode),
     )
+    phi = phi.model_copy(update={
+        "phi_id": f"replay-phi-{case_id}",
+        "envelope": _envelope(f"phi-{case_id}", "prativartan", mode),
+        "sensitivity": (
+            SensitivityBlock(age_sensitivity=0.20, forcing_sensitivity=0.25,
+                             diffusivity_sensitivity=0.15, weathering_sensitivity=None)
+            if with_sensitivity else None
+        ),
+    })
+    return phi
 
 
 def _attribution(case_id: str, phi_id: str, slick_id: str, mode: EvidenceMode) -> AttributionResultV2:
@@ -565,28 +630,44 @@ def _india_detection(scn: _IndiaScenario) -> SlickDetection:
 
 
 def _india_phi(scn: _IndiaScenario, slick_id: str) -> PhiField:
-    t0 = scn.t_obs.timestamp()
-    t1 = (scn.t_obs + timedelta(hours=24)).timestamp()
-    diagnostics = PhiDiagnostics(
-        entropy=0.30, concentration=0.60, effective_support_km2=scn.area_km2 * 2, convergence=0.05,
-        convergence_flag=ConvergenceFlag.CONVERGED, n_modes=1, multimodal=False,
-        boundary_interaction=False, particles_lost=10, particles_seeded=500,
-        ensemble_members_completed=20, ensemble_members_requested=20, runtime_seconds=12.3,
+    """ADR-0017: rewritten to call the real backward-ensemble engine instead
+    of hand-authoring `PhiDiagnostics` as literal constants. Same approach
+    as `_phi()`'s non-CASE-VALID branch: real computation on synthetic
+    forcing fields, `EvidenceMode.SIMULATED` throughout (no real forcing
+    data exists for these Indian Ocean scenarios — their anchor points are
+    illustrative reconstructions of real historical incidents, but the
+    current/wind fields used here are synthetic).
+
+    `SensitivityBlock` is still hand-authored (ADR-0007: sensitivity sweep
+    costs ~7x the base ensemble runtime, opt-in by design, not worth the
+    cost for a replay fixture whose mode is SIMULATED anyway)."""
+    from varuna_prativartan.config import PratiConfig
+    from varuna_prativartan.current_field import SyntheticModelCurrentField, SyntheticWindField
+    from varuna_prativartan.ensemble import run_backward_ensemble
+    from varuna_prativartan.phi_builder import build_phi_field
+
+    obs_time_hours = (scn.t_obs - PHI_EPOCH).total_seconds() / 3600.0
+    config = PratiConfig(n_particles=500, n_ensemble=20, backward_duration_hours=24.0, seed=42)
+    ensemble_res = run_backward_ensemble(
+        obs_lons=np.array([scn.anchor.lon]), obs_lats=np.array([scn.anchor.lat]),
+        obs_time_hours=obs_time_hours,
+        current=SyntheticModelCurrentField(), wind=SyntheticWindField(), config=config,
     )
-    sensitivity = SensitivityBlock(age_sensitivity=0.20, forcing_sensitivity=0.25,
-                                    diffusivity_sensitivity=0.15, weathering_sensitivity=None)
-    return PhiField(
-        phi_id=f"replay-phi-{scn.case_id}", slick_id=slick_id, case_id=scn.case_id,
-        data_path=f"replay://{scn.case_id}/phi.npz", bbox=scn.bbox, grid_shape=(1, 64, 64),
-        time_distribution=TimeDistribution(
-            time_edges_unix=[t0, t1], mass=[1.0], mode_unix=t0, p05_unix=t0, p95_unix=t1,
-        ),
-        spatial_modes=[], diagnostics=diagnostics, sensitivity=sensitivity,
-        n_particles=500, n_ensemble=20, backward_duration_hours=24.0, dt_seconds=300.0,
+    phi = build_phi_field(
+        ensemble_results=ensemble_res, case_id=scn.case_id, slick_id=slick_id,
+        input_envelope=_envelope(f"phi-input-{scn.case_id}", "prativartan", EvidenceMode.SIMULATED),
+        obs_time_hours=obs_time_hours, age_prior_mean_hours=24.0, age_prior_std_hours=12.0,
+        config=config, runtime_seconds=0.0,
         forcing_current_source="replay.synthetic.cmems", forcing_wind_source="replay.synthetic.era5",
-        weathering_model=None,
-        envelope=_envelope(f"phi-{scn.case_id}", "prativartan", EvidenceMode.SIMULATED),
     )
+    phi = phi.model_copy(update={
+        "phi_id": f"replay-phi-{scn.case_id}",
+        "envelope": _envelope(f"phi-{scn.case_id}", "prativartan", EvidenceMode.SIMULATED),
+        "sensitivity": SensitivityBlock(age_sensitivity=0.20, forcing_sensitivity=0.25,
+                                         diffusivity_sensitivity=0.15, weathering_sensitivity=None),
+    })
+    return phi
+
 
 
 def _india_attribution(scn: _IndiaScenario, phi_id: str, slick_id: str) -> AttributionResultV2:

@@ -29,7 +29,7 @@ import {
 } from 'react-leaflet'
 import type { LatLngBoundsExpression, LatLngExpression } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import type { BBoxValue, OperatorCase } from '@/lib/operator-case-types'
+import type { BBoxValue, OperatorCase, PhiFieldValue, BackdriftPathPoint } from '@/lib/operator-case-types'
 
 function bboxToBounds(b: BBoxValue): LatLngBoundsExpression {
   return [
@@ -62,11 +62,13 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
   const detectionBbox = detection?.bbox ?? null
   const detectionCentroid = detection?.centroid ?? null
 
-  const origin =
-    oc.origin.status === 'produced'
-      ? (oc.origin.value as unknown as { bbox?: BBoxValue } | null)
-      : null
-  const phiBbox: BBoxValue | null = origin?.bbox ?? null
+  const originValue: PhiFieldValue | null =
+    oc.origin.status === 'produced' ? oc.origin.value : null
+  const phiBbox: BBoxValue | null = originValue?.bbox ?? null
+
+  // ADR-0017: backward-drift centroid path derived from the real Phi histogram.
+  const backdriftPath: BackdriftPathPoint[] = originValue?.backdrift_path ?? []
+  const isMultimodal: boolean = originValue?.diagnostics?.multimodal ?? false
 
   const forecast = oc.forecast.status === 'produced' ? oc.forecast.value : null
   const landfalls = forecast?.landfalls ?? []
@@ -101,6 +103,9 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
     for (const lf of landfalls) {
       if (lf.position) pts.push([lf.position.lat, lf.position.lon])
     }
+    for (const bp of backdriftPath) {
+      pts.push([bp.lat, bp.lon])
+    }
     if (pts.length === 0) return null
     const lats = pts.map((p) => p[0])
     const lons = pts.map((p) => p[1])
@@ -110,7 +115,7 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
       [Math.min(...lats) - pad, Math.min(...lons) - pad],
       [Math.max(...lats) + pad, Math.max(...lons) + pad],
     ]
-  }, [startPoint, detectionCentroid, detectionBbox, phiBbox, landfalls, missionSearchBoxes])
+  }, [startPoint, detectionCentroid, detectionBbox, phiBbox, landfalls, missionSearchBoxes, backdriftPath])
 
   // TRAJECTORY NOTE: ForwardForecast carries `trajectory_path` (a .npz
   // reference), not a coordinate array, and PhiField carries a bbox +
@@ -217,6 +222,69 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
             Backward-reconstruction probability field extent.
           </Popup>
         </Rectangle>
+      )}
+
+      {/* ADR-0017: PRATIVARTAN backward-drift centroid path — the probability-
+          mass-weighted centroid of each Phi time slice, drawn oldest-first
+          (origin → observation). NOT a single particle's trajectory — this is
+          a summary statistic of a probability distribution. When the field is
+          multimodal, the centroid can be misleading (it averages competing
+          lobes); the popup warns about this. */}
+      {backdriftPath.length >= 2 && (
+        <Polyline
+          positions={backdriftPath.map((p) => [p.lat, p.lon] as LatLngExpression)}
+          pathOptions={{
+            color: isMultimodal ? '#f59e0b' : '#8b5cf6',
+            weight: 3,
+            opacity: 0.85,
+            dashArray: isMultimodal ? '6 4' : undefined,
+          }}
+        >
+          <Popup>
+            <strong>PRATIVARTAN backward-drift path</strong>
+            <br />
+            {backdriftPath.length} time slices &middot; oldest: {backdriftPath[0]?.time_hours.toFixed(1)}h ago
+            <br />
+            <em>
+              Probability-mass centroid of the &Phi; histogram per time bin
+              &mdash; NOT a single particle&apos;s trajectory.
+            </em>
+            {isMultimodal && (
+              <>
+                <br />
+                <span style={{ color: '#f59e0b', fontWeight: 600 }}>
+                  ⚠ Field is multimodal — competing origin hypotheses exist.
+                  This centroid averages them; individual lobes may be far apart.
+                </span>
+              </>
+            )}
+          </Popup>
+          <Tooltip permanent={false}>
+            <span style={{ fontSize: 10 }}>BACKWARD DRIFT PATH</span>
+          </Tooltip>
+        </Polyline>
+      )}
+      {/* Origin endpoint marker — the oldest point on the backdrift path */}
+      {backdriftPath.length > 0 && (
+        <CircleMarker
+          center={[backdriftPath[0].lat, backdriftPath[0].lon]}
+          radius={7}
+          pathOptions={{ color: '#fff', weight: 2, fillColor: '#8b5cf6', fillOpacity: 0.9 }}
+        >
+          <Popup>
+            <strong>Estimated origin area</strong>
+            <br />
+            {backdriftPath[0].time_hours.toFixed(1)}h before observation
+            <br />
+            {Math.abs(backdriftPath[0].lat).toFixed(4)}&deg;{backdriftPath[0].lat >= 0 ? 'N' : 'S'}{' '}
+            {Math.abs(backdriftPath[0].lon).toFixed(4)}&deg;{backdriftPath[0].lon >= 0 ? 'E' : 'W'}
+            <br />
+            mass: {(backdriftPath[0].mass_fraction * 100).toFixed(1)}% of &Phi;
+          </Popup>
+          <Tooltip permanent direction="left" offset={[-10, 0]}>
+            <span style={{ fontSize: 10, fontWeight: 600 }}>ORIGIN ({backdriftPath[0].time_hours.toFixed(0)}h)</span>
+          </Tooltip>
+        </CircleMarker>
       )}
 
       {/* Mission search box(es) — MissionRecord.tasking.search_box, real

@@ -51,6 +51,7 @@ from varuna_contracts.operator_case import (
     SystemStatusView,
 )
 from varuna_contracts.phi import (
+    BackdriftPathPoint,
     ConvergenceFlag,
     PhiDiagnostics,
     PhiField,
@@ -103,6 +104,7 @@ __all__ = [
     "AnomalyFlag",
     "AssetTasking",
     "AssetType",
+    "BackdriftPathPoint",
     # decision
     "AttributionResultV2",
     "BBox",

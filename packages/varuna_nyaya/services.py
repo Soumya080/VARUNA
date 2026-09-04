@@ -57,8 +57,21 @@ class PrativartanService:
         input_envelope: EvidenceEnvelope | None = None,
         current: AbstractCurrentField | None = None,
         wind: AbstractWindField | None = None,
+        output_dir: str | None = None,
+        forcing_current_source: str | None = None,
+        forcing_wind_source: str | None = None,
     ) -> PhiField:
         """
+        ADR-0017: `forcing_current_source`/`forcing_wind_source`, when
+        given, name what `current`/`wind` actually are (e.g.
+        `"cmems.real"`) — omitted, they default to the honest
+        `"synthetic_shear_v1"`/`"synthetic_wind_v1"` regardless of what
+        `current`/`wind` objects were passed, exactly as before this ADR.
+        Passing a real field object without ALSO naming it here would leave
+        `PhiField.forcing_current_source` claiming synthetic while real
+        forcing was actually used — this makes that mismatch impossible by
+        construction rather than something a caller has to remember.
+
         `input_envelope`, when supplied, carries the real forcing/evidence
         provenance (mode, trust, quality) into the resulting PhiField via
         `.derive()`.
@@ -114,7 +127,7 @@ class PrativartanService:
         )
         runtime_seconds = time.perf_counter() - t0
 
-        phi = build_phi_field(
+        build_kwargs = dict(
             ensemble_results=ensemble_res,
             case_id=case_id, slick_id=slick_id,
             input_envelope=base_env,
@@ -123,7 +136,13 @@ class PrativartanService:
             age_prior_std_hours=age_prior_std_hours,
             config=config,
             runtime_seconds=runtime_seconds,
+            output_dir=output_dir,
         )
+        if forcing_current_source is not None:
+            build_kwargs["forcing_current_source"] = forcing_current_source
+        if forcing_wind_source is not None:
+            build_kwargs["forcing_wind_source"] = forcing_wind_source
+        phi = build_phi_field(**build_kwargs)
         return phi
 
     def reconstruct_origin_with_sensitivity(

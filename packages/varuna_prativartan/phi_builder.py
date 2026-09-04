@@ -37,6 +37,9 @@ def build_phi_field(
     age_prior_std_hours: float,
     config: PratiConfig,
     runtime_seconds: float,
+    output_dir: str | None = None,
+    forcing_current_source: str = "synthetic_shear_v1",
+    forcing_wind_source: str = "synthetic_wind_v1",
 ) -> PhiField:
     """
     Construct the PhiField from ensemble results using a 3D histogram.
@@ -320,8 +323,13 @@ def build_phi_field(
         processing_version="2.0.0",
     )
 
-    temp_dir = tempfile.gettempdir()
-    data_path = os.path.join(temp_dir, f"{phi_id}.npz")
+    # ADR-0017: `output_dir` lets a caller (the replay-fixture path, the
+    # real MC20 backdrift script) persist this artifact somewhere durable.
+    # Omitted (every pre-existing caller), behavior is unchanged — the OS
+    # temp dir, exactly as before.
+    save_dir = output_dir if output_dir is not None else tempfile.gettempdir()
+    os.makedirs(save_dir, exist_ok=True)
+    data_path = os.path.join(save_dir, f"{phi_id}.npz")
 
     np.savez(
         data_path,
@@ -330,6 +338,15 @@ def build_phi_field(
         lat_edges=lat_edges.astype(np.float64),
         time_edges=time_edges.astype(np.float64),
         particle_count=particle_count,
+    )
+
+    # ADR-0017: derived from the histogram already in memory — no extra
+    # ensemble cost. See backdrift_path.py's own docstring for what this
+    # is and, importantly, is not (a single true particle's path).
+    from varuna_prativartan.backdrift_path import derive_centroid_path
+    backdrift_path = derive_centroid_path(
+        phi_array=phi_array, lon_edges=lon_edges, lat_edges=lat_edges,
+        time_edges=time_edges, obs_time_hours=obs_time_hours,
     )
 
     return PhiField(
@@ -343,12 +360,13 @@ def build_phi_field(
         spatial_modes=[],
         diagnostics=diagnostics,
         sensitivity=sensitivity,
+        backdrift_path=backdrift_path,
         n_particles=measured_n_particles,
         n_ensemble=config.n_ensemble,
         backward_duration_hours=config.backward_duration_hours,
         dt_seconds=config.dt_seconds,
-        forcing_current_source="synthetic_shear_v1",
-        forcing_wind_source="synthetic_wind_v1",
+        forcing_current_source=forcing_current_source,
+        forcing_wind_source=forcing_wind_source,
         weathering_model=None,
         envelope=out_env,
         created_at=datetime.now(timezone.utc),
