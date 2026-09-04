@@ -131,19 +131,20 @@ export function RunTimeline({ stages }: { stages: DerivedStageState[] }) {
 
 export function EvidencePanels({ oc }: { oc: OperatorCase }) {
   const det = oc.detection
+  const ori = oc.origin
   const intel = oc.intelligence
-  const hyps = intel.hypotheses?.hypotheses ?? []
+  const hyps = intel?.hypotheses?.hypotheses ?? []
   const top = hyps.length
     ? hyps.slice().sort((a, b) => b.posterior - a.posterior)[0]
     : null
-  const unc = intel.uncertainty
+  const unc = intel?.uncertainty
   const attr = oc.attribution
   const val = oc.validity
 
   return (
     <div className="space-y-2">
       <Card title="NETRA — Detection" right={<SectionStatus s={det} />}>
-        {det.status === 'produced' && det.value ? (
+        {det?.status === 'produced' && det?.value ? (
           <>
             <Row label="Classification" value={det.value.classification ?? '—'} />
             <Row label="Confidence" value={det.value.confidence?.toFixed?.(2) ?? '—'} />
@@ -151,13 +152,28 @@ export function EvidencePanels({ oc }: { oc: OperatorCase }) {
             <Row label="Model" value={det.value.netra_model_version ?? '—'} />
           </>
         ) : (
-          <p className="text-[12px] text-muted-foreground">{det.reason ?? 'Not produced.'}</p>
+          <p className="text-[12px] text-muted-foreground">{det?.reason ?? 'Not produced.'}</p>
         )}
         {unc && (
           <div className="mt-2 border-t border-border pt-2">
             <Row label="OOD risk" value={unc.ood_risk.replace(/_/g, ' ')} />
             <Row label="Evidence conflicts" value={unc.evidence_conflict_count} />
           </div>
+        )}
+      </Card>
+
+      <Card title="PRATIVARTAN — Reverse Drift" right={<SectionStatus s={ori} />}>
+        {ori?.status === 'produced' && ori?.value ? (
+          <>
+            <Row label="Ensemble Advection" value={`${ori.value.n_ensemble} members (${ori.value.backward_duration_hours}h)`} />
+            <Row label="Scenarios" value={ori.value.diagnostics.n_modes > 1 ? `${ori.value.diagnostics.n_modes} (Multimodal)` : '1 (Unimodal)'} />
+            {ori.value.spatial_modes.length > 0 && (
+              <Row label="Primary Origin (Lat, Lon)" value={`${ori.value.spatial_modes[0].centroid.lat.toFixed(3)}°, ${ori.value.spatial_modes[0].centroid.lon.toFixed(3)}°`} />
+            )}
+            <Row label="Convergence" value={ori.value.diagnostics.convergence_flag} />
+          </>
+        ) : (
+          <p className="text-[12px] text-muted-foreground">{ori?.reason ?? 'Not produced.'}</p>
         )}
       </Card>
 
@@ -186,20 +202,24 @@ export function EvidencePanels({ oc }: { oc: OperatorCase }) {
       </Card>
 
       <Card title="NYAYA — Attribution" right={<SectionStatus s={attr} />}>
-        {attr.status === 'produced' && attr.value ? (
+        {attr?.status === 'produced' && attr?.value ? (
           <>
             <Row label="Top posterior" value={attr.value.top_posterior?.toFixed(3) ?? '—'} />
+            <Row label="Latent Source (L0)" value={`${(attr.value.latent_probability * 100).toFixed(1)}%`} />
             <Row label="Candidates" value={attr.value.candidates?.length ?? 0} />
+            <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+              {attr.value.latent_finding.replace(/_/g, ' ')} — posteriors are calibrated probabilities.
+            </p>
           </>
         ) : (
           <p className="text-[12px] text-muted-foreground">
-            {attr.reason ?? 'Not produced — fail-closed, no attribution asserted.'}
+            {attr?.reason ?? 'Not produced — fail-closed, no attribution asserted.'}
           </p>
         )}
       </Card>
 
       <Card title="Validity gate" right={<SectionStatus s={val} />}>
-        {val.status === 'produced' && val.value ? (
+        {val?.status === 'produced' && val?.value ? (
           <>
             <Row
               label="State"
@@ -226,7 +246,7 @@ export function EvidencePanels({ oc }: { oc: OperatorCase }) {
             )}
           </>
         ) : (
-          <p className="text-[12px] text-muted-foreground">{val.reason ?? 'Gate did not run.'}</p>
+          <p className="text-[12px] text-muted-foreground">{val?.reason ?? 'Gate did not run.'}</p>
         )}
       </Card>
     </div>

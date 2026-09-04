@@ -29,7 +29,7 @@ import {
 } from 'react-leaflet'
 import type { LatLngBoundsExpression, LatLngExpression } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import type { BBoxValue, OperatorCase, PhiFieldValue, BackdriftPathPoint } from '@/lib/operator-case-types'
+import type { AttributionResultValue, BBoxValue, OperatorCase, PhiFieldValue, BackdriftPathPoint } from '@/lib/operator-case-types'
 
 function bboxToBounds(b: BBoxValue): LatLngBoundsExpression {
   return [
@@ -74,6 +74,9 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
   const landfalls = forecast?.landfalls ?? []
 
   const aisTracks = oc.ais.status === 'produced' ? (oc.ais.value ?? []) : []
+
+  // NYAYA attribution — latent source probability for dark vessel indicator
+  const attrValue = oc.attribution?.status === 'produced' ? oc.attribution.value : null
 
   // Phase 9 (docs/product/HONESTY_LEDGER.md #27): `MissionRecord.tasking`
   // — real bbox/center/area/pattern/PoD/rationale, computed since ADR-0015
@@ -224,20 +227,59 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
         </Rectangle>
       )}
 
-      {/* ADR-0017: PRATIVARTAN backward-drift centroid path — the probability-
-          mass-weighted centroid of each Phi time slice, drawn oldest-first
-          (origin → observation). NOT a single particle's trajectory — this is
-          a summary statistic of a probability distribution. When the field is
-          multimodal, the centroid can be misleading (it averages competing
-          lobes); the popup warns about this. */}
+      {/* ADR-0017: PRATIVARTAN backward-drift centroid path — rendered as
+          segmented gradient polylines for visual depth. Each segment is
+          colored from dim (oldest) to bright (newest). A wide translucent
+          "glow" path sits behind the main path for emphasis. */}
+      
+      {/* Background glow path — wide & translucent for depth effect */}
       {backdriftPath.length >= 2 && (
         <Polyline
           positions={backdriftPath.map((p) => [p.lat, p.lon] as LatLngExpression)}
           pathOptions={{
             color: isMultimodal ? '#f59e0b' : '#8b5cf6',
-            weight: 3,
-            opacity: 0.85,
-            dashArray: isMultimodal ? '6 4' : undefined,
+            weight: 10,
+            opacity: 0.15,
+            lineCap: 'round',
+            lineJoin: 'round',
+          }}
+        />
+      )}
+
+      {/* Main path — segmented by time for gradient effect */}
+      {backdriftPath.length >= 2 &&
+        backdriftPath.slice(0, -1).map((p, i) => {
+          const next = backdriftPath[i + 1]
+          // Opacity increases from oldest (0) to newest (length-1)
+          const t = i / (backdriftPath.length - 1)
+          const opacity = 0.4 + t * 0.55
+          const weight = 2.5 + t * 2.5 // thinner at origin, thicker at observation
+          return (
+            <Polyline
+              key={`bd-seg-${i}`}
+              positions={[
+                [p.lat, p.lon] as LatLngExpression,
+                [next.lat, next.lon] as LatLngExpression,
+              ]}
+              pathOptions={{
+                color: isMultimodal ? '#f59e0b' : '#8b5cf6',
+                weight,
+                opacity,
+                lineCap: 'round',
+                lineJoin: 'round',
+              }}
+            />
+          )
+        })}
+
+      {/* Clickable invisible overlay for the popup */}
+      {backdriftPath.length >= 2 && (
+        <Polyline
+          positions={backdriftPath.map((p) => [p.lat, p.lon] as LatLngExpression)}
+          pathOptions={{
+            color: 'transparent',
+            weight: 15,
+            opacity: 0,
           }}
         >
           <Popup>
@@ -264,6 +306,32 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
           </Tooltip>
         </Polyline>
       )}
+
+      {/* Backdrift path waypoint markers — every 3 steps with time labels */}
+      {backdriftPath.filter((_, i) => i % 3 === 0 || i === backdriftPath.length - 1).map((p, idx) => {
+        const t = p.time_hours / (backdriftPath[0]?.time_hours || 1)
+        const radius = 3 + (1 - t) * 3 // bigger near observation
+        return (
+          <CircleMarker
+            key={`bdwp-${idx}`}
+            center={[p.lat, p.lon]}
+            radius={radius}
+            pathOptions={{
+              color: '#fff',
+              weight: 1.5,
+              fillColor: isMultimodal ? '#f59e0b' : '#8b5cf6',
+              fillOpacity: 0.8,
+            }}
+          >
+            <Tooltip permanent={false}>
+              <span style={{ fontSize: 10 }}>
+                t = −{p.time_hours.toFixed(1)}h · mass {(p.mass_fraction * 100).toFixed(1)}%
+              </span>
+            </Tooltip>
+          </CircleMarker>
+        )
+      })}
+
       {/* Origin endpoint marker — the oldest point on the backdrift path */}
       {backdriftPath.length > 0 && (
         <CircleMarker
@@ -283,6 +351,107 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
           </Popup>
           <Tooltip permanent direction="left" offset={[-10, 0]}>
             <span style={{ fontSize: 10, fontWeight: 600 }}>ORIGIN ({backdriftPath[0].time_hours.toFixed(0)}h)</span>
+          </Tooltip>
+        </CircleMarker>
+      )}
+
+      {/* Source region estimation — effective support area around origin */}
+      {originValue?.diagnostics?.effective_support_km2 && backdriftPath.length > 0 && (
+        <CircleMarker
+          center={[backdriftPath[0].lat, backdriftPath[0].lon]}
+          radius={20}
+          pathOptions={{
+            color: '#a78bfa',
+            weight: 1.5,
+            dashArray: '4 3',
+            fillColor: '#8b5cf6',
+            fillOpacity: 0.08,
+          }}
+        >
+          <Popup>
+            <strong>Source Region Estimation</strong>
+            <br />
+            Effective support: {originValue.diagnostics.effective_support_km2.toFixed(1)} km²
+            <br />
+            Convergence: {originValue.diagnostics.convergence_flag}
+            <br />
+            Concentration: {(originValue.diagnostics.concentration * 100).toFixed(1)}%
+          </Popup>
+          <Tooltip permanent={false}>
+            <span style={{ fontSize: 10 }}>
+              SOURCE REGION · {originValue.diagnostics.effective_support_km2.toFixed(0)} km²
+            </span>
+          </Tooltip>
+        </CircleMarker>
+      )}
+
+      {/* Spatial modes — multiple origin hypotheses when field is multimodal */}
+      {(originValue?.spatial_modes ?? []).map((mode, i) => (
+        <CircleMarker
+          key={`mode-${i}`}
+          center={[mode.centroid.lat, mode.centroid.lon]}
+          radius={Math.max(8, Math.min(18, mode.mass * 30))}
+          pathOptions={{
+            color: i === 0 ? '#f59e0b' : '#fb923c',
+            weight: 2,
+            dashArray: i === 0 ? undefined : '3 2',
+            fillColor: i === 0 ? '#f59e0b' : '#fb923c',
+            fillOpacity: 0.25,
+          }}
+        >
+          <Popup>
+            <strong>Origin Scenario #{i + 1}</strong>
+            <br />
+            Mass: {(mode.mass * 100).toFixed(1)}%
+            <br />
+            Area: {mode.area_km2.toFixed(1)} km²
+            <br />
+            {Math.abs(mode.centroid.lat).toFixed(4)}&deg;{mode.centroid.lat >= 0 ? 'N' : 'S'}{' '}
+            {Math.abs(mode.centroid.lon).toFixed(4)}&deg;{mode.centroid.lon >= 0 ? 'E' : 'W'}
+            {mode.separation_km != null && (
+              <>
+                <br />
+                Separation from primary: {mode.separation_km.toFixed(1)} km
+              </>
+            )}
+          </Popup>
+          <Tooltip permanent direction="top">
+            <span style={{ fontSize: 10, fontWeight: 600, color: i === 0 ? '#f59e0b' : '#fb923c' }}>
+              SCENARIO {i + 1} · {(mode.mass * 100).toFixed(0)}%
+            </span>
+          </Tooltip>
+        </CircleMarker>
+      ))}
+
+      {/* Latent source (L0) indicator — ring around the origin when latent_probability > 0 */}
+      {attrValue?.latent_probability != null && attrValue.latent_probability > 0 && backdriftPath.length > 0 && (
+        <CircleMarker
+          center={[backdriftPath[0].lat, backdriftPath[0].lon]}
+          radius={14}
+          pathOptions={{
+            color: '#ef4444',
+            weight: 2.5,
+            dashArray: '5 3',
+            fillColor: '#ef4444',
+            fillOpacity: 0.12,
+          }}
+        >
+          <Popup>
+            <strong>Latent Source (L0) — Dark Vessel</strong>
+            <br />
+            Probability: {(attrValue.latent_probability * 100).toFixed(1)}%
+            <br />
+            Finding: {attrValue.latent_finding?.replace(/_/g, ' ') ?? 'unknown'}
+            <br />
+            <em>
+              This represents the probability that the spill originated from
+              an un-tracked vessel not visible in AIS data.
+            </em>
+          </Popup>
+          <Tooltip permanent direction="right" offset={[14, 0]}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: '#ef4444' }}>
+              LATENT L0 = {(attrValue.latent_probability * 100).toFixed(0)}%
+            </span>
           </Tooltip>
         </CircleMarker>
       )}

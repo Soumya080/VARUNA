@@ -48,7 +48,7 @@ export function useRunStream() {
     setError(null)
 
     const es = new EventSource(
-      `${API_BASE_URL}/v1/run/${encodeURIComponent(fixture)}/stream`,
+      `${API_BASE_URL}/v1/run/${encodeURIComponent(fixture)}/stream?_t=${Date.now()}`,
     )
     esRef.current = es
 

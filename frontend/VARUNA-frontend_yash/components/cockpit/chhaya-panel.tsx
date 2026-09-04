@@ -94,55 +94,292 @@ function TileMiniMap({
 }) {
   const clamp = (v: number) => Math.max(2, Math.min(98, v))
 
+  // Generate deterministic SAR-like ocean noise based on bbox (seeded)
+  const seed = Math.abs(bbox.min_lon * 1000 + bbox.min_lat * 100) % 1000
+  const noiseRects: Array<{ x: number; y: number; w: number; h: number; op: number }> = []
+  for (let i = 0; i < 120; i++) {
+    const s = ((seed + i * 7 + 13) * 2654435761) % 2147483647
+    noiseRects.push({
+      x: (s % 100),
+      y: ((s * 3 + 17) % 100),
+      w: 0.5 + (s % 3) * 0.3,
+      h: 0.3 + ((s * 2) % 3) * 0.2,
+      op: 0.03 + ((s * 5) % 10) * 0.008,
+    })
+  }
+
+  // Generate scan line positions for radar effect
+  const scanLines = Array.from({ length: 20 }, (_, i) => i * 5)
+
   return (
     <svg
       viewBox="0 0 100 100"
-      className="h-32 w-full rounded-sm border border-border bg-background"
+      className="h-64 w-full rounded border border-border"
       role="img"
-      aria-label="Tile candidate and AIS position map"
+      aria-label="SAR tile radar visualization"
     >
-      <rect x={0.5} y={0.5} width={99} height={99} fill="none" stroke="var(--border)" strokeWidth={0.5} />
-      {/* AIS positions: small teal dots, drawn first so candidates sit on top */}
+      <defs>
+        {/* Glow filter for candidate markers */}
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        {/* Stronger glow for detection zone */}
+        <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        {/* Radar sweep gradient */}
+        <radialGradient id="radar-sweep" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#1e3a5f" stopOpacity="0.3" />
+          <stop offset="60%" stopColor="#0f2233" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#091520" stopOpacity="0.9" />
+        </radialGradient>
+        {/* Ocean texture gradient */}
+        <linearGradient id="ocean-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#0a1628" />
+          <stop offset="50%" stopColor="#0d1f35" />
+          <stop offset="100%" stopColor="#0a1a2e" />
+        </linearGradient>
+      </defs>
+
+      {/* Dark ocean background simulating SAR water backscatter */}
+      <rect x={0} y={0} width={100} height={100} fill="url(#ocean-grad)" />
+
+      {/* SAR speckle noise — simulates radar backscatter texture */}
+      {noiseRects.map((n, i) => (
+        <rect
+          key={`noise-${i}`}
+          x={n.x}
+          y={n.y}
+          width={n.w}
+          height={n.h}
+          fill="#4a9eff"
+          opacity={n.op}
+          rx={0.1}
+        />
+      ))}
+
+      {/* Radar scan lines — horizontal */}
+      {scanLines.map((y) => (
+        <line
+          key={`scan-${y}`}
+          x1={0}
+          y1={y}
+          x2={100}
+          y2={y}
+          stroke="#1a4a7a"
+          strokeWidth={0.15}
+          opacity={0.4}
+        />
+      ))}
+
+      {/* Grid overlay — coordinate reference */}
+      <g stroke="#2a5a8a" strokeWidth={0.2} strokeDasharray="1,2" opacity={0.5}>
+        <line x1={0} y1={25} x2={100} y2={25} />
+        <line x1={0} y1={50} x2={100} y2={50} />
+        <line x1={0} y1={75} x2={100} y2={75} />
+        <line x1={25} y1={0} x2={25} y2={100} />
+        <line x1={50} y1={0} x2={50} y2={100} />
+        <line x1={75} y1={0} x2={75} y2={100} />
+      </g>
+
+      {/* Tile border frame */}
+      <rect
+        x={0.5}
+        y={0.5}
+        width={99}
+        height={99}
+        fill="none"
+        stroke="#2a5a8a"
+        strokeWidth={0.8}
+      />
+
+      {/* Coordinate labels — styled like radar HUD */}
+      <text x={2} y={5} fontSize={3} fill="#4a9eff" fontFamily="monospace" opacity={0.8}>
+        {bbox.max_lat.toFixed(3)}°N
+      </text>
+      <text x={2} y={98} fontSize={3} fill="#4a9eff" fontFamily="monospace" opacity={0.8}>
+        {bbox.min_lat.toFixed(3)}°N
+      </text>
+      <text x={98} y={5} textAnchor="end" fontSize={3} fill="#4a9eff" fontFamily="monospace" opacity={0.8}>
+        {bbox.max_lon.toFixed(3)}°W
+      </text>
+      <text x={98} y={98} textAnchor="end" fontSize={3} fill="#4a9eff" fontFamily="monospace" opacity={0.8}>
+        {bbox.min_lon.toFixed(3)}°W
+      </text>
+
+      {/* Center crosshair */}
+      <line x1={48} y1={50} x2={52} y2={50} stroke="#4a9eff" strokeWidth={0.3} opacity={0.5} />
+      <line x1={50} y1={48} x2={50} y2={52} stroke="#4a9eff" strokeWidth={0.3} opacity={0.5} />
+
+      {/* AIS positions: teal glowing dots */}
       {aisPositions.map((p, i) => {
         const proj = projectToBBox(p.lon, p.lat, bbox)
         if (!isWithinFrame(proj)) return null
         return (
-          <circle
-            key={`ais-${i}`}
-            cx={clamp(proj.x)}
-            cy={clamp(proj.y)}
-            r={1.1}
-            fill="var(--teal)"
-            opacity={0.75}
-          />
+          <g key={`ais-${i}`}>
+            {/* Outer glow ring */}
+            <circle
+              cx={clamp(proj.x)}
+              cy={clamp(proj.y)}
+              r={2.5}
+              fill="none"
+              stroke="#00e5ff"
+              strokeWidth={0.3}
+              opacity={0.4}
+            />
+            {/* Inner dot */}
+            <circle
+              cx={clamp(proj.x)}
+              cy={clamp(proj.y)}
+              r={1.2}
+              fill="#00e5ff"
+              opacity={0.85}
+              filter="url(#glow)"
+            />
+          </g>
         )
       })}
-      {/* Candidates: colored/shaped by geolocation validity + outcome tone */}
+
+      {/* Candidates: bright radar contacts with detection rings */}
       {candidates.map((c) => {
         if (!c.position) return null
         const proj = projectToBBox(c.position.lon, c.position.lat, bbox)
         const outside = !isWithinFrame(proj)
-        const color = !c.geolocation_valid
-          ? 'var(--destructive)'
-          : 'var(--saffron)'
+        const color = !c.geolocation_valid ? '#ff4444' : '#ff9900'
+        const cx = clamp(proj.x)
+        const cy = clamp(proj.y)
         return (
-          <circle
-            key={c.candidate_id}
-            cx={clamp(proj.x)}
-            cy={clamp(proj.y)}
-            r={2}
-            fill={color}
-            stroke={outside ? color : 'none'}
-            strokeDasharray={outside ? '1,1' : undefined}
-            strokeWidth={outside ? 0.8 : 0}
-          />
+          <g key={c.candidate_id}>
+            {/* Detection zone ring — pulsing outer */}
+            <circle
+              cx={cx}
+              cy={cy}
+              r={6}
+              fill="none"
+              stroke={color}
+              strokeWidth={0.4}
+              strokeDasharray="1.5,1"
+              opacity={0.5}
+            >
+              <animate
+                attributeName="r"
+                values="5;7;5"
+                dur="2s"
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="opacity"
+                values="0.5;0.2;0.5"
+                dur="2s"
+                repeatCount="indefinite"
+              />
+            </circle>
+            {/* Inner detection ring */}
+            <circle
+              cx={cx}
+              cy={cy}
+              r={3.5}
+              fill="none"
+              stroke={color}
+              strokeWidth={0.5}
+              opacity={0.7}
+            />
+            {/* Core bright dot */}
+            <circle
+              cx={cx}
+              cy={cy}
+              r={2}
+              fill={color}
+              opacity={0.95}
+              filter="url(#glow-strong)"
+            />
+            {/* Crosshair on candidate */}
+            <line x1={cx - 4} y1={cy} x2={cx - 2.5} y2={cy} stroke={color} strokeWidth={0.3} opacity={0.8} />
+            <line x1={cx + 2.5} y1={cy} x2={cx + 4} y2={cy} stroke={color} strokeWidth={0.3} opacity={0.8} />
+            <line x1={cx} y1={cy - 4} x2={cx} y2={cy - 2.5} stroke={color} strokeWidth={0.3} opacity={0.8} />
+            <line x1={cx} y1={cy + 2.5} x2={cx} y2={cy + 4} stroke={color} strokeWidth={0.3} opacity={0.8} />
+            {/* Rank label */}
+            <text
+              x={cx + 5}
+              y={cy - 3}
+              fontSize={3}
+              fill={color}
+              fontFamily="monospace"
+              fontWeight="bold"
+              opacity={0.9}
+            >
+              #{c.rank}
+            </text>
+            {/* Score label */}
+            <text
+              x={cx + 5}
+              y={cy + 1}
+              fontSize={2.5}
+              fill={color}
+              fontFamily="monospace"
+              opacity={0.7}
+            >
+              p={c.relative_plausibility.toFixed(2)}
+            </text>
+            {outside && (
+              <text
+                x={cx + 5}
+                y={cy + 4}
+                fontSize={2}
+                fill="#ff4444"
+                fontFamily="monospace"
+                opacity={0.8}
+              >
+                OFF-TILE
+              </text>
+            )}
+          </g>
         )
       })}
+
+      {/* Status HUD text */}
       {candidates.length === 0 && aisPositions.length === 0 && (
-        <text x={50} y={52} textAnchor="middle" fontSize={5} fill="var(--muted-foreground)">
-          no plottable positions
-        </text>
+        <g>
+          <text
+            x={50}
+            y={48}
+            textAnchor="middle"
+            fontSize={4}
+            fill="#4a9eff"
+            fontFamily="monospace"
+            fontWeight="bold"
+            opacity={0.8}
+          >
+            NO RADAR CONTACTS
+          </text>
+          <text
+            x={50}
+            y={54}
+            textAnchor="middle"
+            fontSize={3}
+            fill="#4a9eff"
+            fontFamily="monospace"
+            opacity={0.5}
+          >
+            Tile under surveillance
+          </text>
+        </g>
       )}
+
+      {/* HUD corner brackets */}
+      <polyline points="1,5 1,1 5,1" fill="none" stroke="#4a9eff" strokeWidth={0.5} opacity={0.6} />
+      <polyline points="95,1 99,1 99,5" fill="none" stroke="#4a9eff" strokeWidth={0.5} opacity={0.6} />
+      <polyline points="1,95 1,99 5,99" fill="none" stroke="#4a9eff" strokeWidth={0.5} opacity={0.6} />
+      <polyline points="95,99 99,99 99,95" fill="none" stroke="#4a9eff" strokeWidth={0.5} opacity={0.6} />
     </svg>
   )
 }
@@ -319,10 +556,21 @@ export function ChhayaPanelV2() {
                     </p>
                   )}
                   {c.missing_evidence.length > 0 && (
-                    <p className="text-[10px] leading-snug text-muted-foreground">
-                      missing: {c.missing_evidence.join(', ')}
+                    <p className="text-[10px] leading-snug text-[color-mix(in_oklch,var(--destructive)_70%,black)] font-medium">
+                      Missing AIS/Evidence: {c.missing_evidence.join(', ')}
                     </p>
                   )}
+                  <div className="mt-1.5 rounded border border-border/50 bg-muted/20 p-1.5">
+                    <p className="mb-0.5 text-[9px] font-semibold text-muted-foreground uppercase tracking-[0.05em]">
+                      Spoofing / Latent Consistency
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-[10px] text-foreground">
+                      <span>Spatial {c.origin_spatial_consistency?.toFixed(2) ?? '—'}</span>
+                      <span>Temporal {c.origin_temporal_consistency?.toFixed(2) ?? '—'}</span>
+                      <span>Course {c.course_consistency?.toFixed(2) ?? '—'}</span>
+                      <span>Speed {c.speed_consistency?.toFixed(2) ?? '—'}</span>
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>

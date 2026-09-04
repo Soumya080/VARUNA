@@ -425,6 +425,22 @@ function MissionCockpitInner() {
                 PRATIVARTAN Φ
               </span>
               <span>
+                <span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#8b5cf6]" />
+                Backdrift path
+              </span>
+              <span>
+                <span className="mr-1 inline-block h-2 w-2 rounded-full border border-[#a78bfa] bg-transparent" />
+                Source region
+              </span>
+              <span>
+                <span className="mr-1 inline-block h-2 w-2 rounded-full border border-dashed border-[#ef4444] bg-transparent" />
+                Latent L0
+              </span>
+              <span>
+                <span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#f59e0b]" />
+                Origin scenarios
+              </span>
+              <span>
                 <span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#22c55e]" />
                 PRAVAAH landfall
               </span>

@@ -198,6 +198,7 @@ def stream_run(
                         case_id=case_id, run_id=run_id,
                         detail={"n_alerts": n, "n_material_changes": n_changes,
                                 "alert_ids": op_summary.get("alerts", [])}))
+                time.sleep(0.25)  # ADR-0014: Artificial delay
                 continue
 
             if pipeline_stage is not None:
@@ -214,6 +215,7 @@ def stream_run(
                 yield _sse(_stage_event(name, status, t_run, reason=reason,
                                         case_id=case_id, run_id=run_id,
                                         stage_runtime_ms=runtime))
+                time.sleep(0.25)  # ADR-0014: Artificial delay so demo replays animate visually
                 continue
 
             # ---- stages derived from the composed OperatorCase ----------
@@ -258,6 +260,8 @@ def stream_run(
                     reason=None if ids else "no artifacts registered for this case",
                     case_id=case_id, run_id=run_id,
                     detail={"n_artifacts": len(ids)}))
+            
+            time.sleep(0.25)  # ADR-0014: Artificial delay
 
         yield _sse({"type": "run_complete", "case_id": case_id, "run_id": run_id,
                     "elapsed_ms": round(ms(), 1),

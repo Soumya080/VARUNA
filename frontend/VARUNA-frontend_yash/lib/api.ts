@@ -60,7 +60,7 @@ export function listReplayFixtures(): Promise<{ fixtures: string[] }> {
  * "produced") OperatorCase today — see docs/architecture/ADR-0014.
  */
 export function getReplayOperatorCase(fixtureName: string): Promise<OperatorCase> {
-  return getJson(`/v1/replay/${encodeURIComponent(fixtureName)}`)
+  return getJson(`/v1/replay/${encodeURIComponent(fixtureName)}?refresh=true&_t=${Date.now()}`)
 }
 
 /**
