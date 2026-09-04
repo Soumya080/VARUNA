@@ -146,20 +146,25 @@ def get_personnel_service():
         _personnel_service_singleton = PersonnelService(repo)
     return _personnel_service_singleton
 
-def get_prahari_service():
-    from varuna_domain.prahari.service import PrahariService
-    from varuna_domain.prahari.mock import MockPrahariProvider
-    return PrahariService(provider=MockPrahariProvider(), netra_service=None, workflow=None)
-
-def get_abhiyan_service():
-    from varuna_abhiyan.service import AbhiyanService
-    from varuna_abhiyan.mock import MockAbhiyanProvider
-    return AbhiyanService(provider=MockAbhiyanProvider())
-
-def get_smriti_service():
-    from varuna_smriti.service import SmritiService
-    from varuna_smriti.mock import MockSmritiProvider
-    return SmritiService(provider=MockSmritiProvider())
+# Phase 4 mock-provider audit (docs/product/HONESTY_LEDGER.md #35): removed
+# `get_prahari_service`, `get_abhiyan_service`, `get_smriti_service`, which
+# built `PrahariService`/`AbhiyanService`/`SmritiService` around
+# `Mock*Provider`s. All three were dead code — zero callers anywhere in the
+# app:
+#   - `apps/api/routers/prahari.py` defines its OWN `get_prahari_service()`
+#     (never imports this one) — the "two live implementations of the same
+#     subsystem" the audit flagged was actually one live + one orphaned copy.
+#   - `AbhiyanService` had no route; the real decision-state logic
+#     (`operator_case_view.py`) calls `varuna_abhiyan.decision_state
+#     .derive_operational_decision_state()` directly, a pure function.
+#   - `SmritiService` had no route; the real, live SMRITI implementation is
+#     `varuna_smriti.memory.SmritiStore`, wired via `get_replay_smriti_store()`
+#     below and `apps/api/routers/smriti.py`.
+# Deleting changes no runtime behavior (nothing called these) and removes
+# exactly the confusion the audit was for. `prahari.py`'s own
+# `MockPrahariProvider` wiring is left as-is: there genuinely is no real
+# satellite-scene-watch implementation to point it at, and its
+# `is_running` always honestly reports `False` (nothing ever starts it).
 
 def get_alert_service():
     from varuna_alerts.service import AlertService
@@ -293,3 +298,25 @@ def get_smriti_feedback_store():
         from varuna_smriti.feedback import SmritiFeedbackStore
         _smriti_feedback_store_singleton = SmritiFeedbackStore(state_dir() / "smriti_feedback.jsonl")
     return _smriti_feedback_store_singleton
+
+def get_case_resolver(
+    workflow: CaseWorkflow = Depends(get_workflow),
+    golden = Depends(get_golden_case_workflow),
+):
+    """Correctness-audit Phase 1 (B1 fix).
+
+    Built from `Depends(get_workflow)` / `Depends(get_golden_case_workflow)`
+    — the SAME two dependencies every case route already declared — rather
+    than having `CaseResolver` re-derive them itself. That matters for test
+    isolation: `tests/integration/test_api.py` overrides `get_case_repo`
+    (etc.) via `app.dependency_overrides` to get a private in-memory store
+    per test. A resolver that reconstructed its own workflow by calling
+    `dependencies.get_case_repo()` directly would silently ignore that
+    override and read the process-wide singleton instead — a case created
+    through the test's isolated repo would then 404 when read back through
+    the resolver. Depending on `get_workflow` here means `CaseResolver`
+    inherits whatever override chain FastAPI is already running for the
+    current request, exactly like every other route dependency does.
+    """
+    from apps.api.case_resolver import CaseResolver
+    return CaseResolver(workflow=workflow, golden=golden)

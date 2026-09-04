@@ -9,14 +9,28 @@ from apps.api.middleware.auth import AuthMiddleware
 from apps.api.middleware.rate_limit import RateLimitMiddleware
 from apps.api.middleware.correlation import CorrelationIdMiddleware
 
-from apps.api.config import settings
+from contextlib import asynccontextmanager
+
+from apps.api.config import settings, check_startup_config
 from apps.api.errors import register_error_handlers
-from apps.api.routers import cases, events, health, readiness, missions, prahari, alerts, dashboard, replay, auth, run_stream, reports, chhaya, assets, smriti
+from apps.api.routers import cases, events, health, readiness, missions, prahari, alerts, dashboard, replay, auth, run_stream, reports, chhaya, assets, smriti, system
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # M10 (docs/product/HONESTY_LEDGER.md #12): logs a structured warning
+    # when a non-demo deployment is still running on the dev-insecure JWT
+    # secret. See `check_startup_config()`'s own docstring for why this is
+    # a loud warning rather than a hard fail-closed raise in this build.
+    check_startup_config()
+    yield
+
 
 app = FastAPI(
     title=settings.api_title,
     description="Oil spill attribution — EXPERIMENTAL, M2.1 provisional results",
     version=settings.api_version,
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -48,3 +62,4 @@ app.include_router(reports.router)
 app.include_router(chhaya.router)
 app.include_router(assets.router)
 app.include_router(smriti.router)
+app.include_router(system.router)

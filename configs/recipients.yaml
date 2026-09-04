@@ -16,7 +16,15 @@
 recipients:
   duty_officer:
     name: "Duty Officer, Coastal Watch"
-    email: null          # e.g. duty.officer@example.gov.in
+    # M9 fix (docs/product/HONESTY_LEDGER.md #11): a personal address was
+    # committed here as the tracked default, which is a real-person email
+    # baked into the repo for every deployment. `email: null` is not a
+    # broken config — it's the honest state (see this file's own header:
+    # "a role with no contact detail is NOT an error"). channel_orchestrator's
+    # `send_email()` already falls back to `VARUNA_ALERT_TO` from `.env`
+    # (gitignored) for local testing, so a real destination can still be
+    # configured per-deployment without ever being committed.
+    email: null
     phone: null          # e.g. "+919876543210"
 
   supervisor:

@@ -32,7 +32,16 @@ export interface SystemStatusView {
 export interface ObservationView {
   n_slick_points: number
   n_tracks: number
-  obs_time_hours: number
+  // M3 fix (docs/product/HONESTY_LEDGER.md #5): the backend field was
+  // renamed from `obs_time_hours` to `phi_time_coordinate_hours` —
+  // it is Phi's internal epoch-relative coordinate (can be legitimately
+  // negative for a historical reconstruction), not an elapsed-hours value,
+  // and was being shown to operators as if it were one. `observation_time`
+  // is the new field carrying the real wall-clock time; it's the one to
+  // show an operator, with `phi_time_coordinate_hours` as a tooltipped
+  // detail (see ObservationView's Python docstring for the full story).
+  phi_time_coordinate_hours: number
+  observation_time: string | null
   bbox: BBoxValue | null
 }
 
@@ -81,6 +90,14 @@ export interface AttributionCandidate {
   posterior: number
 }
 
+export interface HistoricalReconstruction {
+  vessel_name: string
+  mmsi: string | null
+  event_description: string
+  source_citation: string
+  provenance: 'historical_record_not_computed_by_varuna'
+}
+
 export interface AttributionResultValue {
   decision_state: string
   latent_probability: number
@@ -89,6 +106,11 @@ export interface AttributionResultValue {
   distinguishability: number
   posterior_entropy: number
   candidates: AttributionCandidate[]
+  // M1+M2 fix (docs/product/HONESTY_LEDGER.md #3-4): a real-world vessel
+  // identity VARUNA did NOT compute — structurally separate from
+  // `candidates`, never a score. See HistoricalReconstruction's own
+  // docstring on the Python side (packages/varuna_contracts/decision.py).
+  historical_reconstruction: HistoricalReconstruction | null
   [key: string]: unknown
 }
 
@@ -134,11 +156,39 @@ export interface AssetTaskingValue {
   [key: string]: unknown
 }
 
+export interface SearchBoxValue {
+  bbox: BBoxValue
+  center: { lon: number; lat: number }
+  area_km2: number
+  phi_mass_contained: number
+}
+
+export interface AssetTaskingDetail {
+  asset_type: string
+  base_name: string
+  search_box: SearchBoxValue
+  pattern: string
+  launch_time: string
+  flight_hours: number
+  probability_of_detection: number
+  rationale: string
+}
+
 export interface MissionRecordValue {
   mission_id: string
   state: string
   asset_id: string | null
-  approved_by: string | null
+  // Fix: the real wire field is `human_approved_by` (see
+  // `varuna_contracts.states.MissionRecord`) — this type previously
+  // declared `approved_by`, which never existed on the wire and made
+  // every "who approved this" display silently render undefined/falsy,
+  // including `components/verification-ledger.tsx`'s Human Authorization
+  // axis (found while wiring MissionRecord.tasking onto the map, Phase 9).
+  human_approved_by: string | null
+  // Real tasking, ADR-0015 — search box, pattern, launch time, PoD,
+  // rationale. Was computed and thrown away before that ADR; now stored
+  // and available here for the map to actually draw.
+  tasking?: AssetTaskingDetail | null
   [key: string]: unknown
 }
 
@@ -207,18 +257,28 @@ export interface UncertaintyAssessmentValue {
 
 export interface FactorContribution {
   factor: string
-  direction: 'supports' | 'against'
-  weight: number
-  note: string
+  detail: string
+  // >0 supports, <0 opposes, 0 neutral — see
+  // packages/varuna_contracts/source_hypothesis.py::FactorContribution.
+  log_likelihood_ratio: number
   evidence_ids: string[]
+  // False = a declared assumption, not measured data — the honesty
+  // affordance the hypothesis waterfall (Phase 10) exists to surface.
+  measured: boolean
 }
 
 export interface SourceHypothesisValue {
   source_class: string
   prior: number
   posterior: number
+  // Fix: this type previously declared `supporting`/`against` with an
+  // invented FactorContribution shape (`direction`/`weight`/`note`) that
+  // never matched the wire (`supporting`/`contradicting`,
+  // `log_likelihood_ratio`, `measured`) — never caught because nothing
+  // consumed per-factor detail before Phase 10's hypothesis waterfall.
   supporting: FactorContribution[]
-  against: FactorContribution[]
+  contradicting: FactorContribution[]
+  rationale: string
 }
 
 export interface SourceHypothesisEnvelopeValue {
@@ -294,7 +354,11 @@ export interface EvidenceLedgerItem {
   mode: EvidenceModeValue
   confidence: number | null
   status: string
+  revision?: number
+  recorded_at?: string
   depends_on: string[]
+  contradicts?: string[]
+  superseded_by?: string | null
   [key: string]: unknown
 }
 

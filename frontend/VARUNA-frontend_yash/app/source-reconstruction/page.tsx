@@ -1,35 +1,91 @@
 'use client'
 
-import { ORIGIN, PARTICLE_TRAJECTORIES } from '@/lib/mock-data'
+/**
+ * Phase 9 (docs/product/HONESTY_LEDGER.md #26): converted from a fully
+ * hardcoded mock page (ORIGIN/PARTICLE_TRAJECTORIES/FORCING_DATA/
+ * DRIFT_PARAMETERS/UNCERTAINTY, all fabricated — including a fake origin
+ * lat/lon with a fake "peak likelihood") to real data from `oc.origin`
+ * (PRATIVARTAN's real `PhiField` — diagnostics + the real per-parameter
+ * `SensitivityBlock`). Honest finding: none of the replay fixtures'
+ * `spatial_modes` are populated (the backward reconstruction produces a
+ * probability FIELD, not a single point estimate, for any demo case) — so
+ * "reconstructed origin point" honestly says NOT_YET_PRODUCED rather than
+ * inventing a lat/lon, instead of the mock page's fabricated coordinate.
+ */
 import { SectionLabel, StatusBadge, Meter } from '@/components/primitives'
-import { Waypoints, Wind, Droplets, Compass, Target, Timer, MapPin, ArrowDownRight } from 'lucide-react'
+import { Row } from '@/components/cockpit/cockpit-panels'
+import { OperatorCaseProvider, useOperatorCaseData } from '@/lib/operator-case-context'
+import { OperatorCaseBoundary } from '@/components/operator-case-boundary'
+import { EvidenceModeBadge } from '@/components/evidence-mode-badge'
+import { Waypoints, Wind, Target, Gauge } from 'lucide-react'
 
-const FORCING_DATA = [
-  { label: 'Ocean Current Model', value: 'HYCOM (Global 1/12°)', status: 'ok', coverage: 100 },
-  { label: 'Wind Forcing', value: 'GFS (0.25° resolution)', status: 'ok', coverage: 100 },
-  { label: 'Wave Model', value: 'WAVEWATCH III', status: 'ok', coverage: 98 },
-  { label: 'Tidal Harmonics', value: 'FES2014 (32 constituents)', status: 'ok', coverage: 100 },
-  { label: 'SST Analysis', value: 'OSTIA L4', status: 'ok', coverage: 95 },
-]
+const DEFAULT_FIXTURE = 'IND-CASE-01'
 
-const DRIFT_PARAMETERS = [
-  { icon: Timer, label: 'Drift Window', value: '38.5 hours' },
-  { icon: Waypoints, label: 'Ensemble Size', value: '4,000 particles' },
-  { icon: ArrowDownRight, label: 'Method', value: 'Adjoint back-trajectory' },
-  { icon: Wind, label: 'Wind Drift Factor', value: '3.5%' },
-  { icon: Compass, label: 'Stokes Drift', value: 'Included' },
-  { icon: Droplets, label: 'Diffusion', value: 'Random walk (K = 10 m²/s)' },
-]
+interface PhiDiagnostics {
+  entropy: number
+  concentration: number
+  effective_support_km2: number
+  convergence: number
+  convergence_flag: string
+  n_modes: number
+  multimodal: boolean
+  boundary_interaction: boolean
+  particles_lost: number
+  particles_seeded: number
+  ensemble_members_completed: number
+  ensemble_members_requested: number
+  runtime_seconds: number
+}
 
-const UNCERTAINTY = [
-  { label: 'Current velocity', value: '± 0.05 m/s', impact: 'Moderate' },
-  { label: 'Wind speed', value: '± 1.2 m/s', impact: 'Low' },
-  { label: 'Release timing', value: '± 2 hours', impact: 'High' },
-  { label: 'Weathering rate', value: '± 15%', impact: 'Low' },
-  { label: 'Initial slick shape', value: '± 20% area', impact: 'Low' },
-]
+interface SpatialMode {
+  centroid: { lon: number; lat: number }
+  mass: number
+  area_km2: number
+  peak_time_unix: number
+}
 
-export default function SourceReconstructionPage() {
+interface SensitivityBlock {
+  age_sensitivity: number | null
+  forcing_sensitivity: number | null
+  diffusivity_sensitivity: number | null
+  weathering_sensitivity: number | null
+}
+
+interface PhiFieldValue {
+  phi_id: string
+  n_particles: number
+  n_ensemble: number
+  backward_duration_hours: number
+  dt_seconds: number
+  forcing_current_source: string
+  forcing_wind_source: string
+  weathering_model: string | null
+  diagnostics: PhiDiagnostics
+  spatial_modes: SpatialMode[]
+  sensitivity: SensitivityBlock
+}
+
+function SensitivityRow({ label, value }: { label: string; value: number | null }) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[13px] text-muted-foreground">{label}</span>
+        <span className="font-mono text-[13px] font-medium text-foreground">
+          {value != null ? value.toFixed(2) : 'not measured'}
+        </span>
+      </div>
+      <Meter value={value != null ? value * 100 : 0} tone={value != null && value > 0.2 ? 'saffron' : 'teal'} />
+    </div>
+  )
+}
+
+function SourceReconstructionBody() {
+  const oc = useOperatorCaseData()
+  if (!oc) return null
+  const origin = oc.origin
+  const phi = origin.status === 'produced' ? (origin.value as unknown as PhiFieldValue) : null
+  const topMode = phi?.spatial_modes.length ? phi.spatial_modes.slice().sort((a, b) => b.mass - a.mass)[0] : null
+
   return (
     <>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -38,128 +94,140 @@ export default function SourceReconstructionPage() {
             Source Reconstruction
           </h1>
           <p className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.1em] text-muted-foreground">
-            Case 24-071 · Reverse Advection & Origin Field · Stages 02–03
+            {oc.case_id} · PRATIVARTAN (Φ) backward reconstruction
           </p>
         </div>
-        <StatusBadge tone="ok" dot>Completed</StatusBadge>
+        <div className="flex items-center gap-1.5">
+          <EvidenceModeBadge mode={origin.evidence_mode} />
+          <StatusBadge tone={origin.status === 'produced' ? 'ok' : 'muted'} dot>
+            {origin.status.replace(/_/g, ' ')}
+          </StatusBadge>
+        </div>
       </div>
 
-      {/* Origin estimate card */}
-      <section className="rounded-sm border border-saffron/30 bg-saffron/5 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Target className="h-4 w-4 text-saffron" />
-          <SectionLabel className="text-saffron">Reconstructed Origin</SectionLabel>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          <div className="rounded-sm border border-saffron/20 bg-card p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-1">Latitude</div>
-            <div className="font-mono text-[16px] font-bold text-foreground">{ORIGIN.point.lat.toFixed(3)}° N</div>
-          </div>
-          <div className="rounded-sm border border-saffron/20 bg-card p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-1">Longitude</div>
-            <div className="font-mono text-[16px] font-bold text-foreground">{ORIGIN.point.lng.toFixed(3)}° E</div>
-          </div>
-          <div className="rounded-sm border border-saffron/20 bg-card p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-1">Peak Likelihood</div>
-            <div className="font-mono text-[16px] font-bold text-saffron">{ORIGIN.peakLikelihood}%</div>
-          </div>
-          <div className="rounded-sm border border-saffron/20 bg-card p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-1">Est. Release</div>
-            <div className="font-mono text-[14px] font-bold text-foreground">16:30 UTC ± 2 h</div>
-          </div>
-          <div className="rounded-sm border border-saffron/20 bg-card p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-1">Radius (95%)</div>
-            <div className="font-mono text-[16px] font-bold text-foreground">{ORIGIN.radiusKm} km</div>
-          </div>
-          <div className="rounded-sm border border-saffron/20 bg-card p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-1">Trajectories</div>
-            <div className="font-mono text-[16px] font-bold text-foreground">{PARTICLE_TRAJECTORIES.length}</div>
-          </div>
-        </div>
-      </section>
-
-      {/* Drift parameters + Forcing data */}
-      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+      {!phi ? (
         <section className="rounded-sm border border-border bg-card p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Waypoints className="h-4 w-4 text-teal" />
-            <SectionLabel>Drift Model Parameters</SectionLabel>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {DRIFT_PARAMETERS.map((item) => (
-              <div key={item.label} className="flex items-start gap-2.5 rounded-sm border border-border bg-background/50 p-2.5">
-                <item.icon className="h-4 w-4 shrink-0 text-teal mt-0.5" />
-                <div>
-                  <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{item.label}</div>
-                  <div className="mt-0.5 text-[13px] font-medium text-foreground">{item.value}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className="text-[13px] text-muted-foreground">
+            {origin.reason ?? 'No backward reconstruction has been produced for this case.'}
+          </p>
         </section>
-
-        <section className="rounded-sm border border-border bg-card p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Wind className="h-4 w-4 text-saffron" />
-            <SectionLabel>Environmental Forcing Data</SectionLabel>
-          </div>
-          <div className="space-y-3">
-            {FORCING_DATA.map((item) => (
-              <div key={item.label}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[13px] text-muted-foreground">{item.label}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[12px] font-medium text-foreground">{item.value}</span>
-                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--ok)]" />
+      ) : (
+        <>
+          <section className="rounded-sm border border-saffron/30 bg-saffron/5 p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Target className="h-4 w-4 text-saffron" />
+              <SectionLabel className="text-saffron">Reconstructed Origin</SectionLabel>
+            </div>
+            {topMode ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+                <div className="rounded-sm border border-saffron/20 bg-card p-3">
+                  <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Latitude</div>
+                  <div className="font-mono text-[16px] font-bold text-foreground">{topMode.centroid.lat.toFixed(3)}°</div>
+                </div>
+                <div className="rounded-sm border border-saffron/20 bg-card p-3">
+                  <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Longitude</div>
+                  <div className="font-mono text-[16px] font-bold text-foreground">{topMode.centroid.lon.toFixed(3)}°</div>
+                </div>
+                <div className="rounded-sm border border-saffron/20 bg-card p-3">
+                  <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Mode mass</div>
+                  <div className="font-mono text-[16px] font-bold text-saffron">{(topMode.mass * 100).toFixed(0)}%</div>
+                </div>
+                <div className="rounded-sm border border-saffron/20 bg-card p-3">
+                  <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Support area</div>
+                  <div className="font-mono text-[16px] font-bold text-foreground">
+                    {phi.diagnostics.effective_support_km2.toFixed(0)} km²
                   </div>
                 </div>
-                <Meter value={item.coverage} tone="teal" />
+                <div className="rounded-sm border border-saffron/20 bg-card p-3">
+                  <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Modes</div>
+                  <div className="font-mono text-[16px] font-bold text-foreground">{phi.diagnostics.n_modes}</div>
+                </div>
               </div>
-            ))}
+            ) : (
+              <p className="text-[13px] text-muted-foreground">
+                No spatial mode was resolved to a single point estimate for this case — the
+                backward reconstruction produced a probability field (see diagnostics below),
+                not a point release location. This is the honest state, not a missing feature:
+                inventing a coordinate here would misrepresent what Φ actually computed.
+              </p>
+            )}
+          </section>
+
+          <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+            <section className="rounded-sm border border-border bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Waypoints className="h-4 w-4 text-teal" />
+                <SectionLabel>Ensemble & Reconstruction Parameters</SectionLabel>
+              </div>
+              <div className="space-y-0.5">
+                <Row label="Particles" value={`${phi.n_particles} seeded, ${phi.n_ensemble} ensemble members`} />
+                <Row label="Ensemble completed" value={`${phi.diagnostics.ensemble_members_completed} / ${phi.diagnostics.ensemble_members_requested}`} />
+                <Row label="Particles lost" value={`${phi.diagnostics.particles_lost} of ${phi.diagnostics.particles_seeded}`} />
+                <Row label="Backward window" value={`${phi.backward_duration_hours.toFixed(1)}h, dt=${phi.dt_seconds.toFixed(0)}s`} />
+                <Row label="Runtime" value={`${phi.diagnostics.runtime_seconds.toFixed(1)}s`} />
+                <Row label="Convergence" value={phi.diagnostics.convergence_flag.replace(/_/g, ' ')} />
+                <Row label="Multimodal" value={phi.diagnostics.multimodal ? 'yes' : 'no'} />
+              </div>
+            </section>
+
+            <section className="rounded-sm border border-border bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Wind className="h-4 w-4 text-saffron" />
+                <SectionLabel>Forcing Sources</SectionLabel>
+              </div>
+              <div className="space-y-0.5">
+                <Row label="Current forcing" value={phi.forcing_current_source} />
+                <Row label="Wind forcing" value={phi.forcing_wind_source} />
+                <Row label="Weathering model" value={phi.weathering_model ?? 'not applied'} />
+              </div>
+              <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
+                VARUNA does not carry per-source coverage percentages, wave/tide model
+                identifiers, or SST analysis products anywhere in its contracts — these are the
+                only forcing-provenance fields the pipeline actually records.
+              </p>
+            </section>
           </div>
-        </section>
-      </div>
 
-      {/* Uncertainty analysis */}
-      <section className="mt-3 rounded-sm border border-border bg-card p-4">
-        <SectionLabel>Uncertainty Analysis</SectionLabel>
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="pb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Source</th>
-                <th className="pb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Uncertainty</th>
-                <th className="pb-2 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Impact</th>
-              </tr>
-            </thead>
-            <tbody>
-              {UNCERTAINTY.map((item) => (
-                <tr key={item.label} className="border-b border-border/50 last:border-b-0">
-                  <td className="py-2 text-[13px] text-foreground">{item.label}</td>
-                  <td className="py-2 font-mono text-[13px] font-medium text-foreground">{item.value}</td>
-                  <td className="py-2">
-                    <StatusBadge tone={item.impact === 'High' ? 'warn' : item.impact === 'Moderate' ? 'saffron' : 'ok'}>
-                      {item.impact}
-                    </StatusBadge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+          <section className="mt-3 rounded-sm border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Gauge className="h-4 w-4 text-teal" />
+              <SectionLabel>Real Per-Parameter Sensitivity</SectionLabel>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <SensitivityRow label="Age sensitivity" value={phi.sensitivity.age_sensitivity} />
+              <SensitivityRow label="Forcing sensitivity" value={phi.sensitivity.forcing_sensitivity} />
+              <SensitivityRow label="Diffusivity sensitivity" value={phi.sensitivity.diffusivity_sensitivity} />
+              <SensitivityRow label="Weathering sensitivity" value={phi.sensitivity.weathering_sensitivity} />
+            </div>
+            <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
+              A real per-parameter uncertainty decomposition (`SensitivityBlock`), not a
+              fabricated per-source uncertainty table. Each value is how much the
+              reconstruction's outcome moves when that one input is perturbed — "not measured"
+              means the sensitivity sweep for that parameter did not run for this case, not
+              zero sensitivity.
+            </p>
+          </section>
 
-      {/* Method description */}
-      <section className="mt-3 rounded-sm border border-border bg-card p-4">
-        <SectionLabel>Methodology</SectionLabel>
-        <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-          {ORIGIN.method}. Particles are released from the observed slick footprint and advected backward through time using
-          a 4th-order Runge-Kutta integration scheme with a 15-minute time step. Wind drift at 3.5% of 10 m wind speed is
-          applied with a 15° deflection angle. Random walk diffusion (K = 10 m²/s) accounts for sub-grid turbulence. The
-          resulting back-trajectory density is kernel-smoothed onto a 500 m grid to produce the spatial likelihood field for
-          the release location.
-        </p>
-      </section>
+          <section className="mt-3 rounded-sm border border-border bg-card p-4">
+            <SectionLabel>Reconstruction Diagnostics</SectionLabel>
+            <div className="mt-2 grid grid-cols-2 gap-x-4 sm:grid-cols-3">
+              <Row label="Entropy" value={phi.diagnostics.entropy.toFixed(2)} />
+              <Row label="Concentration" value={phi.diagnostics.concentration.toFixed(2)} />
+              <Row label="Boundary interaction" value={phi.diagnostics.boundary_interaction ? 'yes' : 'no'} />
+            </div>
+          </section>
+        </>
+      )}
     </>
+  )
+}
+
+export default function SourceReconstructionPage() {
+  return (
+    <OperatorCaseProvider fixtureName={DEFAULT_FIXTURE}>
+      <OperatorCaseBoundary>
+        <SourceReconstructionBody />
+      </OperatorCaseBoundary>
+    </OperatorCaseProvider>
   )
 }

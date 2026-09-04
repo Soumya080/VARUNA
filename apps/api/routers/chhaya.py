@@ -28,18 +28,60 @@ from varuna_contracts.schemas import AISPoint, BBox
 
 router = APIRouter(prefix="/v1/chhaya", tags=["chhaya"])
 
-_MC20 = Path(__file__).resolve().parents[3] / "data" / "gold" / "events" / "mc20_v0_1"
+_EVENTS_DIR = Path(__file__).resolve().parents[3] / "data" / "gold" / "events"
+_MC20 = _EVENTS_DIR / "mc20_v0_1"
 _TILE_RECORDS = _MC20 / "sar" / "tile_records.json"
 _TILE_DIR = _MC20 / "sar" / "tiles"
 _AIS_JOIN = _MC20 / "ais" / "event_ais_join.json"
 
+# Phase 5A (docs/product/HONESTY_LEDGER.md): the `netra_normalized` product
+# is `apply_netra_normalization`'s [p2,p98]-clipped/[0,1]-scaled output,
+# whose real return order is `[VV_norm, VH_norm]` (see that function's own
+# docstring) — this is M11's root cause: earlier code assumed index 0 was
+# VH. `sigma0` is the new raw-calibrated-dB product from
+# `scripts/build_mc20_chhaya_sigma0.py`, deliberately never normalized so
+# CFAR keeps the amplitude range it needs. Both carry an explicit
+# `channel_order` per tile record (see `_channel_index` below) — index-by-
+# NAME, never bare position, is the actual fix.
+_PRODUCTS = {
+    "netra_normalized": {
+        "dir": _MC20,
+        "default_channel_order": ["VV_norm", "VH_norm"],
+    },
+    "sigma0": {
+        "dir": _EVENTS_DIR / "mc20_v0_1_sigma0",
+        "default_channel_order": ["VV_db", "VH_db"],
+    },
+}
 
-@lru_cache(maxsize=1)
-def _tile_records() -> list[dict]:
-    if not _TILE_RECORDS.exists():
+
+@lru_cache(maxsize=8)
+def _tile_records(product: str = "netra_normalized") -> list[dict]:
+    base = _PRODUCTS.get(product, _PRODUCTS["netra_normalized"])["dir"]
+    tile_records_path = base / "sar" / "tile_records.json"
+    if not tile_records_path.exists():
         return []
-    data = json.loads(_TILE_RECORDS.read_text(encoding="utf-8"))
+    data = json.loads(tile_records_path.read_text(encoding="utf-8"))
     return data if isinstance(data, list) else list(data.values())
+
+
+def _tile_dir(product: str = "netra_normalized") -> Path:
+    return _PRODUCTS.get(product, _PRODUCTS["netra_normalized"])["dir"] / "sar" / "tiles"
+
+
+def _channel_index(rec: dict, product: str, name: str) -> int:
+    """Index a tile's channel array by NAME (e.g. "VH"), never bare
+    position — the actual M11 fix. `channel_order` on the record wins when
+    present (every `sigma0` tile has it); the `netra_normalized` product's
+    older records predate that field, so fall back to the product's known,
+    verified real order (`apply_netra_normalization`'s docstring)."""
+    order = rec.get("channel_order") or _PRODUCTS.get(product, {}).get("default_channel_order")
+    if not order:
+        raise HTTPException(500, f"no channel_order known for product {product!r}")
+    for i, ch in enumerate(order):
+        if name in ch:
+            return i
+    raise HTTPException(500, f"channel {name!r} not found in channel_order {order}")
 
 
 @lru_cache(maxsize=1)
@@ -78,15 +120,25 @@ def _ais_points_for(bbox: BBox, t_sar: datetime) -> list[AISPoint]:
 
 
 @router.get("/tiles")
-def list_tiles():
-    """Real MC20 Sentinel-1 tiles available for investigation."""
-    recs = _tile_records()
+def list_tiles(product: str = "netra_normalized"):
+    """Real MC20 Sentinel-1 tiles available for investigation.
+
+    `product`: `netra_normalized` (the original [0,1]-scaled tiles, the
+    NETRA segmentation model's actual input) or `sigma0` (Phase 5A's raw
+    calibrated-dB tiles, physically capable of a wider CFAR dynamic range —
+    see `scripts/build_mc20_chhaya_sigma0.py`).
+    """
+    recs = _tile_records(product)
     if not recs:
         return {"available": False,
-                "reason": f"No MC20 tile records at {_TILE_RECORDS} — CHHAYA has no real SAR to read.",
+                "product": product,
+                "reason": f"No MC20 tile records for product {product!r} at "
+                          f"{_tile_dir(product).parent / 'tile_records.json'} — "
+                          "CHHAYA has no real SAR to read for this product.",
                 "tiles": []}
     return {
         "available": True,
+        "product": product,
         "scene_id": recs[0].get("parent_scene_id"),
         "sensor": recs[0].get("sensor"),
         "n_tiles": len(recs),
@@ -96,25 +148,57 @@ def list_tiles():
 
 
 @router.get("/investigate/{tile_id}")
-def investigate(tile_id: str, threshold_sigma: float = 6.0):
-    """Run the real CHHAYA v2 investigation over one real MC20 tile."""
+def investigate(tile_id: str, threshold_sigma: float = 6.0, product: str = "netra_normalized"):
+    """Run the real CHHAYA v2 investigation over one real MC20 tile.
+
+    `product` selects which tile product to run against — see `/tiles`'s
+    own docstring. Defaults to `netra_normalized` for backward
+    compatibility with existing callers.
+    """
     from varuna_chhaya.v2.detectors.cfar import CACFARDetector
     from varuna_chhaya.v2.service import ChhayaInvestigationV2
 
-    recs = {r["tile_id"]: r for r in _tile_records()}
+    recs = {r["tile_id"]: r for r in _tile_records(product)}
     rec = recs.get(tile_id)
     if rec is None:
         raise HTTPException(
             status_code=404,
-            detail=f"Unknown tile {tile_id!r}. Known: {sorted(recs)[:10]}")
+            detail=f"Unknown tile {tile_id!r} for product {product!r}. Known: {sorted(recs)[:10]}")
 
-    path = _TILE_DIR / f"{tile_id}.npy"
+    path = _tile_dir(product) / f"{tile_id}.npy"
     if not path.exists():
         raise HTTPException(status_code=404, detail=f"Tile array missing on disk: {path}")
 
     arr = np.load(path)
-    vh = arr[0] if arr.ndim == 3 else arr
+    # M11 fix (docs/product/HONESTY_LEDGER.md #13): index by NAME via
+    # `channel_order`, never bare position — `arr[0]` was VV, not VH.
+    vh_idx = _channel_index(rec, product, "VH") if arr.ndim == 3 else 0
+    vh = arr[vh_idx] if arr.ndim == 3 else arr
     vh = np.asarray(vh, dtype=np.float32)
+
+    # Phase 5A domain fix: `CACFARDetector.detect()` assumes non-negative
+    # LINEAR amplitude (`np.clip(x, 0.0, None)`) — correct for the
+    # `netra_normalized` product ([0,1]-scaled) but wrong for `sigma0`,
+    # whose values are calibrated dB (legitimately negative for most of a
+    # sea surface, e.g. this event's real VH range is -49 to +4 dB).
+    # Feeding dB straight into a clip-at-zero detector would zero out
+    # nearly the entire scene. Convert back to linear power
+    # (sigma0_db = 10*log10(sigma0_linear) was the original calibration
+    # step — this is its exact inverse, not an approximation) before
+    # detection; a no-data pixel's valid_mask (built alongside the sigma0
+    # tiles) is applied as an explicit 0 rather than a NaN the detector
+    # would otherwise silently zero anyway, so a no-data edge can never be
+    # mistaken for a bright target.
+    is_db_product = "db" in str(rec.get("units", "")).lower()
+    if is_db_product:
+        valid_mask_path = rec.get("valid_mask_path")
+        valid = None
+        if valid_mask_path and Path(valid_mask_path).exists():
+            valid = np.load(valid_mask_path)
+        vh_linear = np.power(10.0, np.nan_to_num(vh, nan=-100.0) / 10.0)
+        if valid is not None:
+            vh_linear = np.where(valid, vh_linear, 0.0)
+        vh = vh_linear.astype(np.float32)
 
     b = rec["bbox"]
     bbox = BBox(min_lon=b["min_lon"], min_lat=b["min_lat"],
@@ -127,17 +211,18 @@ def investigate(tile_id: str, threshold_sigma: float = 6.0):
     ais_positions = _ais_points_for(bbox, t_sar)
 
     # ---- data-suitability check, reported honestly -------------------
-    # These MC20 tiles were preprocessed for NETRA oil-slick SEGMENTATION:
-    # normalised and clipped to [0,1]. That compression destroys the
-    # amplitude dynamic range CA-CFAR needs — the brightest pixel in these
-    # tiles sits ~3.5 sigma above the mean, so no threshold at or above 4
-    # can physically fire, and dropping below that would return speckle,
-    # not vessels. We say so instead of returning "no vessels" as though
-    # the ocean were empty.
+    # Phase 5A: `product` now tells us directly which preprocessing this
+    # tile went through — no need to guess from the value range (which
+    # became unreliable once `sigma0` values are converted to linear power
+    # above; a quiet tile's linear amplitude can coincidentally also sit in
+    # [0,1]). `netra_normalized` tiles are clipped to [0,1] for NETRA
+    # oil-slick SEGMENTATION, which destroys the amplitude dynamic range
+    # CA-CFAR needs; `sigma0` tiles are the Phase 5A raw-calibrated product
+    # built specifically to avoid that.
     peak_sigma = float((vh.max() - vh.mean()) / (vh.std() + 1e-9))
-    looks_normalised = bool(vh.min() >= 0.0 and vh.max() <= 1.0001)
+    is_normalized_product = product == "netra_normalized"
     suitability = None
-    if looks_normalised and peak_sigma < threshold_sigma:
+    if is_normalized_product and peak_sigma < threshold_sigma:
         suitability = {
             "suitable_for_cfar": False,
             "peak_sigma_above_mean": round(peak_sigma, 2),
@@ -148,8 +233,29 @@ def investigate(tile_id: str, threshold_sigma: float = 6.0):
                 f"mean, below the {threshold_sigma} sigma CFAR threshold, so vessel detection "
                 "cannot fire on this product. A NO_SUPPORTED_VESSEL outcome here means "
                 "'this imagery cannot support vessel detection', NOT 'no vessels are present'. "
-                "Raw (uncalibrated or sigma0) GRD amplitude is required."
+                "Try ?product=sigma0 for the raw-calibrated alternative "
+                "(reports/chhaya_v2/CHHAYA_SIGMA0_SUITABILITY_REPORT.md)."
             ),
+        }
+    elif not is_normalized_product and peak_sigma < threshold_sigma:
+        suitability = {
+            "suitable_for_cfar": False,
+            "peak_sigma_above_mean": round(peak_sigma, 2),
+            "threshold_sigma": threshold_sigma,
+            "reason": (
+                f"Raw-calibrated sigma0 product, physically capable of a wider dynamic "
+                f"range than netra_normalized — but this specific tile's brightest pixel "
+                f"is still only {peak_sigma:.1f} sigma above the mean, below the "
+                f"{threshold_sigma} sigma threshold. A truthful zero: this tile may "
+                "genuinely contain no vessel, not a preprocessing artifact."
+            ),
+        }
+    elif not is_normalized_product:
+        suitability = {
+            "suitable_for_cfar": True,
+            "peak_sigma_above_mean": round(peak_sigma, 2),
+            "threshold_sigma": threshold_sigma,
+            "reason": "Raw-calibrated sigma0 product; peak signal clears the CFAR threshold.",
         }
 
     svc = ChhayaInvestigationV2(detector=CACFARDetector(threshold_sigma=threshold_sigma))
@@ -165,6 +271,22 @@ def investigate(tile_id: str, threshold_sigma: float = 6.0):
 
     payload = (handoff.model_dump(mode="json") if hasattr(handoff, "model_dump")
                else json.loads(json.dumps(handoff, default=str)))
+
+    # Phase 5B (docs/product/HONESTY_LEDGER.md): `chhaya_bridge.py` existed,
+    # complete and tested, and was never called from any route — the
+    # CHHAYA-V -> NYAYA handoff it implements was real but invisible.
+    # Surfaced here as `dark_contact_evidence`: a small, bounded, explicitly
+    # NOT-a-posterior prior nudge (see the module's own docstring for why
+    # it must never become a decision by itself).
+    from varuna_nyaya.chhaya_bridge import dark_contact_prior_contribution
+    dark_contact = dark_contact_prior_contribution(handoff)
+    payload["dark_contact_evidence"] = {
+        "supported": dark_contact.supported,
+        "top_candidate_plausibility": dark_contact.top_candidate_plausibility,
+        "prior_nudge": dark_contact.prior_nudge,
+        "explanation": dark_contact.explanation,
+    }
+
     payload["_input"] = {
         "tile_id": tile_id,
         "tile_shape": list(vh.shape),

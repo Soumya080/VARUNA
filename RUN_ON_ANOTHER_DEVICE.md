@@ -154,10 +154,12 @@ PYTHONPATH=packages python -m pytest tests/api tests/unit -q
 PYTHONPATH=packages python -m pytest tests/ -q --ignore=tests/scientific
 ```
 
-Expect **635 passed, 28 skipped** on a base install. The skips are real and
-intentional: torch lives in the optional `ml` extra, so NETRA training tests
-cannot run without it, and one test needs a 25 MB NETRA Gold manifest that is
-not in git. Each says so by name rather than passing vacuously.
+Expect **876 passed, 4 skipped** on a base install (verified 2026-09-04,
+after the B1/B2/M1-M10 correctness-audit fixes — see
+`docs/product/HONESTY_LEDGER.md`). The skips are real and intentional: torch
+lives in the optional `ml` extra, so NETRA training tests cannot run without
+it, and one test needs a 25 MB NETRA Gold manifest that is not in git. Each
+says so by name rather than passing vacuously.
 
 Install the extra to run them too (large — pulls torch):
 
@@ -316,6 +318,16 @@ deployment is out of scope.
 ---
 
 ## 11. What a clean clone actually produced
+
+> **Note (2026-09-04):** the table below is the historical record of that
+> specific clean-clone run and is left as originally verified. The test
+> COUNT in it predates the B1/B2/M1-M10 correctness-audit fixes (see
+> `docs/product/HONESTY_LEDGER.md`), which added new regression-lock tests
+> and fixed 5 previously-failing ones — the current true count, verified on
+> the dev box, is in section 6 above (**876 passed, 4 skipped, 0 failed**).
+> This table has not been re-run on an actual clean clone since the audit;
+> do that before trusting the other rows (login, CHHAYA tiles, etc.) as
+> still current.
 
 Verified on Python 3.11.9, API on :8100, frontend on :3100, no `.env` file
 at all:

@@ -1,3 +1,12 @@
+"""NOT_IMPLEMENTED (Phase 5C, docs/product/HONESTY_LEDGER.md #33).
+
+This is the third of three things sharing the CHHAYA name — a dead LSTM
+trajectory-predictor scaffold, distinct from the two REAL, live CHHAYA
+generations (`hypothesis_engine.py` and `v2/`; see `varuna_chhaya/__init__.py`'s
+module docstring for the full picture). `forecast()` below returns a
+hardcoded literal, not a computation — admitted in its own inline comment
+below, not discovered later. Not imported by `apps/api` or any served route.
+"""
 from typing import Any
 from varuna_chhaya.protocol import ChhayaProvider
 from varuna_infra.model_loader import ModelLoader

@@ -9,7 +9,7 @@ validity verdict; `MemoryRetrieval.advisory_only` stays `True` regardless.
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from apps.api.dependencies import get_smriti_feedback_store
+from apps.api.dependencies import get_smriti_feedback_store, get_replay_smriti_store
 from apps.api.security import get_principal
 from varuna_infra.authorization import Principal
 from varuna_smriti.feedback import MemoryFeedback, SmritiFeedbackStore
@@ -60,3 +60,26 @@ def list_memory_feedback_for_case(
 ):
     items = [f for f in store.all() if f.query_case_id == case_id]
     return {"items": [f.model_dump(mode="json") for f in items]}
+
+
+@router.get("/{case_id}/memory-outcome")
+def get_memory_outcome(
+    case_id: str,
+    smriti=Depends(get_replay_smriti_store),
+):
+    """Phase 6B (docs/product/HONESTY_LEDGER.md): the 5th Verification
+    Ledger axis — has THIS case's own outcome ever been recorded in SMRITI
+    (`CaseMemory.outcome`, e.g. "confirmed"/"not_found"/"unresolved")? This
+    is distinct from `intelligence.memory_hits`, which surfaces OTHER
+    similar past cases, not this case's own recorded outcome.
+    """
+    mem = smriti.get(case_id)
+    if mem is None:
+        return {"case_id": case_id, "recorded": False, "outcome": None}
+    return {
+        "case_id": case_id,
+        "recorded": True,
+        "outcome": mem.outcome,
+        "recorded_at": mem.recorded_at.isoformat(),
+        "updated_at": mem.updated_at.isoformat(),
+    }

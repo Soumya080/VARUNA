@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from apps.api.config import settings
-from apps.api.dependencies import get_workflow, get_mission_service, get_alert_service
+from apps.api.dependencies import get_case_resolver, get_mission_service, get_alert_store
 
 router = APIRouter(prefix="/v1/dashboard", tags=["dashboard"])
 
@@ -32,17 +32,47 @@ def marine_context():
 
 @router.get("/summary")
 def dashboard_summary(
-    workflow = Depends(get_workflow),
+    resolver = Depends(get_case_resolver),
     mission_svc = Depends(get_mission_service),
-    alert_svc = Depends(get_alert_service),
+    alert_store = Depends(get_alert_store),
 ):
-    cases = workflow.cases.list_all()
+    """B2 fix (3 independent bugs, all corrected here):
+
+    1. Cases now come from `case_resolver.list_all()` — the same union
+       every other route uses — instead of only the legacy `CaseWorkflow`
+       store, which is why this used to report `total_cases: 1` while 6
+       cases existed.
+    2. "Active" is now `not status.is_terminal` (see
+       `varuna_domain.entities.CaseStatus.is_terminal`), not a hardcoded
+       `("completed", "failed", "quarantined")` literal that never matched
+       the golden engine's real terminal values (`complete`, `blocked`,
+       `unavailable`, `ood`).
+    3. Alerts sent now comes from the real alert store (`get_alert_store()`
+       — the ONE store every delivered alert actually lands in) rather than
+       a freshly-constructed `AlertService` whose `_delivery_log` is empty
+       on every call because nothing ever sends through it — that was a
+       hardcoded zero by construction, not a measurement. Delivery status
+       is read from each alert's `deliveries` (raw `DeliveryResult` dicts,
+       status values from `varuna_alerts.channel_orchestrator.DeliveryStatus`,
+       UPPERCASE) rather than compared against a lowercase literal that
+       could never match.
+    """
+    resolved = resolver.list_all()
+    cases = [r.case for r in resolved]
     active_missions = mission_svc.list_active()
-    alert_log = alert_svc.get_delivery_log()
+
+    delivered_statuses = {"SENT", "DELIVERED"}
+    total_alerts_sent = sum(
+        1
+        for alert in alert_store.all()
+        for delivery in alert.deliveries
+        if delivery.get("status") in delivered_statuses
+    )
+
     return {
         "total_cases": len(cases),
-        "active_cases": len([c for c in cases if c.status.value not in ("completed", "failed", "quarantined")]),
+        "active_cases": len([c for c in cases if not c.status.is_terminal]),
         "active_missions": len(active_missions),
-        "total_alerts_sent": len([a for a in alert_log if a.status == "sent"]),
+        "total_alerts_sent": total_alerts_sent,
         "scientific_status": settings.scientific_status,
     }

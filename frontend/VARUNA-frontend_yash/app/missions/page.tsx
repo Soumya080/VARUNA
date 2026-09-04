@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CURRENT_MISSION_STATE, MISSION_STATES } from '@/lib/mock-data'
 import { SectionLabel, StatusBadge } from '@/components/primitives'
+import { MissionFsmGraph } from '@/components/mission-fsm'
 import { OperatorCaseProvider, useOperatorCaseData } from '@/lib/operator-case-context'
 import { OperatorCaseBoundary } from '@/components/operator-case-boundary'
 import { approveMission, AuthActionError, getMissionAudit, listMissions } from '@/lib/api'
@@ -50,7 +50,7 @@ function ReplayCaseMission() {
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
         <div><div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Asset</div><div className="text-[13px] font-medium text-foreground">{m.asset_id ?? '—'}</div></div>
-        <div><div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Approved By</div><div className="text-[13px] font-medium text-foreground">{m.approved_by ?? 'Not yet approved'}</div></div>
+        <div><div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Approved By</div><div className="text-[13px] font-medium text-foreground">{m.human_approved_by ?? 'Not yet approved'}</div></div>
       </div>
     </div>
   )
@@ -151,6 +151,9 @@ function LiveMissionsPanel() {
                 </button>
               </div>
             </div>
+            <div className="mt-2 border-t border-border/60 pt-2">
+              <MissionFsmGraph missionId={missionId} />
+            </div>
             {authMessages[missionId] && (
               <p className={cn('mt-2 text-[12px]', authMessages[missionId]?.startsWith('Authorized') ? 'text-[var(--ok)]' : 'text-destructive')}>
                 {authMessages[missionId]}
@@ -175,8 +178,6 @@ function LiveMissionsPanel() {
 }
 
 function MissionsBody() {
-  const currentIdx = MISSION_STATES.indexOf(CURRENT_MISSION_STATE)
-
   return (
     <>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -190,49 +191,7 @@ function MissionsBody() {
         </div>
       </div>
 
-      {/* Illustrative pipeline track — kept unmodified; the real FSM does
-          not fit a linear track (see components/mission-status.tsx docstring). */}
       <section className="rounded-sm border border-border bg-card p-4">
-        <SectionLabel>Illustrative Mission Pipeline (reference track, not case-specific)</SectionLabel>
-        <ol className="mt-3 flex items-center gap-1 overflow-x-auto scroll-thin pb-1">
-          {MISSION_STATES.map((state, i) => {
-            const done = i < currentIdx
-            const current = i === currentIdx
-            return (
-              <li key={state} className="flex flex-1 items-center gap-1">
-                <div className={cn(
-                  'flex min-w-[92px] flex-1 items-center gap-2 rounded-sm border px-2.5 py-2',
-                  current ? 'border-[color-mix(in_oklch,var(--warn)_45%,transparent)] bg-[color-mix(in_oklch,var(--warn)_12%,transparent)]' :
-                  done ? 'border-[color-mix(in_oklch,var(--ok)_35%,transparent)] bg-[color-mix(in_oklch,var(--ok)_8%,transparent)]' :
-                  'border-border bg-background/40',
-                )}>
-                  <span className={cn(
-                    'grid h-4 w-4 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold',
-                    current ? 'bg-[var(--warn)] text-[oklch(0.22_0.03_60)]' :
-                    done ? 'bg-[var(--ok)] text-primary-foreground' :
-                    'bg-muted text-muted-foreground',
-                  )}>
-                    {done ? <Check className="h-2.5 w-2.5" /> : i + 1}
-                  </span>
-                  <span className={cn(
-                    'truncate font-mono text-[11px] font-semibold uppercase tracking-[0.06em]',
-                    current ? 'text-[color-mix(in_oklch,var(--warn)_55%,black)]' :
-                    done ? 'text-[color-mix(in_oklch,var(--ok)_55%,black)]' :
-                    'text-muted-foreground',
-                  )}>
-                    {state}
-                  </span>
-                </div>
-                {i < MISSION_STATES.length - 1 && (
-                  <span className={cn('h-px w-2 shrink-0', done ? 'bg-[var(--ok)]' : 'bg-border')} aria-hidden="true" />
-                )}
-              </li>
-            )
-          })}
-        </ol>
-      </section>
-
-      <section className="mt-3 rounded-sm border border-border bg-card p-4">
         <SectionLabel>Case Mission — CASE-VALID Replay</SectionLabel>
         <div className="mt-3">
           <OperatorCaseProvider fixtureName="CASE-VALID">

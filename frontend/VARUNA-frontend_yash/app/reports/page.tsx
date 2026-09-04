@@ -1,116 +1,176 @@
 'use client'
 
+/**
+ * Phase 9 (docs/product/HONESTY_LEDGER.md #26): converted from a fully
+ * fabricated "Report Center" (fake analyst names, a fake report list with
+ * fake statuses, fake report templates, a "New Report" button that did
+ * nothing) to real capability. VARUNA has exactly one real report
+ * mechanism — `GET /v1/cases/{id}/report`, a real PDF built from the
+ * composed case's own evidence (already used on the cockpit via
+ * `downloadReport()`). This page is the honest home for that: pick a real
+ * case, download its real report, see its real PRAMAN artifact inventory.
+ * No report list is shown because VARUNA does not persist a history of
+ * generated reports anywhere — each download is a fresh, real build.
+ */
+import { useEffect, useState } from 'react'
 import { SectionLabel, StatusBadge } from '@/components/primitives'
-import { FileText, Download, Clock, User, Filter, Plus } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { PramanPanel } from '@/components/intelligence-panels'
+import { OperatorCaseProvider, useOperatorCaseData } from '@/lib/operator-case-context'
+import { OperatorCaseBoundary } from '@/components/operator-case-boundary'
+import { listReplayFixtures, downloadReport, ApiError } from '@/lib/api'
+import { FileDown, Database } from 'lucide-react'
 
-const REPORTS = [
-  { id: 'RPT-071-001', title: 'Case 24-071 — Preliminary Assessment', type: 'Case Report', author: 'Analyst Rao', date: '12 JUN 2024', status: 'Draft' },
-  { id: 'RPT-070-002', title: 'Gulf of Kutch Oil Spill — SITREP #2', type: 'SITREP', author: 'Analyst Sharma', date: '11 JUN 2024', status: 'Submitted' },
-  { id: 'RPT-069-001', title: 'Bay of Bengal AIS Anomaly Report', type: 'Case Report', author: 'Analyst Mehta', date: '10 JUN 2024', status: 'Submitted' },
-  { id: 'RPT-070-001', title: 'Gulf of Kutch Oil Spill — SITREP #1', type: 'SITREP', author: 'Analyst Sharma', date: '10 JUN 2024', status: 'Submitted' },
-  { id: 'RPT-068-001', title: 'EEZ Incursion — Full Investigation', type: 'Case Report', author: 'Analyst Patel', date: '08 JUN 2024', status: 'Approved' },
-  { id: 'RPT-PIR-003', title: 'MARPOL Annex I Violation — Incident Report', type: 'Pollution Report', author: 'Analyst Rao', date: '05 JUN 2024', status: 'Approved' },
-  { id: 'RPT-067-001', title: 'Lakshadweep Sea Discharge — Final Report', type: 'Case Report', author: 'Analyst Rao', date: '01 JUN 2024', status: 'Approved' },
-]
+function ReportsHeader({
+  fixtures,
+  fixture,
+  onSelect,
+}: {
+  fixtures: string[]
+  fixture: string
+  onSelect: (f: string) => void
+}) {
+  return (
+    <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+      <div>
+        <h1 className="text-balance text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-xl">
+          Reports
+        </h1>
+        <p className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.1em] text-muted-foreground">
+          Real PDF incident reports, built fresh from each case's own evidence
+        </p>
+      </div>
+      <select
+        value={fixture}
+        onChange={(e) => onSelect(e.target.value)}
+        className="rounded-sm border border-border bg-background px-2 py-1.5 font-mono text-[12px] text-foreground"
+      >
+        {fixtures.map((f) => (
+          <option key={f} value={f}>
+            {f}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
 
-const TEMPLATES = [
-  { name: 'Case Investigation Report', description: 'Full evidence-chain case summary with attribution analysis and recommendation.', fields: 12 },
-  { name: 'Situation Report (SITREP)', description: 'Periodic operational summary for command briefing. Time-stamped event log.', fields: 8 },
-  { name: 'Pollution Incident Report', description: 'MARPOL-compliant documentation for environmental violation incidents.', fields: 15 },
-  { name: 'Mission After-Action Report', description: 'Post-mission debrief with outcomes, findings, and lessons learned.', fields: 10 },
-]
+function DownloadReportCard({ fixture }: { fixture: string }) {
+  const oc = useOperatorCaseData()
+  const [downloading, setDownloading] = useState(false)
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
-function statusTone(s: string) {
-  if (s === 'Draft') return 'warn' as const
-  if (s === 'Submitted') return 'saffron' as const
-  if (s === 'Approved') return 'ok' as const
-  return 'muted' as const
+  async function handleDownload() {
+    if (!oc) return
+    setDownloading(true)
+    setMsg(null)
+    try {
+      await downloadReport(oc.case_id)
+      setMsg({ text: 'Report downloaded.', ok: true })
+    } catch (e) {
+      setMsg({
+        text: e instanceof ApiError ? `Report unavailable — ${e.message}` : 'Report failed.',
+        ok: false,
+      })
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  return (
+    <section className="rounded-sm border border-border bg-card p-4">
+      <SectionLabel>Incident Report (PDF)</SectionLabel>
+      {oc ? (
+        <>
+          <p className="mt-2 text-[13px] text-muted-foreground">
+            Case <span className="font-mono text-foreground">{oc.case_id}</span> — real detection,
+            attribution, validity, mission and PRAMAN provenance sections, composed at request time
+            from this case's actual evidence. Not a template fill-in.
+          </p>
+          <button
+            type="button"
+            disabled={downloading}
+            onClick={handleDownload}
+            className="mt-3 flex items-center gap-1.5 rounded-sm bg-primary px-3 py-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-colors hover:bg-[var(--navy-muted)] disabled:opacity-40"
+          >
+            <FileDown className="h-3.5 w-3.5" />
+            {downloading ? 'Generating…' : `Download report — ${fixture}`}
+          </button>
+          {msg && (
+            <p className={`mt-2 text-[12px] ${msg.ok ? 'text-[var(--ok)]' : 'text-destructive'}`}>{msg.text}</p>
+          )}
+        </>
+      ) : (
+        <p className="mt-2 text-[13px] text-muted-foreground">Loading case…</p>
+      )}
+    </section>
+  )
+}
+
+function ArtifactInventory() {
+  const oc = useOperatorCaseData()
+  if (!oc) return null
+  return (
+    <section className="mt-3 rounded-sm border border-border bg-card p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <Database className="h-4 w-4 text-teal" />
+        <SectionLabel>Artifact Inventory</SectionLabel>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Artifacts</div>
+          <div className="mt-0.5 font-mono text-[15px] font-semibold text-foreground">
+            {oc.provenance.artifact_ids?.length ?? 0}
+          </div>
+        </div>
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Sources</div>
+          <div className="mt-0.5 font-mono text-[15px] font-semibold text-foreground">
+            {oc.provenance.source_ids?.length ?? 0}
+          </div>
+        </div>
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Recommendation</div>
+          <div className="mt-0.5">
+            <StatusBadge tone={oc.recommendation === 'valid' ? 'ok' : oc.recommendation === 'restricted' ? 'destructive' : 'muted'}>
+              {oc.recommendation}
+            </StatusBadge>
+          </div>
+        </div>
+      </div>
+      {oc.provenance.model_versions && Object.keys(oc.provenance.model_versions).length > 0 && (
+        <div className="mt-3 space-y-0.5 border-t border-border pt-2">
+          {Object.entries(oc.provenance.model_versions).map(([k, v]) => (
+            <div key={k} className="flex items-center justify-between text-[12px]">
+              <span className="text-muted-foreground">{k}</span>
+              <span className="font-mono text-foreground">{String(v)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
 }
 
 export default function ReportsPage() {
+  const [fixtures, setFixtures] = useState<string[]>([])
+  const [fixture, setFixture] = useState<string>('IND-CASE-01')
+
+  useEffect(() => {
+    listReplayFixtures()
+      .then((r) => setFixtures(r.fixtures))
+      .catch(() => setFixtures([fixture]))
+  }, [])
+
   return (
-    <>
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-balance text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-xl">
-            Report Center
-          </h1>
-          <p className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.1em] text-muted-foreground">
-            Reports & documentation · VARUNA
-          </p>
+    <OperatorCaseProvider fixtureName={fixture}>
+      <ReportsHeader fixtures={fixtures.length ? fixtures : [fixture]} fixture={fixture} onSelect={setFixture} />
+      <OperatorCaseBoundary>
+        <DownloadReportCard fixture={fixture} />
+        <ArtifactInventory />
+        <div className="mt-3">
+          <PramanPanel />
         </div>
-        <button type="button" className="flex items-center gap-1.5 rounded-sm bg-primary px-3 py-2 text-[13px] font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-colors hover:bg-[var(--navy-muted)]">
-          <Plus className="h-3.5 w-3.5" />
-          New Report
-        </button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: 'Total Reports', value: REPORTS.length.toString() },
-          { label: 'Drafts', value: REPORTS.filter(r => r.status === 'Draft').length.toString() },
-          { label: 'Submitted', value: REPORTS.filter(r => r.status === 'Submitted').length.toString() },
-          { label: 'Approved', value: REPORTS.filter(r => r.status === 'Approved').length.toString() },
-        ].map(s => (
-          <div key={s.label} className="rounded-sm border border-border bg-card p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{s.label}</div>
-            <div className="mt-1 font-mono text-[23px] font-bold text-foreground">{s.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Report templates */}
-      <section className="mt-3 rounded-sm border border-border bg-card p-4">
-        <SectionLabel>Report Templates</SectionLabel>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {TEMPLATES.map(t => (
-            <button key={t.name} type="button" className="group rounded-sm border border-border bg-background/50 p-3 text-left transition-colors hover:border-saffron/30 hover:bg-saffron/5">
-              <div className="flex items-center gap-2 mb-1.5">
-                <FileText className="h-4 w-4 text-saffron" />
-                <span className="text-[13px] font-semibold text-foreground group-hover:text-saffron transition-colors">{t.name}</span>
-              </div>
-              <p className="text-[12px] leading-snug text-muted-foreground">{t.description}</p>
-              <div className="mt-2 font-mono text-[10px] text-muted-foreground">{t.fields} fields</div>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Reports table */}
-      <section className="mt-3 rounded-sm border border-border bg-card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <SectionLabel>All Reports</SectionLabel>
-          <button type="button" className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground">
-            <Filter className="h-3 w-3" /> Filter
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-border">
-                {['ID', 'Title', 'Type', 'Author', 'Date', 'Status', ''].map(h => (
-                  <th key={h} className="pb-2 pr-4 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {REPORTS.map(r => (
-                <tr key={r.id} className="border-b border-border/50 last:border-b-0 hover:bg-muted/30 transition-colors">
-                  <td className="py-2.5 pr-4 font-mono text-[11px] text-muted-foreground">{r.id}</td>
-                  <td className="py-2.5 pr-4 text-[13px] font-medium text-foreground max-w-[300px] truncate">{r.title}</td>
-                  <td className="py-2.5 pr-4 text-[13px] text-muted-foreground whitespace-nowrap">{r.type}</td>
-                  <td className="py-2.5 pr-4 text-[13px] text-muted-foreground">{r.author}</td>
-                  <td className="py-2.5 pr-4 font-mono text-[12px] text-muted-foreground whitespace-nowrap">{r.date}</td>
-                  <td className="py-2.5 pr-4"><StatusBadge tone={statusTone(r.status)}>{r.status}</StatusBadge></td>
-                  <td className="py-2.5"><button type="button" className="text-muted-foreground hover:text-foreground"><Download className="h-3.5 w-3.5" /></button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </>
+      </OperatorCaseBoundary>
+    </OperatorCaseProvider>
   )
 }

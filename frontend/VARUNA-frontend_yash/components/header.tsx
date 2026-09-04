@@ -3,7 +3,7 @@
 import { NAV_MENUS, TOP_NAV, TOP_NAV_ROUTES } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
-import { AuthActionError } from '@/lib/api'
+import { AuthActionError, getSystemConfigReport, type SystemConfigReport } from '@/lib/api'
 import {
   AlertTriangle,
   Anchor,
@@ -329,6 +329,20 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const profileRef = useRef<HTMLDivElement>(null)
   const navRef = useRef<HTMLElement>(null)
 
+  // Phase 11 fix (docs/product/HONESTY_LEDGER.md #21): the status pill
+  // used to say "Operational" unconditionally. Now reads the real
+  // capability report — a demo whose header honestly says "SMTP/DB
+  // NOT_CONFIGURED" is more credible than one that always claims full
+  // operational status.
+  const [configReport, setConfigReport] = useState<SystemConfigReport | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    getSystemConfigReport()
+      .then((r) => { if (!cancelled) setConfigReport(r) })
+      .catch(() => { if (!cancelled) setConfigReport(null) })
+    return () => { cancelled = true }
+  }, [])
+
   // Determine which top-nav item is active based on the current pathname
   function getActiveNav(): string {
     for (const [name, route] of Object.entries(TOP_NAV_ROUTES)) {
@@ -445,15 +459,52 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
         <div className="ml-auto flex items-center gap-3 xl:ml-0 shrink-0">
           <LiveClock />
 
-          <div className="hidden items-center gap-1.5 rounded-sm border border-[color-mix(in_oklch,var(--ok)_45%,transparent)] bg-[color-mix(in_oklch,var(--ok)_16%,transparent)] px-2 py-1 sm:flex">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--ok)] opacity-60 animate-pulse-ring" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--ok)]" />
-            </span>
-            <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-[color-mix(in_oklch,var(--ok)_75%,white)]">
-              Operational
-            </span>
-          </div>
+          {(() => {
+            const allReal =
+              configReport &&
+              configReport.auth.status === 'REAL' &&
+              configReport.database.status === 'REAL' &&
+              configReport.object_store.status === 'REAL'
+            const color = !configReport ? 'var(--muted-foreground)' : allReal ? 'var(--ok)' : 'var(--warn)'
+            const label = !configReport
+              ? 'Checking…'
+              : allReal
+                ? 'Operational'
+                : configReport.demo_mode
+                  ? 'Demo mode'
+                  : 'Partially configured'
+            const detail = configReport
+              ? [
+                  `Auth: ${configReport.auth.status}`,
+                  `Database: ${configReport.database.status}`,
+                  `Object store: ${configReport.object_store.status}`,
+                ].join(' · ')
+              : undefined
+            return (
+              <div
+                title={detail}
+                className="hidden items-center gap-1.5 rounded-sm border px-2 py-1 sm:flex"
+                style={{
+                  borderColor: `color-mix(in oklch, ${color} 45%, transparent)`,
+                  backgroundColor: `color-mix(in oklch, ${color} 16%, transparent)`,
+                }}
+              >
+                <span className="relative flex h-2 w-2">
+                  <span
+                    className="absolute inline-flex h-full w-full rounded-full opacity-60 animate-pulse-ring"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                </span>
+                <span
+                  className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em]"
+                  style={{ color: `color-mix(in oklch, ${color} 75%, white)` }}
+                >
+                  {label}
+                </span>
+              </div>
+            )
+          })()}
 
           <ProfileWidget
             profileOpen={profileOpen}

@@ -56,10 +56,14 @@ def _observation_section(case: Case) -> SectionEnvelope[ObservationView]:
             status=ProducerStatus.NOT_YET_PRODUCED,
             reason="CaseWorkflow.ingest() has not run for this case.",
         )
+    observation_time = inp.get("observation_time")
     view = ObservationView(
         n_slick_points=len(inp["slick_lons"]),
         n_tracks=len(inp["tracks"]),
-        obs_time_hours=inp["obs_time_hours"],
+        phi_time_coordinate_hours=inp["obs_time_hours"],
+        observation_time=(
+            datetime.fromisoformat(observation_time) if observation_time else None
+        ),
         bbox=_bbox_from_points(inp["slick_lons"], inp["slick_lats"]),
     )
     # The current per-case pipeline (CaseWorkflow.ingest) accepts already-

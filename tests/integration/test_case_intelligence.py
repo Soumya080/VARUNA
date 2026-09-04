@@ -158,6 +158,34 @@ def test_result_serialises_for_praman_and_the_operator_view(store):
     assert payload["uncertainty"]["dominant_concern"]
 
 
+def test_data_quality_check_runs_on_the_replay_path(store):
+    """M4 fix (docs/product/HONESTY_LEDGER.md #6): the data guard never ran
+    at all on the golden/replay path before this — only the legacy
+    CaseWorkflow.ingest() path ever evaluated data quality. Every composed
+    replay case must now carry a `pipeline_run_data_quality` evidence item."""
+    run = build_replay_run("CASE-VALID")
+    intel = CaseIntelligenceService(smriti=store).run(run)
+    dq_items = [i for i in intel.ledger.for_case(intel.case_id)
+                if i.produced_by == "pipeline_run_data_quality"]
+    assert len(dq_items) == 1
+    assert dq_items[0].observation["verdict"] in ("accepted", "degraded")
+
+
+def test_data_quality_check_does_not_misfire_on_a_historical_replay_case():
+    """The India-Ocean fixtures have a legitimately negative Phi coordinate
+    for their historical `obs_time_hours` (see the M3 fix) — the new check
+    must judge the REAL `observation_time` instead, or every one of these
+    cases would show as degraded by construction, which would be exactly
+    the M4 bug this fix exists to avoid re-introducing in a new form."""
+    run = build_replay_run("IND-CASE-01")
+    intel = CaseIntelligenceService().run(run)
+    dq_items = [i for i in intel.ledger.for_case(intel.case_id)
+                if i.produced_by == "pipeline_run_data_quality"]
+    assert len(dq_items) == 1
+    checks = {c["name"]: c["passed"] for c in dq_items[0].observation["checks"]}
+    assert checks["observation_time_not_future"] is True, dq_items[0].observation
+
+
 def test_intelligence_adds_no_science_of_its_own(store):
     """
     Every scientific value must be copied from a stage the canonical pipeline
@@ -167,6 +195,11 @@ def test_intelligence_adds_no_science_of_its_own(store):
     run = build_replay_run("CASE-VALID")
     intel = CaseIntelligenceService(smriti=store).run(run)
     produced_by = {i.produced_by for i in intel.ledger.for_case(intel.case_id)}
-    allowed_non_pipeline = {"data_guard", "ood_assessor", "chhaya", "smriti"}
+    allowed_non_pipeline = {
+        "data_guard", "ood_assessor", "chhaya", "smriti",
+        # M4 fix (docs/product/HONESTY_LEDGER.md #6): the data-quality check
+        # newly wired onto the golden/replay path itself.
+        "pipeline_run_data_quality",
+    }
     for source in produced_by:
         assert source.startswith("pipeline.") or source in allowed_non_pipeline, source

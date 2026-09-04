@@ -4,10 +4,12 @@
  * Cockpit sub-panels. Every value is read from the canonical OperatorCase.
  * This file imports NOTHING from lib/mock-data.
  */
-import { StatusBadge } from '@/components/primitives'
+import { InfoTip, StatusBadge } from '@/components/primitives'
 import { EvidenceModeBadge } from '@/components/evidence-mode-badge'
 import type { OperatorCase, SectionEnvelope } from '@/lib/operator-case-types'
 import type { StageEvent } from '@/lib/use-run-stream'
+import type { DerivedStageState } from '@/lib/stage-state'
+import { STAGE_LABEL as CANONICAL_STAGE_LABEL } from '@/lib/stages'
 import { cn } from '@/lib/utils'
 import type { ReactNode } from 'react'
 
@@ -61,50 +63,35 @@ export function SectionStatus({ s }: { s: SectionEnvelope<unknown> | undefined }
 
 /* ------------------------------- Timeline ------------------------------- */
 
-const STAGE_LABEL: Record<string, string> = {
-  DATA: 'Data / forcing',
-  NETRA: 'NETRA detection',
-  DETECTION_EVIDENCE: 'Detection evidence',
-  STARTING_POINT: 'Starting point',
-  PRATIVARTAN: 'PRATIVARTAN (Φ)',
-  PRAVAAH: 'PRAVAAH forecast',
-  CHHAYA: 'CHHAYA hypotheses',
-  NYAYA: 'NYAYA attribution',
-  VALIDITY: 'Validity gate',
-  NEXT_BEST_ACTION: 'Next best action',
-  ALERT: 'Alert',
-  MISSION: 'Mission',
-  PRAMAN: 'PRAMAN provenance',
-}
-
-export function RunTimeline({
-  stageOrder,
-  events,
-  phase,
-}: {
-  stageOrder: string[]
-  events: Record<string, StageEvent>
-  phase: string
-}) {
-  const order = stageOrder.length ? stageOrder : Object.keys(STAGE_LABEL)
+/**
+ * Phase 7 fix (docs/product/HONESTY_LEDGER.md #23): this used to take raw
+ * `stageOrder`/`events` from `useRunStream()` directly, which are `[]`/`{}`
+ * on fresh page load — before any live SSE run has happened — so all 13
+ * stages rendered as grey "pending" placeholders even when the composed
+ * `OperatorCase` already showed every stage had genuinely run. Now takes
+ * the already-derived `DerivedStageState[]` from `lib/stage-state.ts`,
+ * which falls back to `oc`'s own section statuses when no live event
+ * exists yet — `source: 'composed'` stages render as done, just without a
+ * live timing number (composed status is not itself a live measurement).
+ */
+export function RunTimeline({ stages }: { stages: DerivedStageState[] }) {
   return (
     <ol className="space-y-1">
-      {order.map((s, i) => {
-        const ev = events[s]
-        const done = ev?.status === 'produced'
-        const bad = ev && ['blocked', 'error'].includes(ev.status)
-        const pending = !ev
+      {stages.map((s, i) => {
+        const done = s.status === 'produced'
+        const bad = s.status === 'blocked' || s.status === 'error'
+        const pending = s.source === 'none'
         return (
           <li
-            key={s}
+            key={s.stage}
             className={cn(
               'flex items-center gap-2 rounded-sm border px-2 py-1.5',
               done && 'border-[color-mix(in_oklch,var(--ok)_35%,transparent)] bg-[color-mix(in_oklch,var(--ok)_8%,transparent)]',
               bad && 'border-[color-mix(in_oklch,var(--destructive)_40%,transparent)] bg-[color-mix(in_oklch,var(--destructive)_8%,transparent)]',
-              !done && !bad && ev && 'border-border bg-muted/30',
+              !done && !bad && !pending && 'border-border bg-muted/30',
               pending && 'border-border bg-background/40 opacity-60',
             )}
-            title={ev?.reason ?? undefined}
+            title={s.reason ?? undefined}
           >
             <span
               className={cn(
@@ -117,16 +104,21 @@ export function RunTimeline({
               {done ? '✓' : bad ? '!' : i + 1}
             </span>
             <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
-              {STAGE_LABEL[s] ?? s}
+              {CANONICAL_STAGE_LABEL[s.stage] ?? s.stage}
             </span>
-            {ev ? (
+            {s.source === 'live' && s.elapsedMs != null ? (
               <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
-                {ev.status === 'produced' ? `${ev.elapsed_ms.toFixed(0)}ms` : ev.status.replace(/_/g, ' ')}
+                {done ? `${s.elapsedMs.toFixed(0)}ms` : s.status.replace(/_/g, ' ')}
+              </span>
+            ) : s.source === 'composed' ? (
+              <span
+                className="shrink-0 font-mono text-[9px] uppercase tracking-[0.06em] text-muted-foreground"
+                title="From the already-composed case, not a live measurement this page load"
+              >
+                {done ? 'already done' : s.status.replace(/_/g, ' ')}
               </span>
             ) : (
-              <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                {phase === 'running' ? '…' : '—'}
-              </span>
+              <span className="shrink-0 font-mono text-[10px] text-muted-foreground">—</span>
             )}
           </li>
         )
@@ -170,8 +162,13 @@ export function EvidencePanels({ oc }: { oc: OperatorCase }) {
       </Card>
 
       <Card
-        title="CHHAYA — Source hypotheses"
-        right={<StatusBadge tone={top ? 'ok' : 'muted'}>{top ? 'produced' : 'unavailable'}</StatusBadge>}
+        title="CHHAYA · Source Hypothesis"
+        right={
+          <>
+            <InfoTip label="Two stages of one question: CHHAYA · Source Hypothesis asks 'what kind of source is this?' (per case, from declared-likelihood-ratio evidence). CHHAYA · Vessel Evidence asks 'which vessel?' (per SAR tile). Not the same computation." />
+            <StatusBadge tone={top ? 'ok' : 'muted'}>{top ? 'produced' : 'unavailable'}</StatusBadge>
+          </>
+        }
       >
         {top ? (
           <>

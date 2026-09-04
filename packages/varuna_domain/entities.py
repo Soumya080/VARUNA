@@ -43,6 +43,25 @@ class CaseStatus(str, Enum):
     UNAVAILABLE = "unavailable"
     OOD = "ood"
 
+    @property
+    def is_terminal(self) -> bool:
+        """A case in this status will not advance further on its own.
+
+        Correctness-audit Phase 1 (B2): the dashboard used to hardcode
+        `status.value not in ("completed", "failed", "quarantined")` to
+        decide "active" — a literal set that only ever matched the v1
+        `CaseWorkflow` lifecycle. Every golden-engine case (whose real
+        terminal values are `complete`/`blocked`/`unavailable`/`ood`, not
+        `completed`) was silently counted as perpetually active. Putting
+        the truth on the enum means a route can never again drift out of
+        sync with what "terminal" actually means for either lifecycle.
+        """
+        return self in (
+            CaseStatus.COMPLETED, CaseStatus.FAILED, CaseStatus.QUARANTINED,
+            CaseStatus.COMPLETE, CaseStatus.BLOCKED, CaseStatus.UNAVAILABLE,
+            CaseStatus.OOD,
+        )
+
 
 class ScientificStatus(str, Enum):
     EXPERIMENTAL = "experimental"

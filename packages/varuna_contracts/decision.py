@@ -27,10 +27,12 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from varuna_contracts.evidence import (
     CalibrationState,
     EvidenceEnvelope,
+    EvidenceMode,
     TrustState,
     ValidityState,
 )
 from varuna_contracts.schemas import GeoPoint, VesselType
+from typing import Literal
 
 __all__ = [
     "AttributionResultV2",
@@ -38,6 +40,7 @@ __all__ = [
     "DecisionState",
     "GateCheck",
     "GateReason",
+    "HistoricalReconstruction",
     "LatentFinding",
     "PriorContribution",
     "ValidityGateResult",
@@ -98,6 +101,34 @@ class CandidateScore(_Base):
     influence_weight: float = Field(1.0, ge=0, le=1)  # Bounded Evidence Influence
 
 
+class HistoricalReconstruction(_Base):
+    """A real-world vessel identity, carried alongside a computed attribution
+    without being confused for one.
+
+    M1+M2 fix (docs/product/HONESTY_LEDGER.md #3-4): the Indian-Ocean replay
+    fixtures previously fabricated a `CandidateScore` — a `posterior: 0.7`
+    VARUNA never computed — to attach a real, documented vessel identity
+    (e.g. `BW MAPLE`, the tanker publicly linked to a real historical
+    incident) to a case where `n_tracks: 0` / `ais: not_yet_produced`. That
+    made a historical record LOOK like a computed inference.
+
+    This type exists so a fixture can say "here is what is publicly known
+    about this real incident" without it ever entering the scored
+    candidate list. `provenance` is a frozen literal precisely so nothing
+    can ever relabel a historical record as computed output by changing a
+    string; the `_computed_output_cannot_carry_reconstruction` validator on
+    `AttributionResultV2` enforces the same rule structurally, not just by
+    convention.
+    """
+    vessel_name: str
+    mmsi: str | None = None
+    event_description: str
+    source_citation: str
+    provenance: Literal["historical_record_not_computed_by_varuna"] = (
+        "historical_record_not_computed_by_varuna"
+    )
+
+
 class AttributionResultV2(_Base):
     case_id: str
     slick_id: str
@@ -127,6 +158,12 @@ class AttributionResultV2(_Base):
     envelope: EvidenceEnvelope
     computed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+    # M1+M2 fix: a real-world vessel identity that VARUNA did NOT compute —
+    # see `HistoricalReconstruction`'s docstring. Structurally separate from
+    # `candidates`; never scored, never a posterior, never averaged into
+    # anything.
+    historical_reconstruction: HistoricalReconstruction | None = None
+
     @model_validator(mode="after")
     def _normalised(self) -> AttributionResultV2:
         ps = [c.posterior for c in self.candidates]
@@ -137,6 +174,20 @@ class AttributionResultV2(_Base):
             raise ValueError(f"posterior must sum to 1 with latent, got {total}")
         if self.decision_state is DecisionState.STRONG_LEAD and not self.candidates:
             raise ValueError("STRONG_LEAD requires at least one candidate")
+        return self
+
+    @model_validator(mode="after")
+    def _computed_output_cannot_carry_reconstruction(self) -> AttributionResultV2:
+        """A REAL-mode attribution is VARUNA's own computed claim about the
+        world; it must never be dressed up with a historical record that
+        VARUNA didn't produce. SIMULATED/illustrative fixtures (like the
+        Indian-Ocean replay set) are exactly where this field belongs."""
+        if self.historical_reconstruction is not None and self.envelope.mode is EvidenceMode.REAL:
+            raise ValueError(
+                "historical_reconstruction may not be attached to a REAL-mode "
+                "AttributionResultV2 — it is a real-world record, not a VARUNA "
+                "computation, and REAL mode is reserved for VARUNA's own output"
+            )
         return self
 
 

@@ -208,6 +208,13 @@ def evaluate_material_changes(
 
     forecast_sec = _section(current_case, "forecast")
     landfalls = _get(forecast_sec, "value", "landfalls") or []
+    # M5 belt-and-braces (docs/product/HONESTY_LEDGER.md #7): the root
+    # cause was a fixture constructing a `LandfallPrediction` to represent
+    # "there is no landfall" (fixed at the source — see
+    # replay_fixtures._india_forecast), but an alert whose reason names no
+    # concrete location is a defect regardless of which producer causes it.
+    # A landfall entry only counts here if it names a real place.
+    landfalls = [lf for lf in landfalls if str(_get(lf, "location_name") or "").strip()]
     has_landfall = len(landfalls) > 0
 
     changes: list[MaterialChange] = []

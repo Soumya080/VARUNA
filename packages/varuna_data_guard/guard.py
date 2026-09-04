@@ -57,9 +57,23 @@ def evaluate_data_guard(
     track_ok = n_tracks >= 1
     checks.append({"name": "candidate_tracks", "passed": track_ok, "observed": n_tracks})
 
-    # Check 4: Observation time is positive
+    # Check 4: Observation time is positive.
+    #
+    # M4 fix (docs/product/HONESTY_LEDGER.md #6): this check was computed
+    # and appended to `checks` but never added to `blocking` — a dead check
+    # that would have caught M3's negative `obs_time_hours` leak had it
+    # been wired to matter. `obs_time_hours` here is this caller's own
+    # observation-time convention (a small positive float from the
+    # legacy/synthetic ingest path, NOT Phi's PHI_EPOCH-relative coordinate
+    # — those are two different things sharing a name; see
+    # `ObservationView.phi_time_coordinate_hours`'s docstring), so
+    # "positive" genuinely is the right invariant for this call site, and
+    # a caller passing something else now actually gets quarantined for it
+    # instead of the failure being silently recorded and ignored.
     time_ok = obs_time_hours > 0
     checks.append({"name": "obs_time_positive", "passed": time_ok})
+    if not time_ok:
+        blocking.append(f"obs_time_hours={obs_time_hours} is not positive")
 
     if blocking:
         return GuardResult(GuardVerdict.QUARANTINED, checks, blocking)

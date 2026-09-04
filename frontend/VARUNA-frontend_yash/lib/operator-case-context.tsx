@@ -20,14 +20,26 @@ const OperatorCaseContext = createContext<FetchState>({ status: 'loading' })
 
 export function OperatorCaseProvider({
   fixtureName,
+  value,
   children,
 }: {
   fixtureName: string
+  /** Phase 8 (docs/product/HONESTY_LEDGER.md #24): when the caller already
+   * has a fetched `OperatorCase` (the cockpit at `app/page.tsx` manages its
+   * own fetch/case-switching logic, independent of this provider's), pass
+   * it here to make the six `intelligence-panels.tsx` panels resolve via
+   * `useOperatorCaseData()` WITHOUT a second, redundant fetch of the same
+   * case. Omit to keep this provider's own fetch-by-fixtureName behavior
+   * (every other consumer). `null` renders as loading, not error — the
+   * cockpit's own fetch may simply not have resolved yet. */
+  value?: OperatorCase | null
   children: ReactNode
 }) {
   const [state, setState] = useState<FetchState>({ status: 'loading' })
+  const externallyManaged = value !== undefined
 
   useEffect(() => {
+    if (externallyManaged) return
     let cancelled = false
     setState({ status: 'loading' })
     getReplayOperatorCase(fixtureName)
@@ -45,10 +57,16 @@ export function OperatorCaseProvider({
     return () => {
       cancelled = true
     }
-  }, [fixtureName])
+  }, [fixtureName, externallyManaged])
+
+  const effectiveState: FetchState = externallyManaged
+    ? value
+      ? { status: 'success', data: value }
+      : { status: 'loading' }
+    : state
 
   return (
-    <OperatorCaseContext.Provider value={state}>{children}</OperatorCaseContext.Provider>
+    <OperatorCaseContext.Provider value={effectiveState}>{children}</OperatorCaseContext.Provider>
   )
 }
 

@@ -10,9 +10,11 @@
  */
 import { useState } from 'react'
 import { useOperatorCaseData } from '@/lib/operator-case-context'
+import type { MemoryHit } from '@/lib/operator-case-types'
 import { submitMemoryFeedback } from '@/lib/api'
-import { EvidenceModeBadge } from './evidence-mode-badge'
+import { EvidenceModeBadge, EvidenceStateStrip } from './evidence-mode-badge'
 import { InfoTip, SectionLabel, StatusBadge } from './primitives'
+import { HypothesisWaterfall } from './hypothesis-waterfall'
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -48,8 +50,11 @@ function Panel({
 }
 
 /* ------------------------------------------------------------------ */
-/* CHHAYA — source hypotheses                                          */
+/* CHHAYA · Source Hypothesis                                          */
 /* ------------------------------------------------------------------ */
+
+const CHHAYA_STAGE_TIP =
+  "Two stages of one question: CHHAYA · Source Hypothesis asks 'what kind of source is this?' (per case, declared-likelihood-ratio evidence). CHHAYA · Vessel Evidence asks 'which vessel?' (per SAR tile, real Sentinel-1 imagery). Not the same computation."
 
 export function ChhayaPanel() {
   const oc = useOperatorCaseData()
@@ -57,7 +62,7 @@ export function ChhayaPanel() {
 
   if (!intel || intel.status !== 'produced') {
     return (
-      <Panel id="chhaya-panel" title="CHHAYA — Source Hypotheses">
+      <Panel id="chhaya-panel" title="CHHAYA · Source Hypothesis" tip={CHHAYA_STAGE_TIP}>
         <p className="text-[12px] text-muted-foreground">
           {intel?.reason ?? 'Not composed for this case.'}
         </p>
@@ -67,7 +72,7 @@ export function ChhayaPanel() {
   const hyp = intel.hypotheses
   if (!hyp || hyp.insufficient_evidence) {
     return (
-      <Panel id="chhaya-panel" title="CHHAYA — Source Hypotheses">
+      <Panel id="chhaya-panel" title="CHHAYA · Source Hypothesis" tip={CHHAYA_STAGE_TIP}>
         <p className="text-[12px] text-muted-foreground">
           Insufficient evidence for a source hypothesis.
         </p>
@@ -78,28 +83,46 @@ export function ChhayaPanel() {
   return (
     <Panel
       id="chhaya-panel"
-      title="CHHAYA — Source Hypotheses"
-      tip="Declared likelihood-ratio update over stated assumptions. NOT a trained or calibrated ML model — the methodology note below is the backend's own wording."
+      title="CHHAYA · Source Hypothesis"
+      tip={`${CHHAYA_STAGE_TIP} Declared likelihood-ratio update over stated assumptions here specifically — NOT a trained or calibrated ML model; the methodology note below is the backend's own wording.`}
     >
-      <div className="mb-1.5 flex items-center gap-1.5">
+      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
         <StatusBadge tone="navy">{hyp.method.replace(/_/g, ' ')}</StatusBadge>
         <EvidenceModeBadge mode={hyp.envelope.mode} compact />
+      </div>
+      <div className="mb-1.5">
+        <EvidenceStateStrip envelope={hyp.envelope} />
       </div>
       <p className="mb-2 text-[11px] italic leading-snug text-muted-foreground">
         {hyp.methodology_note}
       </p>
-      <div className="space-y-1">
-        {hyp.hypotheses
-          .slice()
-          .sort((a, b) => b.posterior - a.posterior)
-          .map((h) => (
-            <Row
-              key={h.source_class}
-              label={h.source_class.replace(/_/g, ' ')}
-              value={`${(h.posterior * 100).toFixed(1)}% relative plausibility`}
-            />
-          ))}
-      </div>
+      {(() => {
+        const sorted = hyp.hypotheses.slice().sort((a, b) => b.posterior - a.posterior)
+        const [top, ...rest] = sorted
+        if (!top) return null
+        return (
+          <>
+            <div className="mb-2 rounded-sm border border-border bg-background/40 px-2.5 py-2">
+              <div className="mb-2 flex items-center gap-1.5">
+                <StatusBadge tone="saffron">{top.source_class.replace(/_/g, ' ')}</StatusBadge>
+                <span className="font-mono text-[10px] text-muted-foreground">top hypothesis — factor waterfall</span>
+              </div>
+              <HypothesisWaterfall hypothesis={top} />
+            </div>
+            {rest.length > 0 && (
+              <div className="space-y-1">
+                {rest.map((h) => (
+                  <Row
+                    key={h.source_class}
+                    label={h.source_class.replace(/_/g, ' ')}
+                    value={`${(h.posterior * 100).toFixed(1)}% relative plausibility`}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )
+      })()}
       {hyp.contradictions.length > 0 && (
         <div className="mt-2 rounded-sm border border-[color-mix(in_oklch,var(--warn)_40%,transparent)] bg-[color-mix(in_oklch,var(--warn)_8%,transparent)] px-2 py-1.5">
           <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[color-mix(in_oklch,var(--warn)_55%,black)]">
@@ -226,8 +249,15 @@ export function DecisionTracePanel() {
         </div>
       )}
       <ol className="space-y-1">
-        {trace.steps.map((step) => (
-          <li key={step.iteration} className="flex items-start gap-2 text-[11px]">
+        {trace.steps.map((step, i) => (
+          // Phase 8 fix (docs/product/HONESTY_LEDGER.md #17): `iteration`
+          // is not unique across steps — 19 real steps share only 5
+          // distinct iteration numbers (multiple phases per loop
+          // iteration), which produced React duplicate-key warnings and
+          // could cause list items to be silently misidentified during
+          // updates. Index is stable here since `trace.steps` is a fixed,
+          // ordered array from one composed case.
+          <li key={`${step.iteration}-${step.phase}-${i}`} className="flex items-start gap-2 text-[11px]">
             <span className="mt-0.5 font-mono text-muted-foreground">{step.iteration}.</span>
             <span className="text-foreground/90">
               <span className="font-mono uppercase tracking-[0.06em] text-muted-foreground">
@@ -246,7 +276,7 @@ export function DecisionTracePanel() {
 /* SMRITI — advisory memory                                            */
 /* ------------------------------------------------------------------ */
 
-function componentsOf(h: { components?: unknown }): Record<string, number> {
+function componentsOf(h: MemoryHit): Record<string, number> {
   const c = h.components
   if (c && typeof c === 'object') return c as Record<string, number>
   return {}
@@ -388,13 +418,16 @@ export function ForecastPanel() {
       title="Forecast — PRAVAAH"
       tip="Forward drift from the detected slick's own position, computed by the real PRAVAAH provider against the case's forcing field — not a re-derivation from the reconstructed origin."
     >
-      <div className="mb-1.5 flex items-center gap-1.5">
+      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
         <EvidenceModeBadge mode={section.evidence_mode} />
         {f.envelope.case_id && (
           <span className="font-mono text-[10px] text-muted-foreground">
             case {f.envelope.case_id}
           </span>
         )}
+      </div>
+      <div className="mb-1.5">
+        <EvidenceStateStrip envelope={f.envelope} />
       </div>
       <Row label="Horizon" value={`${f.horizon_hours.toFixed(1)} h`} />
       <Row label="Computed" value={new Date(f.computed_at).toISOString().slice(0, 16).replace('T', ' ')} />

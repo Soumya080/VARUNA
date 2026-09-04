@@ -73,12 +73,25 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
 
   const aisTracks = oc.ais.status === 'produced' ? (oc.ais.value ?? []) : []
 
+  // Phase 9 (docs/product/HONESTY_LEDGER.md #27): `MissionRecord.tasking`
+  // — real bbox/center/area/pattern/PoD/rationale, computed since ADR-0015
+  // and stored, but never drawn. One search box per real mission that
+  // actually carries one.
+  const missionSearchBoxes =
+    oc.mission.status === 'produced'
+      ? (oc.mission.value ?? []).filter((m) => m.tasking?.search_box)
+      : []
+
   // Collect every real coordinate the case carries, then fit to their union.
   const bounds = useMemo<LatLngBoundsExpression | null>(() => {
     const pts: [number, number][] = []
     if (startPoint) pts.push(startPoint as [number, number])
     if (detectionCentroid) pts.push([detectionCentroid.lat, detectionCentroid.lon])
-    const boxes: (BBoxValue | null)[] = [detectionBbox, phiBbox]
+    const boxes: (BBoxValue | null)[] = [
+      detectionBbox,
+      phiBbox,
+      ...missionSearchBoxes.map((m) => m.tasking!.search_box.bbox),
+    ]
     for (const b of boxes) {
       if (b) {
         pts.push([b.min_lat, b.min_lon])
@@ -97,7 +110,7 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
       [Math.min(...lats) - pad, Math.min(...lons) - pad],
       [Math.max(...lats) + pad, Math.max(...lons) + pad],
     ]
-  }, [startPoint, detectionCentroid, detectionBbox, phiBbox, landfalls])
+  }, [startPoint, detectionCentroid, detectionBbox, phiBbox, landfalls, missionSearchBoxes])
 
   // TRAJECTORY NOTE: ForwardForecast carries `trajectory_path` (a .npz
   // reference), not a coordinate array, and PhiField carries a bbox +
@@ -206,6 +219,32 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
         </Rectangle>
       )}
 
+      {/* Mission search box(es) — MissionRecord.tasking.search_box, real
+          bbox/pattern/PoD, computed since ADR-0015 and previously never
+          drawn (Phase 9 fix, docs/product/HONESTY_LEDGER.md #27). */}
+      {missionSearchBoxes.map((m) => (
+        <Rectangle
+          key={m.mission_id}
+          bounds={bboxToBounds(m.tasking!.search_box.bbox)}
+          pathOptions={{ color: '#22c55e', weight: 2, dashArray: '3 3', fillOpacity: 0.08 }}
+        >
+          <Popup>
+            <strong>Mission search box — {m.mission_id}</strong>
+            <br />
+            Pattern: {m.tasking!.pattern.replace(/_/g, ' ')}
+            <br />
+            Asset: {m.tasking!.base_name} ({m.tasking!.asset_type})
+            <br />
+            PoD: {(m.tasking!.probability_of_detection * 100).toFixed(0)}%
+            <br />
+            {m.tasking!.rationale}
+          </Popup>
+          <Tooltip permanent direction="bottom">
+            <span style={{ fontSize: 10 }}>MISSION SEARCH BOX</span>
+          </Tooltip>
+        </Rectangle>
+      ))}
+
       {/* PRAVAAH forward reach — straight segment ONLY, explicitly not a
           modelled drift path (see TRAJECTORY NOTE). */}
       {forwardTrack.length === 2 && (
@@ -246,10 +285,19 @@ export function CaseMap({ operatorCase: oc }: CaseMapProps) {
         ) : null,
       )}
 
-      {/* AIS candidates, only when genuinely produced */}
-      {aisTracks.map((t) => (
-        <Popup key={t.mmsi}>{t.vessel_name ?? t.mmsi}</Popup>
-      ))}
+      {/* AIS candidates — NOT plotted (Phase 9 fix, docs/product/HONESTY_LEDGER.md
+          #28). This used to render a bare <Popup> with no parent
+          Marker/CircleMarker, which react-leaflet silently renders as
+          nothing — a broken element, not a real feature. The real cause:
+          `AISCandidateView` (the type `aisTracks` holds) carries no
+          coordinates at all — `mmsi`, `vessel_name`, gap/coverage stats,
+          but no lon/lat, unlike `VesselTrack`'s own point-level data
+          upstream. Removed rather than left broken; extending
+          `AISCandidateView` with a representative position (e.g. its last
+          known point) is the real fix and is tracked, not silently
+          dropped — see the module docstring's own "no invented
+          coordinates" rule, which is exactly why this wasn't patched with
+          a fake position instead. */}
 
       {/* Starting point — the decision anchor, drawn last so it sits on top */}
       {startPoint && (

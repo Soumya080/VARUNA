@@ -2,25 +2,22 @@
 
 import { useState } from 'react'
 import { useOperatorCaseData } from '@/lib/operator-case-context'
-import { CURRENT_MISSION_STATE, MISSION_STATES } from '@/lib/mock-data'
 import { approveMission, AuthActionError } from '@/lib/api'
 import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
-import { Check, FileSearch, ShieldCheck } from 'lucide-react'
+import { FileSearch, ShieldCheck } from 'lucide-react'
 import { SectionLabel, StatusBadge } from './primitives'
+import { MissionFsmGraph } from './mission-fsm'
 
 /**
- * The real backend mission state machine (varuna_contracts.states.MissionState
- * — RESERVED/AVAILABLE/ASSIGNED/ACKNOWLEDGED/EN_ROUTE/ON_STATION/SEARCHING/
- * NOT_FOUND/COMPLETE/REASSIGNED/CLOSED, a branching graph with a REASSIGNED
- * loop-back) does not fit the existing linear 6-step visual track below
- * (PROPOSED → APPROVAL → DISPATCH → IN PROGRESS → COMPLETED → VERIFIED),
- * which models a different, simpler vocabulary. Rather than force a
- * branching state machine into a track that implies linear progress (which
- * would misrepresent REASSIGNED/CLOSED), the real mission's actual state is
- * shown as a plain badge + fields above the (kept, unmodified) illustrative
- * track. This is the "does not fit current design, add the minimum
- * necessary panel" case from this task's Phase 3, not a redesign.
+ * Phase 6A (docs/product/HONESTY_LEDGER.md #18): this used to render a
+ * hardcoded linear 6-step track (PROPOSED -> APPROVAL -> DISPATCH -> IN
+ * PROGRESS -> COMPLETED -> VERIFIED, `CURRENT_MISSION_STATE='APPROVAL'` a
+ * literal never tied to any real mission) alongside a plain badge showing
+ * the real state, because the real backend FSM (13 states, branching, a
+ * REASSIGNED loop-back) didn't fit that track. It's replaced outright by
+ * `MissionFsmGraph` below, which renders the actual state machine as a
+ * branching graph — no more fake track to keep in sync with reality.
  */
 function useRealMission() {
   const oc = useOperatorCaseData()
@@ -29,7 +26,6 @@ function useRealMission() {
 }
 
 export function MissionStatus() {
-  const currentIdx = MISSION_STATES.indexOf(CURRENT_MISSION_STATE)
   const realMission = useRealMission()
   const { session, isAuthenticated, logout } = useAuth()
   const [authMessage, setAuthMessage] = useState<string | null>(null)
@@ -83,68 +79,19 @@ export function MissionStatus() {
             Asset: {realMission.asset_id ?? '—'}
           </span>
           <span className="font-mono text-[11px] text-muted-foreground">
-            {realMission.approved_by
-              ? `Approved by ${realMission.approved_by}`
+            {realMission.human_approved_by
+              ? `Approved by ${realMission.human_approved_by}`
               : 'Not yet human-approved'}
           </span>
         </div>
       )}
 
-      {/* State track */}
-      <ol className="flex items-center gap-1 overflow-x-auto scroll-thin pb-1">
-        {MISSION_STATES.map((state, i) => {
-          const done = i < currentIdx
-          const current = i === currentIdx
-          return (
-            <li key={state} className="flex flex-1 items-center gap-1">
-              <div
-                className={cn(
-                  'flex min-w-[92px] flex-1 items-center gap-2 rounded-sm border px-2.5 py-2',
-                  current
-                    ? 'border-[color-mix(in_oklch,var(--warn)_45%,transparent)] bg-[color-mix(in_oklch,var(--warn)_12%,transparent)]'
-                    : done
-                      ? 'border-[color-mix(in_oklch,var(--ok)_35%,transparent)] bg-[color-mix(in_oklch,var(--ok)_8%,transparent)]'
-                      : 'border-border bg-background/40',
-                )}
-              >
-                <span
-                  className={cn(
-                    'grid h-4 w-4 shrink-0 place-items-center rounded-full font-mono text-[10px] font-bold',
-                    current
-                      ? 'bg-[var(--warn)] text-[oklch(0.22_0.03_60)]'
-                      : done
-                        ? 'bg-[var(--ok)] text-primary-foreground'
-                        : 'bg-muted text-muted-foreground',
-                  )}
-                >
-                  {done ? <Check className="h-2.5 w-2.5" /> : i + 1}
-                </span>
-                <span
-                  className={cn(
-                    'truncate font-mono text-[11px] font-semibold uppercase tracking-[0.06em]',
-                    current
-                      ? 'text-[color-mix(in_oklch,var(--warn)_55%,black)]'
-                      : done
-                        ? 'text-[color-mix(in_oklch,var(--ok)_55%,black)]'
-                        : 'text-muted-foreground',
-                  )}
-                >
-                  {state}
-                </span>
-              </div>
-              {i < MISSION_STATES.length - 1 && (
-                <span
-                  className={cn(
-                    'h-px w-2 shrink-0',
-                    done ? 'bg-[var(--ok)]' : 'bg-border',
-                  )}
-                  aria-hidden="true"
-                />
-              )}
-            </li>
-          )
-        })}
-      </ol>
+      {/* Real mission FSM graph (Phase 6A) */}
+      {realMission ? (
+        <MissionFsmGraph missionId={realMission.mission_id} />
+      ) : (
+        <p className="text-[11px] text-muted-foreground">No real mission record on this case.</p>
+      )}
 
       {/* Actions */}
       <div className="mt-3.5 flex flex-col gap-2 sm:flex-row">

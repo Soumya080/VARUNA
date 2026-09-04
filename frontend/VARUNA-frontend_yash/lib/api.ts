@@ -240,6 +240,22 @@ export function getCaseAlerts(caseId: string): Promise<{ items: AlertLifecycleRe
   return getJson(`/v1/cases/${encodeURIComponent(caseId)}/alerts`)
 }
 
+export interface CaseMemoryOutcome {
+  case_id: string
+  recorded: boolean
+  outcome: string | null
+  recorded_at?: string
+  updated_at?: string
+}
+
+/** GET /v1/cases/{caseId}/memory-outcome — Phase 6B: the Verification
+ * Ledger's 5th axis. Whether THIS case's own outcome has been recorded in
+ * SMRITI (distinct from `intelligence.memory_hits`, which surfaces OTHER
+ * similar past cases). */
+export function getCaseMemoryOutcome(caseId: string): Promise<CaseMemoryOutcome> {
+  return getJson(`/v1/cases/${encodeURIComponent(caseId)}/memory-outcome`)
+}
+
 export function acknowledgeAlert(alertId: string): Promise<AlertLifecycleRecord> {
   return postJson(`/v1/alerts/${encodeURIComponent(alertId)}/acknowledge`)
 }
@@ -447,6 +463,40 @@ export function listMissions(): Promise<{ items: Array<Record<string, unknown>> 
   return getJson('/v1/missions')
 }
 
+export interface MissionTransitions {
+  mission_id: string
+  state: string
+  legal_next: string[]
+  terminal: boolean
+}
+
+/** GET /v1/missions/{missionId}/transitions — the real 13-state FSM's
+ * legal-next set for this mission, from `varuna_contracts.states
+ * .MISSION_TRANSITIONS`. Phase 6A: this is what `components/mission-fsm.tsx`
+ * renders as a branching graph instead of the fake linear
+ * PROPOSED->...->VERIFIED track it replaces. */
+export function getMissionTransitions(missionId: string): Promise<MissionTransitions> {
+  return getJson(`/v1/missions/${encodeURIComponent(missionId)}/transitions`)
+}
+
+export interface MissionHistoryEntry {
+  state: string
+  at: string
+  reason: string | null
+}
+
+export interface MissionHistory {
+  mission_id: string
+  current_state: string
+  history: MissionHistoryEntry[]
+}
+
+/** GET /v1/missions/{missionId}/history — every state this mission has
+ * actually passed through, with the reason recorded at each transition. */
+export function getMissionHistory(missionId: string): Promise<MissionHistory> {
+  return getJson(`/v1/missions/${encodeURIComponent(missionId)}/history`)
+}
+
 async function postJsonWithBody<T>(path: string, body: unknown): Promise<T> {
   let response: Response
   try {
@@ -638,4 +688,19 @@ export function listEvents(caseId?: string): Promise<{
   }>
 }> {
   return getJson(`/v1/events${caseId ? `?case_id=${encodeURIComponent(caseId)}` : ''}`)
+}
+
+export interface SystemConfigReport {
+  demo_mode: boolean
+  auth: { status: 'REAL' | 'NOT_CONFIGURED'; detail: string }
+  database: { status: 'REAL' | 'NOT_CONFIGURED'; detail: string }
+  object_store: { status: 'REAL' | 'NOT_CONFIGURED'; detail: string }
+}
+
+/** GET /v1/system/config-report — Phase 11 (docs/product/HONESTY_LEDGER.md
+ * #21): the real source for the header's status pill, replacing a
+ * hardcoded "Operational" that ignored actual deployment state. See
+ * `apps/api/config.py::check_startup_config()`. */
+export function getSystemConfigReport(): Promise<SystemConfigReport> {
+  return getJson('/v1/system/config-report')
 }

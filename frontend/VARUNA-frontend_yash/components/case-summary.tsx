@@ -43,12 +43,20 @@ function useSummaryMetrics(): SummaryMetric[] {
 
   const metrics: SummaryMetric[] = [
     {
+      // M3 fix (docs/product/HONESTY_LEDGER.md #5): used to show the raw
+      // Phi coordinate (`obs_time_hours`, legitimately negative for a
+      // historical case — e.g. -78236.0 — and confusing labelled "relative
+      // hours"). Shows the real wall-clock `observation_time` now; the Phi
+      // coordinate is still available (`phi_time_coordinate_hours`) but is
+      // an internal detail, not the headline number.
       label: 'Observation',
       primary:
-        oc.observation.status === 'produced' && oc.observation.value
-          ? `${oc.observation.value.obs_time_hours.toFixed(1)}h`
+        oc.observation.status === 'produced' && oc.observation.value?.observation_time
+          ? new Date(oc.observation.value.observation_time).toISOString().slice(0, 16).replace('T', ' ') + 'Z'
           : '—',
-      secondary: oc.observation.status === 'produced' ? 'obs. time (relative)' : oc.observation.reason ?? 'not produced',
+      secondary: oc.observation.status === 'produced'
+        ? (oc.observation.value?.observation_time ? 'observed at' : 'observation time unknown')
+        : oc.observation.reason ?? 'not produced',
       tone: oc.observation.status === 'produced' ? 'default' : 'warn',
     },
     // Drift window has no direct OperatorCase field; keep the existing

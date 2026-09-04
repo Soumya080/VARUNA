@@ -167,14 +167,27 @@ def _write_input_block(case, run) -> None:
     # observation time. If neither exists there is no honest value to write, so
     # the block is skipped entirely and the section keeps saying NOT_YET_PRODUCED
     # rather than being filled with a placeholder.
+    # M3 fix (docs/product/HONESTY_LEDGER.md #5): `obs_time_hours` here is
+    # Phi's internal coordinate (hours since PHI_EPOCH) — kept as-is for
+    # every existing internal consumer (Phi, NYAYA, the sensitivity sweep,
+    # ...), all of which genuinely need that coordinate, not a wall-clock
+    # time. What was wrong is showing this number to an OPERATOR as if it
+    # were an elapsed-hours field (see ObservationView.phi_time_coordinate_hours's
+    # docstring). `observation_time` below carries the real wall-clock time
+    # this block already has in hand at every branch — it just wasn't being
+    # written anywhere before.
     obs_time_hours = None
+    observation_time = None
     if phi is not None and phi.detail.get("obs_time_hours") is not None:
         obs_time_hours = float(phi.detail["obs_time_hours"])
+        if det is not None and det.status is StageStatus.PRODUCED and det.value:
+            observation_time = det.value[0].observation_time
     elif det is not None and det.status is StageStatus.PRODUCED and det.value:
         from varuna_prativartan.cube_field import PHI_EPOCH
 
+        observation_time = det.value[0].observation_time
         obs_time_hours = (
-            det.value[0].observation_time - PHI_EPOCH
+            observation_time - PHI_EPOCH
         ).total_seconds() / 3600.0
     elif has_tracks and ais.detail.get("t_sar"):
         # No slick was detected, but real AIS WAS ingested. Falling through here
@@ -187,11 +200,14 @@ def _write_input_block(case, run) -> None:
         t_sar = datetime.fromisoformat(ais.detail["t_sar"])
         if t_sar.tzinfo is None:
             t_sar = t_sar.replace(tzinfo=timezone.utc)
+        observation_time = t_sar
         obs_time_hours = (t_sar - PHI_EPOCH).total_seconds() / 3600.0
     if obs_time_hours is None:
         return
 
     block: dict[str, Any] = {"obs_time_hours": obs_time_hours}
+    if observation_time is not None:
+        block["observation_time"] = observation_time.isoformat()
     if has_points:
         lons, lats = run.slick_points
         block["slick_lons"] = [float(x) for x in lons]

@@ -30,7 +30,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from varuna_contracts.decision import (
-    AttributionResultV2, CandidateScore, DecisionState, LatentFinding, PriorContribution,
+    AttributionResultV2, CandidateScore, DecisionState, HistoricalReconstruction,
+    LatentFinding, PriorContribution,
 )
 from varuna_contracts.evidence import EvidenceEnvelope, EvidenceMode, Provenance, TrustState
 from varuna_contracts.phi import (
@@ -547,7 +548,7 @@ class _IndiaScenario:
     vessel_type: VesselType
     area_km2: float
     elongation: float
-    landfall_name: str
+    landfall_name: str | None  # None = no landfall to model (see _india_forecast)
     rationale: str
     source_note: str  # what real event this models, and what's illustrative
 
@@ -589,18 +590,41 @@ def _india_phi(scn: _IndiaScenario, slick_id: str) -> PhiField:
 
 
 def _india_attribution(scn: _IndiaScenario, phi_id: str, slick_id: str) -> AttributionResultV2:
-    candidate = CandidateScore(
-        mmsi=scn.vessel_mmsi, vessel_name=scn.vessel_name, vessel_type=scn.vessel_type,
-        path_integral=1.0, prior=PriorContribution(), likelihood=1.0, posterior=0.7,
-        rank=1, closest_approach_km=3.1, time_at_closest_hours=0.3,
-        phi_mass_explained=0.6, ais_reliability=0.9, influence_weight=1.0,
-    )
+    """M1+M2 fix (docs/product/HONESTY_LEDGER.md #3-4).
+
+    This used to fabricate a `CandidateScore` — `posterior: 0.7`,
+    `ais_reliability: 0.9` — that VARUNA never computed, to attach a real
+    vessel identity to a case where no AIS tracks were ever ingested
+    (`n_tracks: 0`). The impossible all-zero `PriorContribution` (M2)
+    followed directly from that: nothing ever supplied a real prior,
+    because no real scoring ever happened.
+
+    The COMPUTED attribution is now honest: zero candidates were screened
+    (no AIS coverage exists for this replay case), so the correct
+    `decision_state` is `INCONCLUSIVE`, not `STRONG_LEAD`, and no
+    `CandidateScore` is constructed — M2 disappears by construction, since
+    there is no `PriorContribution` for it to be wrong about.
+
+    The real, publicly-documented vessel identity moves to
+    `historical_reconstruction` — a structurally separate field that can
+    never carry a score, and whose `provenance` literal makes clear this is
+    a historical record, not a VARUNA computation. `vessel_mmsi ==
+    "000000000"` (IND-CASE-05's offshore-platform scenario) means there is
+    genuinely no vessel to name; no reconstruction is attached for it.
+    """
+    reconstruction = None
+    if scn.vessel_mmsi != "000000000":
+        reconstruction = HistoricalReconstruction(
+            vessel_name=scn.vessel_name, mmsi=scn.vessel_mmsi,
+            event_description=scn.source_note, source_citation=scn.rationale,
+        )
     return AttributionResultV2(
         case_id=scn.case_id, slick_id=slick_id, phi_id=phi_id,
-        decision_state=DecisionState.STRONG_LEAD, candidates=[candidate],
-        latent_probability=0.3, latent_finding=LatentFinding.RADAR_CONTACT_WITHOUT_AIS,
-        top_posterior=0.7, top_gap=0.7, distinguishability=0.8, posterior_entropy=0.3,
-        n_candidates_screened=5, n_candidates_scored=1,
+        decision_state=DecisionState.INCONCLUSIVE, candidates=[],
+        latent_probability=1.0, latent_finding=LatentFinding.INSUFFICIENT_COVERAGE,
+        top_posterior=0.0, top_gap=0.0, distinguishability=0.0, posterior_entropy=0.0,
+        n_candidates_screened=0, n_candidates_scored=0,
+        historical_reconstruction=reconstruction,
         envelope=_envelope(f"attribution-{scn.case_id}", "nyaya", EvidenceMode.SIMULATED),
     )
 
@@ -608,13 +632,28 @@ def _india_attribution(scn: _IndiaScenario, phi_id: str, slick_id: str) -> Attri
 def _india_forecast(scn: _IndiaScenario, slick_id: str):
     from varuna_contracts.schemas import ForwardForecast
 
-    return ForwardForecast(
-        forecast_id=f"replay-forecast-{scn.case_id}", slick_id=slick_id, horizon_hours=24.0,
-        landfalls=[LandfallPrediction(
+    # M5 fix (docs/product/HONESTY_LEDGER.md #7): a `landfall_name` of None
+    # means "there is no landfall to model" (IND-CASE-05's offshore-platform
+    # source), not "here is a landfall whose name happens to be a sentence
+    # explaining why there isn't one". Constructing a `LandfallPrediction`
+    # for the latter is what produced a real HIGH-severity alert reading
+    # "forecast predicts landfall at Not applicable — offshore platform
+    # source". The honest forecast for a source with no coastline
+    # interaction is an EMPTY landfalls list — material_change.py's guard
+    # (see its own docstring) additionally refuses to alert on any landfall
+    # list entry without a real location_name, so this can't regress
+    # silently even if a future fixture makes the same mistake.
+    landfalls = []
+    if scn.landfall_name:
+        landfalls = [LandfallPrediction(
             location_name=scn.landfall_name, position=scn.anchor,
             eta=scn.t_obs + timedelta(hours=18), hours_until=18.0, probability=0.4,
             coastline_segment_km=5.0,
-        )],
+        )]
+
+    return ForwardForecast(
+        forecast_id=f"replay-forecast-{scn.case_id}", slick_id=slick_id, horizon_hours=24.0,
+        landfalls=landfalls,
         affected_fishing_zones=[], trajectory_path=f"replay://{scn.case_id}/traj.npz",
         envelope=_envelope(f"forecast-{scn.case_id}", "pravaah", EvidenceMode.SIMULATED),
     )
@@ -760,7 +799,7 @@ _INDIA_SCENARIOS: dict[str, _IndiaScenario] = {
         anchor=GeoPoint(lon=71.60, lat=19.50), bbox=BBox(min_lon=71.50, min_lat=19.40, max_lon=71.70, max_lat=19.60),
         t_obs=datetime(2019, 11, 10, 8, 0, 0, tzinfo=timezone.utc),
         vessel_mmsi="000000000", vessel_name="UNKNOWN (platform source)", vessel_type=VesselType.OTHER,
-        area_km2=4.0, elongation=1.3, landfall_name="Not applicable — offshore platform source",
+        area_km2=4.0, elongation=1.3, landfall_name=None,
         rationale="illustrative platform-sourced (not vessel-collision) spill scenario at the real Mumbai High field",
         source_note=("Models a platform-sourced spill scenario at ONGC's real Mumbai High "
                      "offshore field (~19.5N, 71.6E) — deliberately NOT a vessel-collision "

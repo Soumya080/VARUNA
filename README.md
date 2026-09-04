@@ -179,7 +179,7 @@ packages/varuna_contracts/     ★ THE locked contract — import from here, nev
 packages/varuna_{domain,data_guard,source_adapters,geospatial}/
 packages/varuna_{netra,prativartan,nyaya,chhaya,pravaah,abhiyan}/
 packages/varuna_{missions,alerts,praman,smriti}/
-apps/{api,worker,web}/
+apps/{api,worker}/                         frontend/VARUNA-frontend_yash/   ← the real UI (Next.js)
 tests/{unit,contract,integration,scientific,robustness,e2e}/
 experiments/{go_nogo,convergence,forcing_bias,baselines,...}/
 infra/{docker,nginx,monitoring,scripts}/   db/migrations/   docs/{architecture,adr,runbooks}/

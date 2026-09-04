@@ -6,18 +6,36 @@
  * never invents a candidate, a score, or an outcome.
  */
 import { useCallback, useEffect, useState } from 'react'
-import { Meter, StatusBadge } from '@/components/primitives'
+import { InfoTip, Meter, StatusBadge } from '@/components/primitives'
 import { Card, Row } from './cockpit-panels'
 import { API_BASE_URL } from '@/lib/api'
 import { isWithinFrame, projectToBBox, type LonLatBBox } from '@/lib/geo-projection'
 
+/**
+ * Mirrors `packages/varuna_chhaya/v2/nyaya_handoff.py::CandidateEvidenceRecord`
+ * field-for-field — this is what the wire actually sends. The previous
+ * version of this interface (`vessel_score`/`score_type`/`detector_source`
+ * per-candidate, none of which exist on the wire) was silently masked
+ * because `candidates` was always empty in practice; the first real
+ * detection would have crashed this panel live (Phase 5B fix, see
+ * docs/product/HONESTY_LEDGER.md).
+ */
 interface Candidate {
   candidate_id: string
+  sar_vessel_score: number
+  sar_score_type: string
+  ais_state: string
+  ais_distance_km: number | null
+  origin_spatial_consistency: number | null
+  origin_temporal_consistency: number | null
+  course_consistency: number | null
+  speed_consistency: number | null
+  relative_plausibility: number
+  rank: number
+  missing_evidence: string[]
   position: { lon: number; lat: number } | null
   geolocation_valid: boolean
-  vessel_score: number
-  score_type: string
-  detector_source: string
+  geolocation_rejection_reason: string | null
 }
 
 interface Handoff {
@@ -26,7 +44,9 @@ interface Handoff {
   detector_source: string
   detector_mode: string
   detector_available: boolean
+  coverage_quality: number | null
   candidates: Candidate[]
+  missing_evidence: string[]
   _input: {
     tile_id: string
     tile_shape: number[]
@@ -165,14 +185,17 @@ export function ChhayaPanelV2() {
 
   return (
     <Card
-      title="CHHAYA — Vessel intelligence (real Sentinel-1)"
+      title="CHHAYA · Vessel Evidence (SAR tile)"
       id="chhaya-v2"
       right={
-        data ? (
-          <StatusBadge tone={OUTCOME_TONE[data.outcome] ?? 'muted'}>
-            {data.outcome.replace(/_/g, ' ')}
-          </StatusBadge>
-        ) : undefined
+        <>
+          <InfoTip label="Two stages of one question: CHHAYA · Source Hypothesis asks 'what kind of source is this?' (per case). CHHAYA · Vessel Evidence asks 'which vessel?' (per SAR tile, from real Sentinel-1 imagery). Not the same computation." />
+          {data && (
+            <StatusBadge tone={OUTCOME_TONE[data.outcome] ?? 'muted'}>
+              {data.outcome.replace(/_/g, ' ')}
+            </StatusBadge>
+          )}
+        </>
       }
     >
       {err && <p className="text-[12px] text-destructive">{err}</p>}
@@ -214,6 +237,15 @@ export function ChhayaPanelV2() {
           <Row label="Sensor" value={data._input.sensor ?? '—'} />
           <Row label="AIS positions in tile" value={data._input.n_ais_positions_in_tile} />
           <Row label="Candidates" value={data.candidates.length} />
+          {data.coverage_quality != null && (
+            <Row label="Coverage quality" value={data.coverage_quality.toFixed(2)} />
+          )}
+          {data.missing_evidence.length > 0 && (
+            <Row
+              label="Missing evidence"
+              value={<span className="text-[10px]">{data.missing_evidence.join(', ')}</span>}
+            />
+          )}
           {data._input.corridor_recurrence && (
             <Row
               label={`Prior cases within ${data._input.corridor_recurrence.radius_km}km`}
@@ -260,19 +292,37 @@ export function ChhayaPanelV2() {
               {data.candidates.slice(0, 8).map((c) => (
                 <li
                   key={c.candidate_id}
-                  className="flex items-center gap-2 rounded-sm border border-border bg-background/50 px-2 py-1 text-[11px]"
+                  className="space-y-1 rounded-sm border border-border bg-background/50 px-2 py-1.5 text-[11px]"
                 >
-                  <StatusBadge tone={c.geolocation_valid ? 'ok' : 'warn'}>
-                    {c.geolocation_valid ? 'geo ok' : 'geo invalid'}
-                  </StatusBadge>
-                  <span className="font-mono text-foreground">
-                    {c.position
-                      ? `${c.position.lat.toFixed(4)}, ${c.position.lon.toFixed(4)}`
-                      : '—'}
-                  </span>
-                  <span className="ml-auto font-mono text-muted-foreground">
-                    score {c.vessel_score?.toFixed(2)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-muted-foreground">#{c.rank}</span>
+                    <StatusBadge tone={c.geolocation_valid ? 'ok' : 'warn'}>
+                      {c.geolocation_valid ? 'geo ok' : 'geo invalid'}
+                    </StatusBadge>
+                    <span className="font-mono text-foreground">
+                      {c.position
+                        ? `${c.position.lat.toFixed(4)}, ${c.position.lon.toFixed(4)}`
+                        : '—'}
+                    </span>
+                    <span className="ml-auto font-mono text-muted-foreground">
+                      plausibility {c.relative_plausibility.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[10px] text-muted-foreground">
+                    <span>SAR {c.sar_score_type} {c.sar_vessel_score.toFixed(2)}</span>
+                    <span>AIS {c.ais_state.replace(/_/g, ' ')}</span>
+                    {c.ais_distance_km != null && <span>{c.ais_distance_km.toFixed(1)}km</span>}
+                  </div>
+                  {!c.geolocation_valid && c.geolocation_rejection_reason && (
+                    <p className="text-[10px] leading-snug text-[color-mix(in_oklch,var(--warn)_55%,black)]">
+                      geolocation rejected: {c.geolocation_rejection_reason}
+                    </p>
+                  )}
+                  {c.missing_evidence.length > 0 && (
+                    <p className="text-[10px] leading-snug text-muted-foreground">
+                      missing: {c.missing_evidence.join(', ')}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

@@ -116,19 +116,39 @@ class SourceHypothesisEngine:
         phi_converged: bool | None = None,
         prior_cases_same_corridor: int = 0,
         contradictions: list[str] | None = None,
-        evidence_ids: list[str] | None = None,
+        evidence_ids: dict[str, list[str]] | None = None,
     ) -> SourceHypothesisEnvelope:
         """
         Run the update. Every argument is optional-by-absence: a factor whose
         evidence is missing contributes NOTHING rather than a default value,
         so an unobserved quantity can never silently push a hypothesis.
+
+        M6 fix (docs/product/HONESTY_LEDGER.md #8): `evidence_ids` used to be
+        a flat `list[str]` — every case evidence id, regardless of relevance
+        — stamped onto EVERY `FactorContribution`, so e.g. `no_ais_coverage`
+        carried forecast and decision evidence ids that have nothing to do
+        with AIS. It is now a mapping keyed by input KIND ("ais",
+        "detection", "phi", "smriti", "region", "contradictions"); each
+        `add()` call below names which kind(s) actually back that factor, so
+        a factor only ever carries the evidence that produced it. Callers
+        that still pass a flat list get it treated as a single "general"
+        bucket rather than crashing, but the intended contract is the dict.
         """
         contradictions = list(contradictions or [])
-        evidence_ids = list(evidence_ids or [])
+        if evidence_ids is None:
+            evidence_ids_by_kind: dict[str, list[str]] = {}
+        elif isinstance(evidence_ids, dict):
+            evidence_ids_by_kind = {k: list(v) for k, v in evidence_ids.items()}
+        else:
+            # Backward-compat: a flat list (the old contract) is evidence of
+            # unknown, unbucketed kind. Never split across factors as if it
+            # were relevant to all of them.
+            evidence_ids_by_kind = {"general": list(evidence_ids)}
+        all_evidence_ids = sorted({eid for ids in evidence_ids_by_kind.values() for eid in ids})
 
         if not detection_present:
             return self._insufficient(
-                case_id, parent_envelope, evidence_ids, contradictions,
+                case_id, parent_envelope, all_evidence_ids, contradictions,
                 reason=("No detection evidence exists for this case, so there is "
                         "no slick whose source could be hypothesised."),
             )
@@ -137,10 +157,11 @@ class SourceHypothesisEngine:
         against: dict[SourceClass, list[FactorContribution]] = {c: [] for c in self._priors}
 
         def add(cls: SourceClass, factor: str, detail: str, llr: float,
-                measured: bool = True) -> None:
+                measured: bool = True, source: str = "general") -> None:
             fc = FactorContribution(factor=factor, detail=detail,
                                     log_likelihood_ratio=llr,
-                                    evidence_ids=evidence_ids, measured=measured)
+                                    evidence_ids=evidence_ids_by_kind.get(source, []),
+                                    measured=measured)
             (support if llr > 0 else against)[cls].append(fc)
 
         # ---- Vessel proximity (the single strongest available signal) ----
@@ -149,21 +170,21 @@ class SourceHypothesisEngine:
                 if nearest_vessel_temporally_matched:
                     add(SourceClass.VESSEL_ASSOCIATED, "vessel_colocation",
                         f"A temporally-matched AIS track passes {nearest_vessel_km:.1f} km "
-                        f"from the slick (<= {VESSEL_COLOCATION_KM} km).", _STRONG)
+                        f"from the slick (<= {VESSEL_COLOCATION_KM} km).", _STRONG, source="ais")
                     add(SourceClass.NATURAL_SEEP, "vessel_colocation",
                         "A co-located, time-matched vessel is a competing explanation "
-                        "that seepage does not require.", -_MODERATE)
+                        "that seepage does not require.", -_MODERATE, source="ais")
                 else:
                     # Spatial proximity WITHOUT a temporal match is weak. This
                     # mirrors the AIS join's own rule that spatial candidacy is
                     # never promoted into temporal evidence.
                     add(SourceClass.VESSEL_ASSOCIATED, "vessel_spatial_only",
                         f"An AIS track passes {nearest_vessel_km:.1f} km away but is NOT "
-                        "temporally matched; proximity alone is not co-occurrence.", _WEAK)
+                        "temporally matched; proximity alone is not co-occurrence.", _WEAK, source="ais")
             else:
                 add(SourceClass.VESSEL_ASSOCIATED, "no_vessel_nearby",
                     f"Nearest AIS track is {nearest_vessel_km:.1f} km away "
-                    f"(> {VESSEL_COLOCATION_KM} km).", -_MODERATE)
+                    f"(> {VESSEL_COLOCATION_KM} km).", -_MODERATE, source="ais")
         elif n_ais_tracks == 0:
             # NOTE the `is not None` contract on n_ais_tracks: `None` means
             # "AIS was never consulted" and contributes NOTHING, while `0`
@@ -177,21 +198,21 @@ class SourceHypothesisEngine:
             # hypothesis only slightly, and is flagged as an inference.
             add(SourceClass.VESSEL_ASSOCIATED, "no_ais_coverage",
                 "No AIS tracks were available. This is weak evidence at best: a "
-                "dark vessel would also produce no AIS.", -_WEAK, measured=False)
+                "dark vessel would also produce no AIS.", -_WEAK, measured=False, source="ais")
 
         # ---- Morphology ----
         if elongation is not None:
             if elongation >= LINEAR_ELONGATION:
                 add(SourceClass.VESSEL_ASSOCIATED, "linear_morphology",
                     f"Elongation {elongation:.1f} >= {LINEAR_ELONGATION} is consistent "
-                    "with discharge from a moving platform.", _MODERATE)
+                    "with discharge from a moving platform.", _MODERATE, source="detection")
                 add(SourceClass.NATURAL_SEEP, "linear_morphology",
                     "Seeps typically surface as point-anchored or patchy features, "
-                    "less often as long linear streaks.", -_WEAK)
+                    "less often as long linear streaks.", -_WEAK, source="detection")
             else:
                 add(SourceClass.NATURAL_SEEP, "compact_morphology",
                     f"Elongation {elongation:.1f} < {LINEAR_ELONGATION} is more "
-                    "consistent with a fixed point source.", _WEAK)
+                    "consistent with a fixed point source.", _WEAK, source="detection")
 
         # ---- Geography ----
         if distance_to_shore_km is not None:
@@ -199,18 +220,18 @@ class SourceHypothesisEngine:
                 add(SourceClass.COASTAL, "shore_proximity",
                     f"Slick is {distance_to_shore_km:.1f} km from shore "
                     f"(<= {COASTAL_PROXIMITY_KM} km), within range of land-based outfall.",
-                    _MODERATE)
+                    _MODERATE, source="region")
             else:
                 add(SourceClass.COASTAL, "offshore",
                     f"Slick is {distance_to_shore_km:.1f} km offshore, beyond plausible "
-                    "land-based outfall.", -_STRONG)
+                    "land-based outfall.", -_STRONG, source="region")
 
         if in_known_seep_basin:
             add(SourceClass.NATURAL_SEEP, "known_seep_basin",
                 "Location falls in a basin with documented natural hydrocarbon seepage.",
-                _STRONG)
+                _STRONG, source="region")
             add(SourceClass.OTHER_ANTHROPOGENIC, "known_seep_basin",
-                "A documented natural source is a competing explanation.", -_WEAK)
+                "A documented natural source is a competing explanation.", -_WEAK, source="region")
 
         # ---- Environment ----
         if wind_speed_ms is not None and wind_speed_ms < 3.0:
@@ -220,28 +241,28 @@ class SourceHypothesisEngine:
             add(SourceClass.UNKNOWN, "low_wind_lookalike_risk",
                 f"Wind {wind_speed_ms:.1f} m/s < 3.0 m/s: low-wind glassy water is a "
                 "known look-alike regime, so the detection itself is less trustworthy.",
-                _MODERATE)
+                _MODERATE, source="detection")
 
         # ---- Repetition (SMRITI) ----
         if prior_cases_same_corridor >= 3:
             add(SourceClass.NATURAL_SEEP, "recurrence",
                 f"{prior_cases_same_corridor} prior cases in this corridor; persistent "
                 "recurrence at one location favours a fixed, continuous source.",
-                _MODERATE)
+                _MODERATE, source="smriti")
             add(SourceClass.VESSEL_ASSOCIATED, "recurrence",
                 "Repeated slicks at a fixed point are less consistent with transiting "
-                "vessels, which differ case to case.", -_WEAK)
+                "vessels, which differ case to case.", -_WEAK, source="smriti")
 
         # ---- Reconstruction quality ----
         if phi_available and phi_converged is False:
             add(SourceClass.UNKNOWN, "phi_not_converged",
                 "Backward reconstruction did not converge, so origin-based reasoning "
-                "cannot discriminate between source classes.", _MODERATE)
+                "cannot discriminate between source classes.", _MODERATE, source="phi")
 
         # ---- Contradictions widen uncertainty; they never pick a winner ----
         for note in contradictions:
             add(SourceClass.UNKNOWN, "contradiction",
-                f"Unresolved contradiction in the evidence: {note}", _WEAK)
+                f"Unresolved contradiction in the evidence: {note}", _WEAK, source="contradictions")
 
         posteriors = self._update(support, against)
         hypotheses = [
@@ -278,7 +299,7 @@ class SourceHypothesisEngine:
             ),
             insufficient_evidence=n_factors == 0,
             contradictions=contradictions,
-            evidence_ids_considered=evidence_ids,
+            evidence_ids_considered=all_evidence_ids,
             envelope=parent_envelope.derive(
                 artifact_id=f"chhaya-{case_id}",
                 produced_by="chhaya.hypothesis_engine",

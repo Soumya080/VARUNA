@@ -18,6 +18,7 @@ from varuna_chhaya.v2.origin_consistency import OriginConsistency
 from varuna_chhaya.v2.outcomes import ChhayaOutcome
 from varuna_chhaya.v2.ranking import CandidateRankingEntry
 from varuna_contracts.evidence import EnvelopedArtifact
+from varuna_contracts.schemas import GeoPoint
 
 
 class CandidateEvidenceRecord(BaseModel):
@@ -37,6 +38,16 @@ class CandidateEvidenceRecord(BaseModel):
     relative_plausibility: float
     rank: int
     missing_evidence: list[str]
+
+    # Phase 5B fix (docs/product/HONESTY_LEDGER.md): the frontend's
+    # `CandidateEvidenceRecord` type never carried these, even though the
+    # georeference step (`VesselCandidate.position`/`geolocation_valid`)
+    # computes them and deliberately keeps invalid geolocations rather than
+    # dropping them. Forwarded here rather than fabricated — `position` is
+    # `None` exactly when the upstream candidate's own position is `None`.
+    position: GeoPoint | None = None
+    geolocation_valid: bool = False
+    geolocation_rejection_reason: str | None = None
 
 
 class ChhayaEvidenceHandoff(EnvelopedArtifact):
@@ -94,6 +105,9 @@ def build_handoff(
             relative_plausibility=rank.relative_plausibility if rank else 0.0,
             rank=rank.rank if rank else 0,
             missing_evidence=missing,
+            position=c.position,
+            geolocation_valid=c.geolocation_valid,
+            geolocation_rejection_reason=c.geolocation_rejection_reason,
         ))
 
     return ChhayaEvidenceHandoff(

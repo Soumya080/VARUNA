@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 from varuna_agentic.loop import AgenticLoop, UncertaintyAssessor
@@ -191,6 +192,62 @@ def build_detection_evidence(case_id: str, run_id: str | None,
     )
 
 
+def _pipeline_run_data_quality(run) -> dict:
+    """M4 fix (docs/product/HONESTY_LEDGER.md #6): the golden/replay path
+    never ran any data-quality check at all — `varuna_data_guard.guard
+    .evaluate_data_guard()` is only ever called from the legacy
+    `CaseWorkflow.ingest()` path.
+
+    This is deliberately NOT a call to that same function. Its checks are
+    scoped to `CaseWorkflow.ingest()`'s own conventions and would misfire
+    here: `obs_time_hours > 0` is checked against a positive synthetic
+    float there, but the golden/replay path's closest analogue is Phi's
+    epoch-relative coordinate (`ObservationView.phi_time_coordinate_hours`),
+    which is legitimately NEGATIVE for a historical replay case (see the
+    M3 fix) — every Indian-Ocean fixture would show as "quarantined" by
+    construction. Likewise, `slick_point_count >= 10` assumes a real
+    per-pixel mask contour; replay fixtures represent a slick with one
+    anchor point by design, not a fabricated one.
+
+    So: check what is actually meaningful for a composed run —
+    points/tracks present, and the real wall-clock `observation_time` (not
+    the Phi coordinate) is not in the future, exactly the invariant M4
+    called for ("you cannot observe the future"). Never blocks the
+    pipeline; this is visibility recorded as evidence, not a second gate —
+    see `varuna_data_guard.guard`'s own module for why a gate belongs at
+    the legacy ingest boundary and not duplicated here.
+    """
+    checks = []
+
+    # `PipelineRun.slick_points` defaults to `()` (present but empty) when
+    # no detection ever ran, not absent — `getattr(..., default)` doesn't
+    # catch that case, only a genuinely missing attribute.
+    lons, _lats = getattr(run, "slick_points", None) or ([], [])
+    n_points = len(lons)
+    checks.append({"name": "slick_points_present", "passed": n_points > 0, "observed": n_points})
+
+    ais = run.stages.get("ais_ingest")
+    n_tracks = len(ais.value) if (ais is not None and ais.status is StageStatus.PRODUCED and ais.value) else 0
+    checks.append({"name": "ais_ingest_ran", "passed": ais is not None, "observed": n_tracks})
+
+    det = run.stages.get("netra_detection")
+    obs_time = None
+    if det is not None and det.status is StageStatus.PRODUCED and det.value:
+        obs_time = getattr(det.value[0], "observation_time", None)
+    time_ok = obs_time is not None and obs_time <= datetime.now(timezone.utc)
+    checks.append({
+        "name": "observation_time_not_future", "passed": time_ok,
+        "observed": obs_time.isoformat() if obs_time else None,
+    })
+
+    blocking = [c["name"] for c in checks if not c["passed"]]
+    return {
+        "verdict": "accepted" if not blocking else "degraded",
+        "checks": checks,
+        "blocking": blocking,
+    }
+
+
 def ledger_from_run(run, *, case_id: str | None = None) -> EvidenceLedger:
     """
     Project a `PipelineRun` into the Evidence Ledger.
@@ -272,6 +329,20 @@ class CaseIntelligenceService:
             produced_by="varuna_integration.intelligence",
             provenance=Provenance(source_id="varuna.case_intelligence"),
             mode=ledger.worst_mode(cid) or EvidenceMode.UNAVAILABLE,
+        )
+
+        # M4 fix (docs/product/HONESTY_LEDGER.md #6): the data guard never
+        # ran on the golden/replay path at all. Recorded as evidence, never
+        # blocking — see `_pipeline_run_data_quality()`'s own docstring for
+        # why this isn't a call to `varuna_data_guard.guard
+        # .evaluate_data_guard()` itself.
+        dq = _pipeline_run_data_quality(run)
+        ledger.append(
+            case_id=cid, kind=EvidenceKind.DATA_QUALITY, produced_by="pipeline_run_data_quality",
+            summary=f"data quality: {dq['verdict']}"
+                    + (f" ({', '.join(dq['blocking'])} failed)" if dq["blocking"] else ""),
+            mode=parent.mode,
+            observation=dq,
         )
 
         detection_stage = run.stages.get("netra_detection")
@@ -443,7 +514,20 @@ class CaseIntelligenceService:
             prior_cases_same_corridor=corridor,
             contradictions=[c.note or f"{c.left_summary} vs {c.right_summary}"
                             for c in ledger.contradictions(cid)],
-            evidence_ids=[i.evidence_id for i in ledger.for_case(cid)],
+            # M6 fix (docs/product/HONESTY_LEDGER.md #8): bucket by the
+            # already-correct `EvidenceKind` on each ledger item, rather
+            # than handing every factor the case's entire evidence list.
+            # `SourceHypothesisEngine.assess()` looks each factor's evidence
+            # up by the matching bucket key (see its own docstring), so
+            # e.g. `no_ais_coverage` now carries only AIS evidence ids.
+            evidence_ids={
+                "ais": [i.evidence_id for i in ledger.for_case(cid) if i.kind == EvidenceKind.AIS],
+                "detection": [i.evidence_id for i in ledger.for_case(cid) if i.kind == EvidenceKind.DETECTION],
+                "phi": [i.evidence_id for i in ledger.for_case(cid) if i.kind == EvidenceKind.ORIGIN],
+                "smriti": [i.evidence_id for i in ledger.for_case(cid) if i.kind == EvidenceKind.MEMORY],
+                "contradictions": [ref for c in ledger.contradictions(cid)
+                                   for ref in (c.left_id, c.right_id) if ref],
+            },
         )
         state["hypotheses"] = hyp
         item = ledger.append(

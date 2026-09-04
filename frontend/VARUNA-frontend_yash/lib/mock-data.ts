@@ -441,22 +441,11 @@ export const FEASIBILITY: FeasibilityItem[] = [
 ]
 
 /* ------------------------------------------------------------------ */
-/* Mission status                                                      */
-/* ------------------------------------------------------------------ */
-
-export const MISSION_STATES = [
-  'PROPOSED',
-  'APPROVAL',
-  'DISPATCH',
-  'IN PROGRESS',
-  'COMPLETED',
-  'VERIFIED',
-] as const
-
-export type MissionState = (typeof MISSION_STATES)[number]
-
-export const CURRENT_MISSION_STATE: MissionState = 'APPROVAL'
-
+/* Mission status — Phase 6A (docs/product/HONESTY_LEDGER.md #18):     */
+/* the fake linear MISSION_STATES/CURRENT_MISSION_STATE track that      */
+/* used to live here is deleted outright. components/mission-fsm.tsx    */
+/* renders the REAL 13-state branching FSM instead, driven by           */
+/* GET /v1/missions/{id}/transitions and /history.                      */
 /* ------------------------------------------------------------------ */
 /* Navigation                                                          */
 /* ------------------------------------------------------------------ */
@@ -467,6 +456,18 @@ export const TOP_NAV = [
   'Alerts',
   'Missions',
   'Assignment',
+  // Phase 11 fix (docs/product/HONESTY_LEDGER.md #29): TOP_NAV_ROUTES
+  // below already mapped 'Assets' -> /assets and /assets already reads
+  // real data (GET /v1/assets, /v1/personnel) — but 'Assets' was never
+  // added to THIS array, the one header.tsx actually renders, so the page
+  // stayed unreachable from the header despite being real.
+  'Assets',
+  // Phase 9 made both real (docs/product/HONESTY_LEDGER.md #26); the
+  // other 4 real story pages live under the Dashboard dropdown's Case
+  // section instead of flat here, to keep this bar from growing to 12
+  // items.
+  'Reports',
+  'Intelligence',
 ] as const
 
 export const CASE_NAV = [
@@ -494,11 +495,14 @@ export const CASE_NAV_ROUTES: Record<string, string> = {
 /**
  * Only routes that are genuinely backend-driven appear in the nav.
  *
- * Assets / Reports / Intelligence are still hardcoded mock pages. Leaving
- * them clickable is worse than omitting them: a reviewer clicks, sees
- * fabricated vessel names and invented percentages, and reasonably concludes
- * the whole product is fake. The files remain in the repo; they are simply
- * not reachable until they are wired.
+ * All 6 story pages (Detection, Source Reconstruction, Vessel Attribution,
+ * Evidence Chain, Intelligence, Reports), Assets, and every OPS route are
+ * real as of Phase 9/4 (docs/product/HONESTY_LEDGER.md #26/#29) — a
+ * reviewer who clicks any nav item now sees real OperatorCase data, never
+ * a fabricated vessel name or invented percentage. Detection/Source
+ * Reconstruction/Vessel Attribution/Evidence Chain are reachable via the
+ * "Dashboard" dropdown's Case section rather than as flat top-level items
+ * — 12 flat items would defeat the point of grouping the procedure.
  */
 export const TOP_NAV_ROUTES: Record<string, string> = {
   'Dashboard': '/',
@@ -510,6 +514,12 @@ export const TOP_NAV_ROUTES: Record<string, string> = {
   // this file's own documented policy above (only genuinely backend-driven
   // routes belong here).
   'Assets': '/assets',
+  // Phase 9 converted these from hardcoded mocks to real OperatorCase data
+  // (docs/product/HONESTY_LEDGER.md #26) — no longer "still hardcoded mock
+  // pages" per this file's own former note. Reachable via the "Dashboard"
+  // dropdown's Case section above, and now genuinely routable here too.
+  'Reports': '/reports',
+  'Intelligence': '/intelligence',
 }
 
 /* ------------------------------------------------------------------ */
@@ -535,83 +545,43 @@ export interface NavMenuData {
 }
 
 export const NAV_MENUS: Record<string, NavMenuData> = {
+  // Phase 11 fix (docs/product/HONESTY_LEDGER.md #29): this menu was
+  // entirely fabricated — a fake "LIVE" badge, a fake "12 Active" count, a
+  // hardcoded stale timestamp footer, and every item pointing at `/`
+  // regardless of label. Replaced with the real CASE procedure: the 6
+  // story pages Phase 9 converted to real data, in the same order as the
+  // cockpit's own story spine (`lib/stages.ts`), plus the cockpit itself.
   Dashboard: {
     sections: [
       {
+        heading: 'Case',
         items: [
-          {
-            label: 'Command Overview',
-            description: 'Real-time operational status and KPIs across all active sectors.',
-            href: '/',
-          },
-          {
-            label: 'Threat Heatmap',
-            description: 'Geospatial threat density overlay for monitored EEZ zones.',
-            href: '/',
-            badge: 'LIVE',
-            tone: 'ok',
-          },
-          {
-            label: 'Watchboard',
-            description: 'Priority flagged vessels and entities on active monitoring.',
-            href: '/',
-            badge: '12 Active',
-            tone: 'saffron',
-          },
-          {
-            label: 'System Health',
-            description: 'Sensor, model pipeline, and data feed availability status.',
-            href: '/',
-          },
+          { label: 'Cockpit Overview', description: "The case's full composed view — map, evidence, mission, alerts.", href: '/' },
+          { label: 'Detection', description: "NETRA's real SAR classification for this case.", href: '/detection' },
+          { label: 'Source Reconstruction', description: 'PRATIVARTAN backward reconstruction — diagnostics and sensitivity.', href: '/source-reconstruction' },
+          { label: 'Vessel Attribution', description: 'NYAYA attribution — computed result and historical context, never conflated.', href: '/vessel-attribution' },
+          { label: 'Intelligence', description: 'Source hypothesis, uncertainty, decision trace, SMRITI memory.', href: '/intelligence' },
+          { label: 'Evidence Chain', description: 'The real evidence lineage graph, verification ledger, provenance.', href: '/evidence-chain' },
+          { label: 'Reports', description: 'Generate the real PDF incident report for this case.', href: '/reports' },
         ],
       },
     ],
-    footer: 'Last dashboard sync · 06:44 UTC',
   },
+  // Phase 11 fix (docs/product/HONESTY_LEDGER.md #29): found while fixing
+  // Dashboard/Reports/Intelligence above — this menu (and Alerts/Missions/
+  // Assets below) had the same problem at larger scale: fabricated badge
+  // counts presented as live numbers ("4 Active", "3", "1 Overdue", ...),
+  // fake sub-features ("New Case Wizard", "ROE Library"), and a fake
+  // "2 unread critical alerts" footer. Numeric badges are the most
+  // misleading kind of fabrication here — a specific number reads as a
+  // live measurement. Removed; items now point at their real page, which
+  // shows the real count directly rather than duplicating a stale one in
+  // a dropdown.
   Cases: {
     sections: [
       {
-        heading: 'Case Management',
         items: [
-          {
-            label: 'Active Cases',
-            description: 'Cases currently under analysis or pending assignment.',
-            href: '/cases',
-            badge: '4 Active',
-            tone: 'saffron',
-          },
-          {
-            label: 'Case Archive',
-            description: 'Closed and resolved cases with full evidence chains.',
-            href: '/cases',
-          },
-          {
-            label: 'New Case Wizard',
-            description: 'Initiate a new investigation from detection or tip-off.',
-            href: '/cases',
-          },
-        ],
-      },
-      {
-        heading: 'Quick Filters',
-        items: [
-          {
-            label: 'Oil Spill / Discharge',
-            description: 'Environmental pollution violation cases.',
-            href: '/cases',
-            badge: '3',
-            tone: 'warn',
-          },
-          {
-            label: 'AIS Anomaly',
-            description: 'Transponder spoofing or dark-vessel cases.',
-            href: '/cases',
-          },
-          {
-            label: 'Unauthorized Entry',
-            description: 'EEZ boundary breach and incursion cases.',
-            href: '/cases',
-          },
+          { label: 'All Cases', description: 'Every case from every real store, unified — the actual GET /v1/cases list.', href: '/cases' },
         ],
       },
     ],
@@ -619,88 +589,17 @@ export const NAV_MENUS: Record<string, NavMenuData> = {
   Alerts: {
     sections: [
       {
-        heading: 'Active Alerts',
         items: [
-          {
-            label: 'Critical Alerts',
-            description: 'High-priority alerts requiring immediate attention.',
-            href: '/alerts',
-            badge: '2',
-            tone: 'destructive',
-          },
-          {
-            label: 'Warning Alerts',
-            description: 'Medium-priority alerts for review within 2 hours.',
-            href: '/alerts',
-            badge: '5',
-            tone: 'warn',
-          },
-          {
-            label: 'Informational',
-            description: 'Low-priority system and detection notifications.',
-            href: '/alerts',
-            badge: '18',
-            tone: 'muted',
-          },
-        ],
-      },
-      {
-        heading: 'Configuration',
-        items: [
-          {
-            label: 'Alert Rules',
-            description: 'Manage trigger conditions and thresholds.',
-            href: '/alerts',
-          },
-          {
-            label: 'Notification Channels',
-            description: 'Configure SMS, email, and push notification routing.',
-            href: '/alerts',
-          },
+          { label: 'Alert Center', description: 'Real alerts for the active case, with acknowledge/escalate/resolve wired to the backend.', href: '/alerts' },
         ],
       },
     ],
-    footer: '2 unread critical alerts',
   },
   Missions: {
     sections: [
       {
-        heading: 'Mission Control',
         items: [
-          {
-            label: 'Active Missions',
-            description: 'Currently dispatched or in-progress field missions.',
-            href: '/missions',
-            badge: '1 In-Flight',
-            tone: 'ok',
-          },
-          {
-            label: 'Pending Approval',
-            description: 'Missions awaiting authorization from commanding officer.',
-            href: '/missions',
-            badge: '2 Pending',
-            tone: 'warn',
-          },
-          {
-            label: 'Mission History',
-            description: 'Completed mission logs with outcomes and after-action reports.',
-            href: '/missions',
-          },
-        ],
-      },
-      {
-        heading: 'Planning',
-        items: [
-          {
-            label: 'Mission Templates',
-            description: 'Pre-configured mission profiles for rapid dispatch.',
-            href: '/missions',
-          },
-          {
-            label: 'ROE Library',
-            description: 'Rules of engagement reference documents.',
-            href: '/missions',
-          },
+          { label: 'Mission Control', description: 'Real missions from MissionService, each with its actual 13-state FSM graph.', href: '/missions' },
         ],
       },
     ],
@@ -708,131 +607,45 @@ export const NAV_MENUS: Record<string, NavMenuData> = {
   Assets: {
     sections: [
       {
-        heading: 'Fleet Status',
         items: [
-          {
-            label: 'Patrol Vessels',
-            description: 'Indian Coast Guard and Navy patrol vessel availability.',
-            href: '/assets',
-            badge: '8 Available',
-            tone: 'ok',
-          },
-          {
-            label: 'Aircraft',
-            description: 'Maritime surveillance aircraft and UAV status.',
-            href: '/assets',
-            badge: '3 Ready',
-            tone: 'ok',
-          },
-          {
-            label: 'Sensors & Satellites',
-            description: 'SAR, optical, and AIS receiver station status.',
-            href: '/assets',
-          },
-        ],
-      },
-      {
-        heading: 'Management',
-        items: [
-          {
-            label: 'Maintenance Schedule',
-            description: 'Upcoming and overdue maintenance for assigned assets.',
-            href: '/assets',
-            badge: '1 Overdue',
-            tone: 'warn',
-          },
-          {
-            label: 'Deployment Map',
-            description: 'Live positions of all deployed maritime assets.',
-            href: '/assets',
-          },
+          { label: 'Fleet & Personnel', description: 'Real asset and personnel records — GET /v1/assets, /v1/personnel.', href: '/assets' },
         ],
       },
     ],
   },
+  // Phase 11 fix (docs/product/HONESTY_LEDGER.md #29): this menu offered
+  // 3 fabricated report "types" (all pointing at the same page anyway), a
+  // fake "MARPOL-compliant" claim, and a fake saved-reports list with fake
+  // badge counts ("7", "3 New"). VARUNA has exactly one real report
+  // mechanism — see /reports's own page docstring.
   Reports: {
     sections: [
       {
-        heading: 'Generate',
         items: [
           {
-            label: 'Case Report',
-            description: 'Full evidence-chain case summary for submission.',
+            label: 'Incident Report (PDF)',
+            description: "The one real report VARUNA generates — built fresh from a case's own evidence at request time. No saved-report history is kept.",
             href: '/reports',
-          },
-          {
-            label: 'Situation Report (SITREP)',
-            description: 'Periodic operational summary for command briefing.',
-            href: '/reports',
-          },
-          {
-            label: 'Pollution Incident Report',
-            description: 'MARPOL-compliant incident documentation.',
-            href: '/reports',
-          },
-        ],
-      },
-      {
-        heading: 'Saved Reports',
-        items: [
-          {
-            label: 'My Reports',
-            description: 'Drafted and submitted reports under your account.',
-            href: '/reports',
-            badge: '7',
-            tone: 'muted',
-          },
-          {
-            label: 'Shared with Me',
-            description: 'Reports shared by other analysts for review.',
-            href: '/reports',
-            badge: '3 New',
-            tone: 'saffron',
           },
         ],
       },
     ],
   },
+  // Phase 11 fix (docs/product/HONESTY_LEDGER.md #29): this menu invented
+  // a fake "LIVE" intelligence feed, fake vessel dossiers, fake OSINT
+  // tooling, and a fake "23 sources online" footer — none of which VARUNA
+  // has. Replaced with what /intelligence actually shows: CHHAYA source
+  // hypothesis, uncertainty, decision trace, SMRITI memory.
   Intelligence: {
     sections: [
       {
-        heading: 'Fusion Center',
         items: [
-          {
-            label: 'Intelligence Feed',
-            description: 'Aggregated intelligence from partner agencies and OSINT sources.',
-            href: '/intelligence',
-            badge: 'LIVE',
-            tone: 'ok',
-          },
-          {
-            label: 'Vessel Profiles',
-            description: 'Detailed dossiers on vessels of interest and flagged entities.',
-            href: '/intelligence',
-          },
-          {
-            label: 'Pattern Analysis',
-            description: 'Historical behavior pattern detection and anomaly reports.',
-            href: '/intelligence',
-          },
-        ],
-      },
-      {
-        heading: 'Collaboration',
-        items: [
-          {
-            label: 'Inter-Agency Sharing',
-            description: 'Coordinate with DG Shipping, MoEFCC, and partner nations.',
-            href: '/intelligence',
-          },
-          {
-            label: 'OSINT Workspace',
-            description: 'Open-source intelligence collection and analysis tools.',
-            href: '/intelligence',
-          },
+          { label: 'Source Hypothesis', description: "CHHAYA's declared-likelihood-ratio reasoning for this case, with the full factor waterfall.", href: '/intelligence' },
+          { label: 'Uncertainty', description: 'OOD risk and every uncertainty component, never collapsed to one number.', href: '/intelligence' },
+          { label: 'Decision Trace', description: "The agentic loop's real, executed steps — not a chat log.", href: '/intelligence' },
+          { label: 'SMRITI Memory', description: 'Similar past cases retrieved for context — advisory only.', href: '/intelligence' },
         ],
       },
     ],
-    footer: 'Fusion feed active · 23 sources online',
   },
 }

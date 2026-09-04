@@ -210,6 +210,23 @@ def test_missing_contact_is_not_an_error():
     assert contact_for("no_such_role") == {}
 
 
+def test_no_recipient_email_is_a_personal_address():
+    """M9 (docs/product/HONESTY_LEDGER.md #11): a personal Gmail address was
+    once committed as the tracked `duty_officer` default. This asserts the
+    INVARIANT rather than the one value that regressed — any future edit to
+    `configs/recipients.yaml` that reintroduces a personal-looking address
+    fails here, not just a `git blame` away from being noticed."""
+    cfg = recipients_config()
+    personal_domains = ("gmail.com", "yahoo.com", "outlook.com", "hotmail.com")
+    for role, contact in cfg.items():
+        email = (contact or {}).get("email")
+        if email:
+            domain = email.rsplit("@", 1)[-1].lower()
+            assert domain not in personal_domains, (
+                f"recipients.yaml commits a personal-looking email for {role!r}: {email!r}"
+            )
+
+
 # -------------------------------------------------------- channel report
 
 def test_channel_report_is_honest_when_nothing_is_configured():

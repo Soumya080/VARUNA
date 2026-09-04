@@ -90,6 +90,7 @@ def _try_build_phi_contract(
             BBox,
             ConvergenceFlag,
             EvidenceEnvelope,
+            EvidenceMode,
             GeoPoint,
             PhiDiagnostics,
             PhiField,
@@ -125,6 +126,13 @@ def _try_build_phi_contract(
         case_id=slick.slick_id,
         produced_by="experiments.go_nogo.prativartan",
         model_version=config.model_version,
+        # M7 fix (docs/product/HONESTY_LEDGER.md #9): `mode` is REQUIRED
+        # with no default (ADR-0006 — omission is meant to be a
+        # construction error, not silently defaulted). This harness runs
+        # seeded, synthetic trials (`provenance.notes == "SIMULATED"`
+        # already says as much) — SIMULATED is the truthful value, not a
+        # placeholder to satisfy the type checker.
+        mode=EvidenceMode.SIMULATED,
         provenance=Provenance(source_id="synthetic_go_nogo", notes="SIMULATED"),
         trust=TrustState.TRUSTED,
         uncertainty=UncertaintyBlock(

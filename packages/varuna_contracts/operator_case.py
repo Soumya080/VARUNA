@@ -227,7 +227,21 @@ class ObservationView(_Base):
     """
     n_slick_points: int = Field(..., ge=0)
     n_tracks: int = Field(..., ge=0)
-    obs_time_hours: float
+    # M3 fix (docs/product/HONESTY_LEDGER.md #5): this used to be named
+    # `obs_time_hours` and shown to the operator as if it were an elapsed
+    # duration. It is actually Phi's internal coordinate — hours since
+    # `varuna_prativartan.cube_field.PHI_EPOCH` (2026-01-01) — which is
+    # legitimately NEGATIVE for a historical reconstruction observed before
+    # that epoch (e.g. -78236.0 for a 2017 case). That is correct as an
+    # internal coordinate and confusing as an operator-facing "hours" field.
+    # Kept, renamed, documented; `observation_time` below is the field an
+    # operator should actually read.
+    phi_time_coordinate_hours: float
+    #: The real wall-clock time of observation, when known. `None` only for
+    #: inputs where no timestamp was ever supplied (the oldest, bare
+    #: CaseWorkflow.ingest() path) — never backfilled from the Phi
+    #: coordinate, which is relative to an arbitrary epoch, not a real time.
+    observation_time: datetime | None = None
     bbox: BBox | None = None
 
 

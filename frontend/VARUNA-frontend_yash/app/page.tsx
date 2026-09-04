@@ -12,11 +12,18 @@
  * cockpit says so instead of substituting a placeholder.
  */
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { StatusBadge } from '@/components/primitives'
 import { EngineModeBadge } from '@/components/evidence-mode-badge'
 import { useAuth } from '@/lib/auth-context'
 import { useRunStream } from '@/lib/use-run-stream'
+import { deriveStageState } from '@/lib/stage-state'
+import { ACTS } from '@/lib/stages'
+import { OperatorCaseProvider } from '@/lib/operator-case-context'
+import { UncertaintyPanel, ForecastPanel, DecisionTracePanel, SmritiPanel, PramanPanel } from '@/components/intelligence-panels'
+import { VerificationLedger } from '@/components/verification-ledger'
 import {
   acknowledgeAlert,
   approveMission,
@@ -60,11 +67,49 @@ const SCENARIOS = [
   { id: 'CASE-SIMULATED', label: 'MC20 · CASE-SIMULATED', hint: 'External validation — simulated evidence', group: 'validation' },
 ] as const
 
-const STORY = ['OBSERVE', 'DETECT', 'LOCALIZE', 'FORECAST', 'ATTRIBUTE', 'ASSESS', 'RECOMMEND', 'AUTHORIZE', 'RECORD']
+// Phase 7 (docs/product/HONESTY_LEDGER.md #22): the fake STORY array used
+// to live here — 9 identical-class chips referencing no real state, not
+// aligned to the backend's real 13 stages. Deleted outright; `ACTS` from
+// `lib/stages.ts` (imported above) mirrors the real backend stage
+// vocabulary and each chip is now a link to its real story page.
 
-export default function MissionCockpit() {
+const REPLAY_FIXTURES = SCENARIOS.map((s) => s.id) as readonly string[]
+
+/** Phase 11 fix (docs/product/HONESTY_LEDGER.md #30): `/?case=<id>` links
+ * (sidebar "Other Cases", `/cases`) were constructed but never read by
+ * this page — a dead link. Resolves a `REPLAY-{fixtureName}` case_id (the
+ * only kind of case this cockpit's fetch/run/alert flow knows how to
+ * drive) back to its fixture name. A legacy, non-replay case_id (created
+ * via `POST /v1/cases`, not part of the real demo flow) has no fixture to
+ * resolve to — returns null so the caller can say so honestly rather than
+ * pretending to load it. */
+function resolveFixtureFromCaseId(caseId: string | null): string | null {
+  if (!caseId) return null
+  const stripped = caseId.startsWith('REPLAY-') ? caseId.slice('REPLAY-'.length) : caseId
+  return REPLAY_FIXTURES.includes(stripped) ? stripped : null
+}
+
+function MissionCockpitInner() {
   const { session, isAuthenticated, logout } = useAuth()
-  const [fixture, setFixture] = useState<string>('IND-CASE-01')
+  const searchParams = useSearchParams()
+  const requestedCaseId = searchParams.get('case')
+  const [caseParamError, setCaseParamError] = useState<string | null>(null)
+  const [fixture, setFixture] = useState<string>(() => resolveFixtureFromCaseId(requestedCaseId) ?? 'IND-CASE-01')
+
+  useEffect(() => {
+    if (!requestedCaseId) return
+    const resolved = resolveFixtureFromCaseId(requestedCaseId)
+    if (resolved) {
+      setFixture(resolved)
+      setCaseParamError(null)
+    } else {
+      setCaseParamError(
+        `Case ${requestedCaseId} is not a replay case this cockpit can load — only the demo's replay fixtures (${REPLAY_FIXTURES.join(', ')}) are drivable here.`,
+      )
+    }
+    // Only re-resolve when the URL's case param itself changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedCaseId])
   const [oc, setOc] = useState<OperatorCase | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [alerts, setAlerts] = useState<AlertLifecycleRecord[]>([])
@@ -95,7 +140,8 @@ export default function MissionCockpit() {
     }
   }
   const [actionMsg, setActionMsg] = useState<{ text: string; ok: boolean } | null>(null)
-  const { phase, stageOrder, events, summary, error: runError, run } = useRunStream()
+  const { phase, events, summary, error: runError, run } = useRunStream()
+  const stageStates = deriveStageState(oc, events, phase)
 
   const caseId = `REPLAY-${fixture}`
 
@@ -178,7 +224,10 @@ export default function MissionCockpit() {
     ? {
         ...caseMission,
         state: String(live?.state ?? caseMission.state),
-        approved_by: (live?.human_approved_by as string | null) ?? caseMission.approved_by ?? null,
+        // Phase 9 fix: `caseMission.approved_by` never existed on the wire
+        // (the real field is `human_approved_by`, see
+        // lib/operator-case-types.ts) — the fallback below was always null.
+        approved_by: (live?.human_approved_by as string | null) ?? caseMission.human_approved_by ?? null,
       }
     : null
   // A mission that is already ASSIGNED cannot be approved again — the FSM
@@ -209,14 +258,33 @@ export default function MissionCockpit() {
         </div>
 
         <ol className="mt-2 flex flex-wrap items-center gap-1">
-          {STORY.map((s, i) => (
-            <li key={s} className="flex items-center gap-1">
-              <span className="rounded-sm border border-border bg-card px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                {s}
-              </span>
-              {i < STORY.length - 1 && <span className="text-muted-foreground/40">→</span>}
-            </li>
-          ))}
+          {ACTS.map((act, i) => {
+            const actStages = stageStates.filter((s) => act.stages.includes(s.stage))
+            const anyBad = actStages.some((s) => s.status === 'blocked' || s.status === 'error')
+            const allDone = actStages.length > 0 && actStages.every((s) => s.status === 'produced')
+            const anyDone = actStages.some((s) => s.status === 'produced')
+            return (
+              <li key={act.id} className="flex items-center gap-1">
+                <Link
+                  href={act.href}
+                  className={cn(
+                    'rounded-sm border px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-[0.1em] transition-colors hover:border-foreground/40',
+                    anyBad
+                      ? 'border-[color-mix(in_oklch,var(--destructive)_40%,transparent)] bg-[color-mix(in_oklch,var(--destructive)_8%,transparent)] text-[color-mix(in_oklch,var(--destructive)_55%,black)]'
+                      : allDone
+                        ? 'border-[color-mix(in_oklch,var(--ok)_35%,transparent)] bg-[color-mix(in_oklch,var(--ok)_8%,transparent)] text-[color-mix(in_oklch,var(--ok)_55%,black)]'
+                        : anyDone
+                          ? 'border-border bg-muted/40 text-foreground'
+                          : 'border-border bg-card text-muted-foreground',
+                  )}
+                  title={actStages.map((s) => `${s.stage}: ${s.status}`).join(', ')}
+                >
+                  {act.label}
+                </Link>
+                {i < ACTS.length - 1 && <span className="text-muted-foreground/40">→</span>}
+              </li>
+            )
+          })}
         </ol>
       </div>
 
@@ -285,6 +353,11 @@ export default function MissionCockpit() {
         )}
       </div>
 
+      {caseParamError && (
+        <p className="mb-3 rounded-sm border border-[color-mix(in_oklch,var(--warn)_45%,transparent)] bg-[color-mix(in_oklch,var(--warn)_8%,transparent)] px-3 py-2 text-[12px] text-[color-mix(in_oklch,var(--warn)_55%,black)]">
+          {caseParamError}
+        </p>
+      )}
       {loadError && (
         <p className="mb-3 rounded-sm border border-destructive/40 bg-destructive/5 px-3 py-2 text-[12px] text-destructive">
           {loadError}
@@ -297,11 +370,21 @@ export default function MissionCockpit() {
       )}
 
       {/* ---------------- 3-column cockpit ---------------- */}
-      <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
+      {/* Phase 8 fix #1 (docs/product/HONESTY_LEDGER.md #25): `items-start`
+          — without it, the shortest column (the run timeline, ~5 rows)
+          silently stretched to match the tallest, and every column's own
+          content sat at a height determined by its neighbors rather than
+          its own content. */}
+      {/* OperatorCaseProvider with `value={oc}` (Phase 8): lets the new
+          intelligence-panels.tsx panels below resolve via
+          useOperatorCaseData() without a second fetch of the same case —
+          the cockpit's own `oc` state already has it. */}
+      <OperatorCaseProvider fixtureName={fixture} value={oc}>
+      <div className="grid items-start gap-3 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
         {/* LEFT — run timeline */}
         <div className="space-y-2">
           <Card title="Execution timeline">
-            <RunTimeline stageOrder={stageOrder} events={events} phase={phase} />
+            <RunTimeline stages={stageStates} />
             {phase === 'idle' && (
               <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
                 Press <strong>Run VARUNA</strong> to execute the canonical chain and stream
@@ -323,7 +406,11 @@ export default function MissionCockpit() {
               ) : undefined
             }
           >
-            <div className="h-[460px]">{oc ? <CaseMap operatorCase={oc} /> : null}</div>
+            {/* Phase 8 fix #2: the map used to be pinned to a literal
+                460px regardless of viewport — dead space on a tall
+                screen, cramped on a short one. Fills the available height
+                instead, clamped to a sane range. */}
+            <div className="h-[clamp(460px,60vh,760px)]">{oc ? <CaseMap operatorCase={oc} /> : null}</div>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
               <span>
                 <span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#dc2626]" />
@@ -373,15 +460,34 @@ export default function MissionCockpit() {
               </p>
             )}
           </Card>
+
+          {/* Phase 8 fix #3 (docs/product/HONESTY_LEDGER.md #25): CHHAYA-V
+              (tile mini-map + candidate evidence table — a wide-format
+              artifact) used to be crammed into the 320px right rail, the
+              narrowest column, alongside everything else. Moved here, into
+              the ~900px center column, where it actually has room. */}
+          <ChhayaPanelV2 />
+
+          {/* Phase 8 fix #4: the six real, complete, previously-unmounted
+              panels from components/intelligence-panels.tsx. `ChhayaPanel`
+              (CHHAYA-H) is deliberately NOT duplicated here —
+              `EvidencePanels` in the right rail already surfaces a compact
+              CHHAYA-H summary card; mounting the fuller version right next
+              to it would be redundant, not additive. */}
+          <UncertaintyPanel />
+          <ForecastPanel />
+          <DecisionTracePanel />
         </div>
 
         {/* RIGHT — evidence + intelligence */}
         <div className="space-y-2">
           {oc ? <EvidencePanels oc={oc} /> : null}
-          <ChhayaPanelV2 />
+          <SmritiPanel />
+          <PramanPanel />
           <MarineContextPanel />
         </div>
       </div>
+      </OperatorCaseProvider>
 
       {/* ---------------- Alert Center (Workstream A) ---------------- */}
       <div className="mt-3">
@@ -512,6 +618,14 @@ export default function MissionCockpit() {
             <p className="text-[12px] text-muted-foreground">No case loaded.</p>
           )}
         </Card>
+
+        {/* Phase 8 fix #5 (docs/product/HONESTY_LEDGER.md #25): this row's
+            4th cell was permanently empty on any screen wide enough for
+            4 columns — this row is already action/mission/PRAMAN, and
+            verification (Phase 6B) belongs right beside authorization. */}
+        <Card title="Verification">
+          {oc ? <VerificationLedger oc={oc} /> : <p className="text-[12px] text-muted-foreground">No case loaded.</p>}
+        </Card>
       </div>
 
       {actionMsg && (
@@ -527,5 +641,13 @@ export default function MissionCockpit() {
         </p>
       )}
     </>
+  )
+}
+
+export default function MissionCockpit() {
+  return (
+    <Suspense fallback={<p className="text-[12px] text-muted-foreground">Loading…</p>}>
+      <MissionCockpitInner />
+    </Suspense>
   )
 }

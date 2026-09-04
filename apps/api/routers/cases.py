@@ -6,8 +6,11 @@ from typing import Dict, Any
 
 from varuna_domain.case_workflow import CaseWorkflow
 from tests.fixtures.case_0001 import generate_case_0001
-from apps.api.dependencies import get_workflow
+from apps.api.dependencies import get_workflow, get_case_resolver
 from apps.api.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 from apps.api.schemas import (
     CreateCaseRequest, CaseResponse, IngestRequest, ReconstructRequest,
     AttributeRequest, PhiResponse, AttributionResponse
@@ -61,36 +64,34 @@ def create_case(
     }
 
 @router.get("", response_model=Dict[str, Any])
-def list_cases(workflow: CaseWorkflow = Depends(get_workflow)):
-    """Every case a UI should be able to see, from BOTH repositories.
+def list_cases(resolver=Depends(get_case_resolver)):
+    """Every case a UI should be able to see, from every repository — via
+    `case_resolver.list_all()`, the SAME resolution logic every per-case
+    route below uses. This used to be a separate, hand-rolled merge that
+    silently disagreed with the per-case routes (B1) — a case flagged
+    `has_operator_view: true` here could still 404 on
+    `/v1/cases/{id}/operator-view`. Listing and detail now share one source
+    of truth, so that class of disagreement is structurally impossible.
 
-    This previously read only the legacy `CaseWorkflow` repo, so replay cases
-    — the ones that actually carry alerts, missions and intelligence — were
-    invisible to the case list even though the cockpit was showing them. A
-    case list that omits the only populated cases is worse than no list.
-
-    Also enriched: status alone is not enough to triage from. Each row now
+    Also enriched: status alone is not enough to triage from. Each row
     carries its validity state, recommendation, and alert/mission counts,
     all read from state that already exists — nothing is computed here.
     """
-    from apps.api.dependencies import (
-        get_alert_lifecycle_service, get_golden_case_workflow, get_mission_service,
-    )
-    from apps.api.routers.replay import _COMPOSED_CACHE
+    from apps.api.dependencies import get_alert_lifecycle_service, get_mission_service
 
     alerts_svc = get_alert_lifecycle_service()
     missions_svc = get_mission_service()
 
-    # case_id -> composed OperatorCase, for the cases that have been run.
-    composed_by_id = {
-        getattr(c, "case_id", None): c for c in _COMPOSED_CACHE.values()
-    }
+    items = []
+    try:
+        resolved = resolver.list_all()
+    except Exception:
+        logger.exception("list_cases: case resolution failed")
+        return {"items": [], "total": 0, "degraded": True, "degraded_reason": "case store enumeration failed"}
 
-    rows: dict[str, dict] = {}
-
-    def add(case, source: str) -> None:
-        cid = case.case_id
-        oc = composed_by_id.get(cid)
+    for r in resolved:
+        cid = r.case.case_id
+        oc = r.composed
         validity = None
         recommendation = None
         if oc is not None:
@@ -98,35 +99,27 @@ def list_cases(workflow: CaseWorkflow = Depends(get_workflow)):
             st = getattr(v, "state", None) if v is not None else None
             validity = getattr(st, "value", st)
             recommendation = getattr(getattr(oc, "recommendation", None), "value", None)
-        rows[cid] = {
+        items.append({
             "case_id": cid,
-            "status": case.status.value,
-            "created_at": case.created_at,
-            "source": source,
-            "engine_mode": (case.metadata or {}).get("engine_mode"),
+            "status": r.case.status.value,
+            "created_at": r.case.created_at,
+            "source": r.source,
+            "engine_mode": (r.case.metadata or {}).get("engine_mode"),
             "validity_state": validity,
             "recommendation": recommendation,
             "n_alerts": len(alerts_svc.list_by_case(cid)),
             "n_missions": len(missions_svc.list_by_case(cid)),
-            "has_operator_view": oc is not None,
-        }
+            "has_operator_view": r.has_operator_view,
+        })
 
-    for c in workflow.cases.list_all():
-        add(c, "case_workflow")
-    try:
-        for c in get_golden_case_workflow().cases.list_all():
-            add(c, "golden_case_engine")   # later wins: richer source
-    except Exception:
-        pass
-
-    items = sorted(rows.values(), key=lambda r: str(r["created_at"]), reverse=True)
     return {"items": items, "total": len(items)}
 
 @router.get("/{case_id}", response_model=CaseResponse)
-def get_case(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):
-    case = workflow.cases.get(case_id)
-    if not case:
+def get_case(case_id: str, resolver=Depends(get_case_resolver)):
+    resolved = resolver.resolve(case_id)
+    if not resolved:
         raise CaseNotFoundError(case_id)
+    case, workflow = resolved.case, resolved.workflow
     return {
         "case_id": case.case_id,
         "status": case.status.value,
@@ -188,8 +181,9 @@ def attribute(
     return {"case_id": case_id, **result}
 
 @router.get("/{case_id}/phi", response_model=PhiResponse)
-def get_phi(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):
-    case = workflow.cases.get(case_id)
+def get_phi(case_id: str, resolver=Depends(get_case_resolver)):
+    resolved = resolver.resolve(case_id)
+    case = resolved.case if resolved else None
     if not case or "phi" not in case.metadata:
         raise HTTPException(404, "PhiField not available")
     
@@ -206,8 +200,9 @@ def get_phi(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):
     }
 
 @router.get("/{case_id}/attribution", response_model=AttributionResponse)
-def get_attribution(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):
-    case = workflow.cases.get(case_id)
+def get_attribution(case_id: str, resolver=Depends(get_case_resolver)):
+    resolved = resolver.resolve(case_id)
+    case = resolved.case if resolved else None
     if not case or "attribution" not in case.metadata:
         raise HTTPException(404, "Attribution not available")
     
@@ -230,30 +225,43 @@ def get_attribution(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)
     }
 
 @router.get("/{case_id}/validity")
-def get_validity(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):
-    case = workflow.cases.get(case_id)
+def get_validity(case_id: str, resolver=Depends(get_case_resolver)):
+    resolved = resolver.resolve(case_id)
+    case = resolved.case if resolved else None
     if not case or "gate_result" not in case.metadata:
         raise HTTPException(404, "Validity not available")
     return case.metadata["gate_result"]
 
 @router.get("/{case_id}/operator-view", response_model=OperatorCase)
-def get_operator_view(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):
+def get_operator_view(case_id: str, resolver=Depends(get_case_resolver)):
     """
     Read-only canonical operator case projection (OPERATOR_CASE_SCHEMA_VERSION).
     See docs/api/OPERATOR_CASE_CONTRACT_V1.md. Serializes real backend state
     only — never computes, infers, or overrides it.
+
+    B1 fix: this used to resolve `case_id` against the legacy `CaseWorkflow`
+    only, so every replay case (`GoldenCaseWorkflow` + `_COMPOSED_CACHE`)
+    404'd here regardless of what `/v1/cases` advertised. Now resolved the
+    same way the list route resolves it. When an already-composed
+    `OperatorCase` exists (every replay case has one, built by
+    `run_operational_loop` — including alerts/missions this rebuild path
+    wouldn't reproduce), it is returned directly rather than rebuilt, since
+    it is both cheaper and strictly richer than reconstructing from
+    `.metadata`.
     """
-    case = workflow.cases.get(case_id)
-    if not case:
+    resolved = resolver.resolve(case_id)
+    if not resolved:
         raise CaseNotFoundError(case_id)
-    return build_operator_case(case, workflow)
+    if resolved.composed is not None:
+        return resolved.composed
+    return build_operator_case(resolved.case, resolved.workflow)
 
 @router.get("/{case_id}/artifacts")
-def get_artifacts(case_id: str, workflow: CaseWorkflow = Depends(get_workflow)):
-    case = workflow.cases.get(case_id)
-    if not case:
+def get_artifacts(case_id: str, resolver=Depends(get_case_resolver)):
+    resolved = resolver.resolve(case_id)
+    if not resolved:
         raise CaseNotFoundError(case_id)
-    artifacts = workflow.praman.list_by_case(case_id)
+    artifacts = resolved.workflow.praman.list_by_case(case_id)
     return {
         "items": [
             {"id": a.artifact_id, "type": a.artifact_type, "produced_by": a.produced_by, "created_at": a.created_at}

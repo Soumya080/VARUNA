@@ -1,19 +1,37 @@
 'use client'
 
-import { VESSELS } from '@/lib/mock-data'
-import { SectionLabel, StatusBadge, Meter } from '@/components/primitives'
-import { Ship, Anchor, Navigation, Radio, Clock, MapPin, AlertTriangle, Check, ChevronRight } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { useState } from 'react'
+/**
+ * Phase 9 (docs/product/HONESTY_LEDGER.md #26) — the "honesty showcase"
+ * page. The mock version fabricated 3+ vessel candidates with fake
+ * attribution scores, positions, and "analysis notes". The real
+ * `oc.attribution` for these cases is honestly `INCONCLUSIVE` with zero
+ * scored candidates (M1+M2 fix, Phase 2) — no AIS coverage was ingested,
+ * so nothing was ever computed to rank. The real, publicly-documented
+ * vessel identity (`historical_reconstruction`) is shown in a clearly
+ * demoted, dashed-border block with NO score, exactly because it is a
+ * historical record VARUNA did not compute, not a candidate it ranked.
+ */
+import { SectionLabel, StatusBadge, Meter, InfoTip } from '@/components/primitives'
+import { Row } from '@/components/cockpit/cockpit-panels'
+import { OperatorCaseProvider, useOperatorCaseData } from '@/lib/operator-case-context'
+import { OperatorCaseBoundary } from '@/components/operator-case-boundary'
+import { EvidenceModeBadge } from '@/components/evidence-mode-badge'
+import { Ship, ScrollText } from 'lucide-react'
 
-function roleTone(role: string) {
-  if (role === 'PRIMARY LEAD') return 'saffron' as const
-  if (role === 'ALTERNATE') return 'warn' as const
-  return 'muted' as const
+const DEFAULT_FIXTURE = 'IND-CASE-01'
+
+const DECISION_TONE: Record<string, 'ok' | 'warn' | 'destructive' | 'muted'> = {
+  strong_lead: 'ok',
+  weak_lead: 'warn',
+  not_distinguishable: 'warn',
+  latent_source: 'muted',
+  inconclusive: 'muted',
 }
 
-export default function VesselAttributionPage() {
-  const [expandedId, setExpandedId] = useState<string | null>('v1')
+function VesselAttributionBody() {
+  const oc = useOperatorCaseData()
+  if (!oc) return null
+  const attr = oc.attribution
 
   return (
     <>
@@ -23,143 +41,126 @@ export default function VesselAttributionPage() {
             Vessel Attribution
           </h1>
           <p className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.1em] text-muted-foreground">
-            Case 24-071 · AIS Correlation & Scoring · Stage 04
+            {oc.case_id} · NYAYA attribution
           </p>
         </div>
-        <StatusBadge tone="ok" dot>Completed</StatusBadge>
-      </div>
-
-      {/* Scoring summary */}
-      <section className="rounded-sm border border-border bg-card p-4">
-        <SectionLabel>Attribution Scoring Summary</SectionLabel>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-sm border border-border bg-background/60 p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-1">Candidates Evaluated</div>
-            <div className="font-mono text-[21px] font-bold text-foreground">{VESSELS.length}</div>
-          </div>
-          <div className="rounded-sm border border-border bg-background/60 p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-1">Leading Score</div>
-            <div className="font-mono text-[21px] font-bold text-saffron">{VESSELS[0].attributionScore}%</div>
-          </div>
-          <div className="rounded-sm border border-border bg-background/60 p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-1">Method</div>
-            <div className="text-[13px] font-medium text-foreground">Spatiotemporal Overlap</div>
-          </div>
-          <div className="rounded-sm border border-border bg-background/60 p-3">
-            <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground mb-1">AIS Coverage</div>
-            <div className="font-mono text-[21px] font-bold text-[var(--ok)]">98%</div>
-          </div>
+        <div className="flex items-center gap-1.5">
+          <EvidenceModeBadge mode={attr.evidence_mode} />
+          <StatusBadge tone={attr.status === 'produced' ? 'ok' : 'muted'} dot>
+            {attr.status.replace(/_/g, ' ')}
+          </StatusBadge>
         </div>
-      </section>
-
-      {/* Candidate Vessels */}
-      <div className="mt-3 space-y-3">
-        {VESSELS.map((vessel) => {
-          const isExpanded = expandedId === vessel.id
-          return (
-            <section key={vessel.id} className={cn(
-              'rounded-sm border bg-card transition-colors',
-              vessel.rank === 1 ? 'border-saffron/30' : 'border-border',
-            )}>
-              <button
-                type="button"
-                onClick={() => setExpandedId(isExpanded ? null : vessel.id)}
-                className="flex w-full items-center gap-3 p-4 text-left"
-              >
-                <span className={cn(
-                  'grid h-8 w-8 shrink-0 place-items-center rounded-sm font-mono text-xl font-bold',
-                  vessel.rank === 1 ? 'bg-saffron text-saffron-foreground' : 'bg-muted text-muted-foreground',
-                )}>
-                  {vessel.rank}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[15px] font-semibold text-foreground">{vessel.name}</span>
-                    <StatusBadge tone={roleTone(vessel.role)} dot>{vessel.role}</StatusBadge>
-                  </div>
-                  <div className="mt-0.5 font-mono text-[12px] text-muted-foreground">
-                    {vessel.type} · {vessel.flag} · {vessel.imo}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right hidden sm:block">
-                    <div className="font-mono text-[19px] font-bold text-foreground">{vessel.attributionScore}%</div>
-                    <div className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">Score</div>
-                  </div>
-                  <ChevronRight className={cn(
-                    'h-4 w-4 text-muted-foreground transition-transform',
-                    isExpanded && 'rotate-90',
-                  )} />
-                </div>
-              </button>
-
-              {isExpanded && (
-                <div className="border-t border-border px-4 pb-4 pt-3">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-                    {[
-                      { icon: MapPin, label: 'Position', value: `${vessel.position.lat.toFixed(3)}° N, ${vessel.position.lng.toFixed(3)}° E` },
-                      { icon: Clock, label: 'Last AIS', value: vessel.lastSeenUtc },
-                      { icon: Navigation, label: 'Speed', value: `${vessel.speedKn} kn` },
-                      { icon: Navigation, label: 'Heading', value: `${vessel.headingDeg}°` },
-                      { icon: Ship, label: 'Flag', value: vessel.flag },
-                      { icon: Radio, label: 'Track Points', value: `${vessel.track.length}` },
-                    ].map((item) => (
-                      <div key={item.label} className="rounded-sm border border-border bg-background/50 p-2.5">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <item.icon className="h-3 w-3 text-muted-foreground/60" />
-                          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{item.label}</span>
-                        </div>
-                        <span className="font-mono text-[13px] font-medium text-foreground">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-3 rounded-sm border border-border bg-background/40 p-3">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      {vessel.rank === 1 ? (
-                        <AlertTriangle className="h-3.5 w-3.5 text-saffron" />
-                      ) : (
-                        <Check className="h-3.5 w-3.5 text-[var(--ok)]" />
-                      )}
-                      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Analysis Notes</span>
-                    </div>
-                    <p className="text-[13px] leading-relaxed text-foreground/80">{vessel.notes}</p>
-                  </div>
-
-                  {/* Score bar */}
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[12px] text-muted-foreground">Attribution Score</span>
-                      <span className="font-mono text-[13px] font-bold text-foreground">{vessel.attributionScore}%</span>
-                    </div>
-                    <Meter value={vessel.attributionScore} tone={vessel.rank === 1 ? 'saffron' : 'muted'} />
-                  </div>
-                </div>
-              )}
-            </section>
-          )
-        })}
       </div>
 
-      {/* Scoring methodology */}
-      <section className="mt-3 rounded-sm border border-border bg-card p-4">
-        <SectionLabel>Scoring Methodology</SectionLabel>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {[
-            { label: 'Spatial Proximity', description: 'Minimum distance between vessel track and origin field centroid.', weight: '40%' },
-            { label: 'Temporal Overlap', description: 'Vessel presence during the estimated release window (± 2 h).', weight: '35%' },
-            { label: 'AIS Behavior', description: 'Speed reductions, course changes, transponder gaps near the origin.', weight: '25%' },
-          ].map((item) => (
-            <div key={item.label} className="rounded-sm border border-border bg-background/50 p-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[13px] font-semibold text-foreground">{item.label}</span>
-                <span className="font-mono text-[11px] font-bold text-saffron">{item.weight}</span>
-              </div>
-              <p className="text-[12px] leading-snug text-muted-foreground">{item.description}</p>
+      {attr.status !== 'produced' || !attr.value ? (
+        <section className="rounded-sm border border-border bg-card p-4">
+          <p className="text-[13px] text-muted-foreground">
+            {attr.reason ?? 'No attribution has been produced for this case.'}
+          </p>
+        </section>
+      ) : (
+        <>
+          <section className="rounded-sm border border-border bg-card p-4">
+            <SectionLabel>Computed Attribution</SectionLabel>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <StatusBadge tone={DECISION_TONE[attr.value.decision_state] ?? 'muted'} dot>
+                {attr.value.decision_state.replace(/_/g, ' ')}
+              </StatusBadge>
+              <span className="font-mono text-[12px] text-muted-foreground">
+                {attr.value.candidates.length} candidate(s) scored
+              </span>
             </div>
-          ))}
-        </div>
-      </section>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-[13px] text-muted-foreground">Top posterior</span>
+                  <span className="font-mono text-[13px] font-medium text-foreground">
+                    {(attr.value.top_posterior * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <Meter value={attr.value.top_posterior * 100} tone="teal" />
+              </div>
+              <div>
+                <div className="mb-1 flex items-center gap-1">
+                  <span className="text-[13px] text-muted-foreground">Distinguishability</span>
+                  <InfoTip label="How separated the top candidates are, not how confident the top one is — a sharply-peaked posterior can still fail to distinguish two vessels in the same Phi lobe." />
+                </div>
+                <Meter value={attr.value.distinguishability * 100} tone="saffron" />
+              </div>
+            </div>
+            <p className="mt-3 text-[12px] leading-snug text-muted-foreground">
+              Latent finding: <strong className="text-foreground">{attr.value.latent_finding.replace(/_/g, ' ')}</strong>{' '}
+              (latent probability {(attr.value.latent_probability * 100).toFixed(0)}%) — the source may be a vessel
+              VARUNA has no AIS coverage for, not necessarily "no source".
+            </p>
+          </section>
+
+          {attr.value.candidates.length > 0 ? (
+            <section className="mt-3 rounded-sm border border-border bg-card p-4">
+              <SectionLabel>Scored Candidates</SectionLabel>
+              <div className="mt-2 space-y-2">
+                {attr.value.candidates.map((c) => (
+                  <div key={c.mmsi} className="rounded-sm border border-border bg-background/50 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[13px] font-semibold text-foreground">#{c.rank} · MMSI {c.mmsi}</span>
+                      <span className="font-mono text-[13px] font-bold text-foreground">
+                        {(c.posterior * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <Meter value={c.posterior * 100} tone={c.rank === 1 ? 'saffron' : 'muted'} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : (
+            <section className="mt-3 rounded-sm border border-border bg-card p-4">
+              <div className="flex items-center gap-2">
+                <Ship className="h-4 w-4 text-muted-foreground" />
+                <SectionLabel>Scored Candidates</SectionLabel>
+              </div>
+              <p className="mt-2 text-[13px] text-muted-foreground">
+                Zero candidates were scored — no AIS tracks were ingested for this case, so
+                there is nothing for NYAYA to rank against the reconstructed origin. This is
+                the honest computed result, not a placeholder.
+              </p>
+            </section>
+          )}
+
+          {attr.value.historical_reconstruction && (
+            <section className="mt-3 rounded-sm border border-dashed border-border bg-muted/20 p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <ScrollText className="h-4 w-4 text-muted-foreground" />
+                <StatusBadge tone="muted">Historical record — not computed</StatusBadge>
+                <InfoTip label="A real-world, publicly-documented vessel identity attached for context. This is NOT VARUNA's computed output — it carries no score, no posterior, no rank, and never contributes to the decision above." />
+              </div>
+              <p className="text-[15px] font-semibold text-foreground">
+                {attr.value.historical_reconstruction.vessel_name}
+                {attr.value.historical_reconstruction.mmsi && (
+                  <span className="ml-2 font-mono text-[12px] font-normal text-muted-foreground">
+                    MMSI {attr.value.historical_reconstruction.mmsi}
+                  </span>
+                )}
+              </p>
+              <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+                {attr.value.historical_reconstruction.event_description}
+              </p>
+              <p className="mt-2 text-[11px] italic text-muted-foreground/80">
+                {attr.value.historical_reconstruction.source_citation}
+              </p>
+            </section>
+          )}
+        </>
+      )}
     </>
+  )
+}
+
+export default function VesselAttributionPage() {
+  return (
+    <OperatorCaseProvider fixtureName={DEFAULT_FIXTURE}>
+      <OperatorCaseBoundary>
+        <VesselAttributionBody />
+      </OperatorCaseBoundary>
+    </OperatorCaseProvider>
   )
 }
