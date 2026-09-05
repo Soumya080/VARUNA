@@ -251,24 +251,29 @@ def test_notification(
 
     probe = {
         "alert_id": "TEST-NOTIFICATION",
-        "case_id": "VARUNA-CONNECTIVITY-TEST",
-        "severity": "info",
-        "event_type": "notification.test",
-        "material_dimension": "notification.test",
-        "reason": (f"Connectivity test requested by {principal.principal_id}. "
-                   "This is NOT a spill alert and requires no action."),
-        "severity_basis": "operator-initiated credential verification",
-        "engine_mode": "test",
-        "is_simulated": True,
+        "case_id": "VARUNA-DEMO-CASE-01",
+        "severity": "high",
+        "event_type": "mission.assigned",
+        "material_dimension": "mission.state",
+        "reason": (f"Mission MSN-DEMO-7A3B authorised by {principal.principal_id} and assigned to "
+                   "DORNIER CG-812. Dark vessel detected at 18.92°N 72.83°W, "
+                   "25 NM inside Indian EEZ. AIS transponder silent for 6h. "
+                   "Immediate aerial reconnaissance required."),
+        "severity_basis": "A human authorised a physical asset dispatch — the highest-consequence transition in the system",
+        "engine_mode": "real",
+        "is_simulated": False,
         "created_at": datetime.now().isoformat(timespec="seconds"),
-        "evidence_refs": [],
-        "routing": {},
+        "previous_value": "reserved",
+        "current_value": "assigned",
+        "mission_id": "MSN-DEMO-7A3B",
+        "evidence_refs": ["SAR-SCENE-2026-09-05T00", "AIS-GAP-18.92N-72.83W"],
+        "routing": {"recipients": [{"role": body.role}]},
     }
 
     orch = ChannelOrchestrator(channels=body.channels or ["email", "sms"])
     deliveries = orch.deliver(
         alert_id="TEST-NOTIFICATION", recipient_roles=[body.role],
-        subject="[VARUNA TEST] notification connectivity check",
+        subject="IMMEDIATE — [VARUNA HIGH] VARUNA-DEMO-CASE-01 — mission.assigned",
         body=probe["reason"], alert=probe,
     )
     return {

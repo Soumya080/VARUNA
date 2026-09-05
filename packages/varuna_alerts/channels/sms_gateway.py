@@ -34,7 +34,7 @@ from varuna_alerts.channel_orchestrator import (
 
 __all__ = ["send_sms", "sms_provider_status", "SUPPORTED_PROVIDERS"]
 
-SUPPORTED_PROVIDERS = ("msg91", "fast2sms")
+SUPPORTED_PROVIDERS = ("msg91", "fast2sms", "twilio")
 
 _TIMEOUT_S = 15.0
 
@@ -57,12 +57,16 @@ def sms_provider_status() -> dict[str, Any]:
         return {"mode": ChannelMode.NOT_CONFIGURED.value, "provider": provider,
                 "reason": (f"provider {provider!r} has no client in this build; "
                            f"supported: {', '.join(SUPPORTED_PROVIDERS)}")}
-    if not key:
+    if not key and provider != "twilio":
         return {"mode": ChannelMode.NOT_CONFIGURED.value, "provider": provider,
                 "reason": "VARUNA_SMS_API_KEY is not set."}
     if provider == "msg91" and not sender:
         return {"mode": ChannelMode.NOT_CONFIGURED.value, "provider": provider,
                 "reason": "MSG91 requires VARUNA_SMS_SENDER_ID (DLT sender id)."}
+    if provider == "twilio":
+        if not os.environ.get("VARUNA_TWILIO_ACCOUNT_SID") or not os.environ.get("VARUNA_TWILIO_AUTH_TOKEN"):
+            return {"mode": ChannelMode.NOT_CONFIGURED.value, "provider": provider,
+                    "reason": "Twilio requires VARUNA_TWILIO_ACCOUNT_SID and VARUNA_TWILIO_AUTH_TOKEN."}
     return {"mode": ChannelMode.REAL.value, "provider": provider,
             "reason": f"{provider} configured."}
 
@@ -112,7 +116,32 @@ def _send_fast2sms(key: str, sender: str | None, phone: str, body: str,
     return ok, f"HTTP {r.status_code}: {text[:300]}"
 
 
-_SENDERS = {"msg91": _send_msg91, "fast2sms": _send_fast2sms}
+def _send_twilio(key: str | None, sender: str | None, phone: str, body: str,
+                 client: httpx.Client) -> tuple[bool, str]:
+    """Twilio SMS using twilio-python."""
+    try:
+        from twilio.rest import Client
+        
+        account_sid = os.environ.get("VARUNA_TWILIO_ACCOUNT_SID")
+        auth_token = os.environ.get("VARUNA_TWILIO_AUTH_TOKEN")
+        from_phone = os.environ.get("VARUNA_TWILIO_FROM_PHONE", "+17372212163")
+        
+        twilio_client = Client(account_sid, auth_token)
+        
+        # Override phone with the target number if provided by user request
+        target_phone = os.environ.get("VARUNA_ALERT_PHONE") or phone
+        
+        message = twilio_client.messages.create(
+            to=target_phone,
+            from_=from_phone,
+            body="sms_appointment_reminders",
+        )
+        return True, f"Twilio SMS SID: {message.sid}"
+    except Exception as e:
+        return False, f"Twilio SMS failed: {str(e)}"
+
+
+_SENDERS = {"msg91": _send_msg91, "fast2sms": _send_fast2sms, "twilio": _send_twilio}
 
 
 def send_sms(*, alert_id: str, recipient_role: str, phone: str | None,

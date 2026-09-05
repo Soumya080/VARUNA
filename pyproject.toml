@@ -52,6 +52,8 @@ dependencies = [
   "prometheus-client>=0.20",
   # reporting — real PDF incident reports (varuna_integration.incident_report)
   "reportlab>=4.0,<5.0",
+  # notifications
+  "twilio>=8.0.0",
 ]
 
 [project.optional-dependencies]

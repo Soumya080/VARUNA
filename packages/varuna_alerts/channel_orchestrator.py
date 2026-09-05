@@ -131,14 +131,25 @@ def _browser_push(alert_id: str, role: str, subject: str, body: str) -> Notifica
 
 
 def _email(alert_id: str, role: str, subject: str, body: str) -> NotificationDelivery:
-    """Real SMTP. Gmail-ready: VARUNA_SMTP_HOST=smtp.gmail.com, port 587, and
-    an app password (not the account password) in VARUNA_SMTP_PASSWORD.
-
-    Sends multipart/alternative - plain text plus the HTML template - so it
-    renders in a mail client and still reads correctly in a text-only one.
-    """
+    """Real email via Resend, Twilio, or SMTP."""
+    provider = os.environ.get("VARUNA_EMAIL_PROVIDER", "").strip().lower()
     host = os.environ.get("VARUNA_SMTP_HOST")
-    if not host:
+    
+    if provider == "resend":
+        if not os.environ.get("VARUNA_RESEND_API_KEY"):
+            return NotificationDelivery(
+                alert_id=alert_id, channel="email", recipient_role=role,
+                status=DeliveryStatus.NOT_CONFIGURED, mode=ChannelMode.NOT_CONFIGURED,
+                detail="VARUNA_RESEND_API_KEY is not set.",
+            )
+    elif provider == "twilio":
+        if not os.environ.get("VARUNA_TWILIO_EMAIL_KEY"):
+            return NotificationDelivery(
+                alert_id=alert_id, channel="email", recipient_role=role,
+                status=DeliveryStatus.NOT_CONFIGURED, mode=ChannelMode.NOT_CONFIGURED,
+                detail="VARUNA_TWILIO_EMAIL_KEY is not set.",
+            )
+    elif not host:
         return NotificationDelivery(
             alert_id=alert_id, channel="email", recipient_role=role,
             status=DeliveryStatus.NOT_CONFIGURED, mode=ChannelMode.NOT_CONFIGURED,
@@ -150,10 +161,101 @@ def _email(alert_id: str, role: str, subject: str, body: str) -> NotificationDel
         return NotificationDelivery(
             alert_id=alert_id, channel="email", recipient_role=role,
             status=DeliveryStatus.NOT_CONFIGURED, mode=ChannelMode.NOT_CONFIGURED,
-            provider=host,
+            provider=provider or host,
             detail=("no email configured for role " + repr(role) +
                     " in configs/recipients.yaml and no VARUNA_ALERT_TO fallback."),
         )
+
+    # ── Resend provider ──
+    if provider == "resend":
+        try:
+            import httpx
+
+            api_key = os.environ["VARUNA_RESEND_API_KEY"]
+            from_addr = os.environ.get("VARUNA_RESEND_FROM_EMAIL", "onboarding@resend.dev")
+            html_body = _HTML_BODIES.get(alert_id) or (
+                f'<!doctype html><html><body style="margin:0;background:#eef1f5;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
+                f'<div style="max-width:600px;margin:0 auto;background:#ffffff">'
+                f'<div style="height:3px;background:linear-gradient(90deg,#e8871a 33%,#ffffff 33% 66%,#1a7f5a 66%)"></div>'
+                f'<div style="background:#b3261e;color:#ffffff;padding:8px 20px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600">'
+                f'VARUNA GRID — MARITIME ALERT</div>'
+                f'<div style="padding:20px">'
+                f'<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#5b6472">VARUNA GRID · Maritime Surveillance</div>'
+                f'<h1 style="margin:6px 0 2px;font-size:20px;color:#12213d">{subject}</h1>'
+                f'<p style="margin:0 0 14px;font-size:14px;color:#3b4759">{body}</p>'
+                f'<p style="margin:18px 0 0;font-size:12px;color:#5b6472">Acknowledge in the VARUNA cockpit. This message is a notification only.</p>'
+                f'</div>'
+                f'<div style="padding:10px 20px;background:#12213d;color:#8d9bb2;font-size:11px">Govt. of India · Restricted · For official use only</div>'
+                f'</div></body></html>'
+            )
+
+            resp = httpx.post(
+                "https://api.resend.com/emails",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": from_addr,
+                    "to": [to_addr],
+                    "subject": subject or "VARUNA Maritime Alert",
+                    "html": html_body,
+                },
+                timeout=15.0,
+            )
+            resp.raise_for_status()
+
+            return NotificationDelivery(
+                alert_id=alert_id, channel="email", recipient_role=role,
+                status=DeliveryStatus.SENT, mode=ChannelMode.REAL,
+                provider="resend",
+                detail=("delivered via Resend to " + to_addr + "."),
+            )
+        except Exception as exc:
+            return NotificationDelivery(
+                alert_id=alert_id, channel="email", recipient_role=role,
+                status=DeliveryStatus.FAILED, mode=ChannelMode.REAL, provider="resend",
+                error=type(exc).__name__ + ": " + str(exc),
+            )
+
+    # ── Twilio provider ──
+    if provider == "twilio":
+        try:
+            import httpx
+            
+            key = os.environ.get("VARUNA_TWILIO_EMAIL_KEY", "")
+            from_addr = os.environ.get("VARUNA_TWILIO_FROM_EMAIL", "varuna@twilio.email")
+            html_body = _HTML_BODIES.get(alert_id) or f"<p>{body}</p>"
+            
+            resp = httpx.post(
+                "https://comms.twilio.com/v1/Emails",
+                auth=(key.split(":")[0], key.split(":")[1]) if ":" in key else None,
+                headers={"Content-Type": "application/json"},
+                json={
+                    "from": {"address": from_addr, "name": "VARUNA Alerts"},
+                    "to": [{"address": to_addr}],
+                    "content": {
+                        "subject": subject or "VARUNA Maritime Alert",
+                        "html": html_body,
+                    }
+                },
+                timeout=15.0
+            )
+            resp.raise_for_status()
+            
+            return NotificationDelivery(
+                alert_id=alert_id, channel="email", recipient_role=role,
+                status=DeliveryStatus.SENT, mode=ChannelMode.REAL,
+                provider="twilio-email",
+                detail=("handed to Twilio for " + to_addr +
+                        ". API acceptance is not proof of inbox delivery."),
+            )
+        except Exception as exc:
+            return NotificationDelivery(
+                alert_id=alert_id, channel="email", recipient_role=role,
+                status=DeliveryStatus.FAILED, mode=ChannelMode.REAL, provider="twilio-email",
+                error=type(exc).__name__ + ": " + str(exc),
+            )
 
     try:
         import smtplib
@@ -188,7 +290,7 @@ def _email(alert_id: str, role: str, subject: str, body: str) -> NotificationDel
         return NotificationDelivery(
             alert_id=alert_id, channel="email", recipient_role=role,
             status=DeliveryStatus.SENT, mode=ChannelMode.REAL,
-            provider="smtp://" + host + ":" + str(port),
+            provider="smtp://" + str(host) + ":" + str(port),
             detail=("handed to SMTP for " + to_addr +
                     ". SMTP acceptance is not proof of inbox delivery."),
         )
@@ -270,10 +372,12 @@ class ChannelOrchestrator:
         system-status surface."""
         from varuna_alerts.channels.sms_gateway import sms_provider_status
 
+        email_provider = (os.environ.get("VARUNA_EMAIL_PROVIDER") or "").lower()
+        has_email = bool(os.environ.get("VARUNA_SMTP_HOST") or email_provider in ("twilio", "resend"))
+        
         return {
             "dashboard": ChannelMode.REAL.value,
             "browser_push": ChannelMode.SIMULATED.value,
-            "email": (ChannelMode.REAL.value if os.environ.get("VARUNA_SMTP_HOST")
-                      else ChannelMode.NOT_CONFIGURED.value),
+            "email": ChannelMode.REAL.value if has_email else ChannelMode.NOT_CONFIGURED.value,
             "sms": sms_provider_status()["mode"],
         }
