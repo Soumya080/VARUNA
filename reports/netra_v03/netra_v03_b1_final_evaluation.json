@@ -1,0 +1,318 @@
+{
+  "evaluation_id": "netra_v03_b1_final_evaluation",
+  "evaluation_timestamp": "2026-09-01T14:44:57+0530",
+  "scientific_verdict": "V03_B1_REGRESSION",
+  "checkpoint": {
+    "path": "D:\\ROUTER(DATASETS)\\VARUNA\\artifacts\\experiments\\netra_v03\\pilot_01_run2\\last.pt",
+    "sha256": "3b76c589ac220687c78e5db38be171294657ec6819413fd9af32221f6f8e12dd",
+    "size_bytes": 293460420,
+    "training_epoch": 29,
+    "training_commit": "2c87e4f3fbadf672211ee9d51e622bf11096b93e"
+  },
+  "v02_reference": {
+    "checkpoint_sha256": "9f38c690d0ef1629bdc7a59b76dbe054d45245cfccb4ba5b26f242f1d2e2cd66",
+    "official_iou": 0.6458,
+    "official_pr_auc": 0.8513,
+    "comparison_status": "NOT_DIRECTLY_COMPARABLE: v0.2 IoU 0.6458 was measured on Zenodo Part III with STRONG_PIXEL labels (pixel-precise masks). B1 holdout uses WEAK_BOX labels (bounding boxes with ~62% non-oil interior). These label sets have fundamentally different IoU ceilings. PR-AUC is more comparable as it measures the ranking quality of the probability output independent of the threshold."
+  },
+  "normalization": {
+    "version": "netra-norm-v0.2-COMPAT-for-v0.3-mixed-pilot",
+    "channel_order": "channel0=VH, channel1=VV"
+  },
+  "calm_grd_holdout": {
+    "overall": {
+      "iou_oil": 0.019926196127455734,
+      "dice_oil": 0.03907380005163755,
+      "precision_oil": 0.8238771896448276,
+      "recall_oil": 0.020011438560746116,
+      "f1_oil": 0.03907380005163755,
+      "fp_rate": 0.00022475301399207498,
+      "fn_rate": 0.9799885614392538,
+      "foreground_fraction": 0.001212417247683503,
+      "pixel_accuracy": 0.9508697509765625,
+      "tp": 56298,
+      "fp": 12035,
+      "fn": 2756993,
+      "tn": 53535634,
+      "n_tiles": 215,
+      "total_pixels": 56360960
+    },
+    "pr_auc": 0.3775489999866426,
+    "best_f1": 0.09508497200919365,
+    "best_f1_threshold": 0.0,
+    "max_oil_probability": 1.0,
+    "tile_iou_stats": {
+      "mean": 0.10872460512641806,
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.6556603773584906,
+      "std": 0.1722240345765457,
+      "n_valid": 185,
+      "n_nan": 30
+    },
+    "by_scene": {
+      "S1A_IW_GRDH_1SDV_20190221T155752_20190221T155817_026030_02E6CF_6EBE.SAFE": {
+        "iou_oil": NaN,
+        "dice_oil": NaN,
+        "precision_oil": 0.0,
+        "recall_oil": 0.0,
+        "f1_oil": 0.0,
+        "fp_rate": 0.0,
+        "fn_rate": NaN,
+        "foreground_fraction": 0.0,
+        "pixel_accuracy": 1.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 2883584,
+        "n_tiles": 11,
+        "total_pixels": 2883584
+      },
+      "S1A_IW_GRDH_1SDV_20190306T035951_20190306T040016_026212_02ED51_0951.SAFE": {
+        "iou_oil": NaN,
+        "dice_oil": NaN,
+        "precision_oil": 0.0,
+        "recall_oil": 0.0,
+        "f1_oil": 0.0,
+        "fp_rate": 0.0,
+        "fn_rate": NaN,
+        "foreground_fraction": 0.0,
+        "pixel_accuracy": 1.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 2621440,
+        "n_tiles": 10,
+        "total_pixels": 2621440
+      },
+      "S1B_IW_GRDH_1SDV_20190306T154810_20190306T154835_015236_01C814_5AC6.SAFE": {
+        "iou_oil": 0.009258450519696043,
+        "dice_oil": 0.018347035915188232,
+        "precision_oil": 0.7845891060922376,
+        "recall_oil": 0.009282044834027878,
+        "f1_oil": 0.018347035915188232,
+        "fp_rate": 0.00013404160840482218,
+        "fn_rate": 0.9907179551659722,
+        "foreground_fraction": 0.0005911658791934743,
+        "pixel_accuracy": 0.9503666372860179,
+        "tp": 4134,
+        "fp": 1135,
+        "fn": 441242,
+        "tn": 8466385,
+        "n_tiles": 34,
+        "total_pixels": 8912896
+      },
+      "S1B_IW_GRDH_1SDV_20190404T155610_20190404T155635_015659_01D5E2_CCBC.SAFE": {
+        "iou_oil": 0.017775991509974203,
+        "dice_oil": 0.03493104898967348,
+        "precision_oil": 0.6238591315571126,
+        "recall_oil": 0.017968571595477455,
+        "f1_oil": 0.03493104898967348,
+        "fp_rate": 0.00046371867370094557,
+        "fn_rate": 0.9820314284045225,
+        "foreground_fraction": 0.0011822291782924107,
+        "pixel_accuracy": 0.9592464991978237,
+        "tp": 6767,
+        "fp": 4080,
+        "fn": 369835,
+        "tn": 8794358,
+        "n_tiles": 35,
+        "total_pixels": 9175040
+      },
+      "S1B_IW_GRDH_1SDV_20190610T154813_20190610T154838_016636_01F4FD_EE80.SAFE": {
+        "iou_oil": 0.012952618510073215,
+        "dice_oil": 0.025573986923741604,
+        "precision_oil": 0.7471289274106175,
+        "recall_oil": 0.013009651591871231,
+        "f1_oil": 0.025573986923741604,
+        "fp_rate": 0.00026998352337057887,
+        "fn_rate": 0.9869903484081287,
+        "foreground_fraction": 0.0010059901646205357,
+        "pixel_accuracy": 0.9427243913922991,
+        "tp": 6896,
+        "fp": 2334,
+        "fn": 523172,
+        "tn": 8642638,
+        "n_tiles": 35,
+        "total_pixels": 9175040
+      },
+      "S1B_IW_GRDH_1SDV_20190716T154816_20190716T154841_017161_020487_EEF7.SAFE": {
+        "iou_oil": 0.0897425730609902,
+        "dice_oil": 0.16470417010305705,
+        "precision_oil": 0.8943961461744007,
+        "recall_oil": 0.09070368348937242,
+        "f1_oil": 0.16470417010305705,
+        "fp_rate": 0.0004281526707586832,
+        "fn_rate": 0.9092963165106276,
+        "foreground_fraction": 0.003898473886343149,
+        "pixel_accuracy": 0.9646336482121394,
+        "tp": 23765,
+        "fp": 2806,
+        "fn": 238242,
+        "tn": 6550931,
+        "n_tiles": 26,
+        "total_pixels": 6815744
+      },
+      "S1B_IW_GRDH_1SDV_20191001T155619_20191001T155644_018284_0226F2_D309.SAFE": {
+        "iou_oil": 0.02719690489151567,
+        "dice_oil": 0.05295363481335254,
+        "precision_oil": 0.902108725091894,
+        "recall_oil": 0.02727740707664349,
+        "f1_oil": 0.05295363481335254,
+        "fp_rate": 0.00022234623615279494,
+        "fn_rate": 0.9727225929233565,
+        "foreground_fraction": 0.0021126610892159598,
+        "pixel_accuracy": 0.9318298612322126,
+        "tp": 13989,
+        "fp": 1518,
+        "fn": 498853,
+        "tn": 6825672,
+        "n_tiles": 28,
+        "total_pixels": 7340032
+      },
+      "S1B_IW_GRDH_1SDV_20191130T155618_20191130T155643_019159_02429A_7E10.SAFE": {
+        "iou_oil": 0.0010880362620492368,
+        "dice_oil": 0.002173707451568081,
+        "precision_oil": 0.8217821782178217,
+        "recall_oil": 0.001088293055320835,
+        "f1_oil": 0.002173707451568081,
+        "fp_rate": 1.851261852075493e-05,
+        "fn_rate": 0.9989117069446791,
+        "foreground_fraction": 9.632110595703125e-05,
+        "pixel_accuracy": 0.9273288514879015,
+        "tp": 747,
+        "fp": 162,
+        "fn": 685649,
+        "tn": 8750626,
+        "n_tiles": 36,
+        "total_pixels": 9437184
+      }
+    },
+    "by_semantic_class": {
+      "NEGATIVE_OR_LOOKALIKE": {
+        "iou_oil": NaN,
+        "dice_oil": NaN,
+        "precision_oil": 0.0,
+        "recall_oil": 0.0,
+        "f1_oil": 0.0,
+        "fp_rate": 0.0,
+        "fn_rate": NaN,
+        "foreground_fraction": 0.0,
+        "pixel_accuracy": 1.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "tn": 7864320,
+        "n_tiles": 30,
+        "total_pixels": 7864320
+      },
+      "OIL": {
+        "iou_oil": 0.019926196127455734,
+        "dice_oil": 0.03907380005163755,
+        "precision_oil": 0.8238771896448276,
+        "recall_oil": 0.020011438560746116,
+        "f1_oil": 0.03907380005163755,
+        "fp_rate": 0.0002634439081950844,
+        "fn_rate": 0.9799885614392538,
+        "foreground_fraction": 0.0014090254500105574,
+        "pixel_accuracy": 0.9429026835673564,
+        "tp": 56298,
+        "fp": 12035,
+        "fn": 2756993,
+        "tn": 45671314,
+        "n_tiles": 185,
+        "total_pixels": 48496640
+      }
+    },
+    "by_wind_regime": {
+      "low-wind": {
+        "iou_oil": 0.019926196127455734,
+        "dice_oil": 0.03907380005163755,
+        "precision_oil": 0.8238771896448276,
+        "recall_oil": 0.020011438560746116,
+        "f1_oil": 0.03907380005163755,
+        "fp_rate": 0.00022475301399207498,
+        "fn_rate": 0.9799885614392538,
+        "foreground_fraction": 0.001212417247683503,
+        "pixel_accuracy": 0.9508697509765625,
+        "tp": 56298,
+        "fp": 12035,
+        "fn": 2756993,
+        "tn": 53535634,
+        "n_tiles": 215,
+        "total_pixels": 56360960
+      }
+    },
+    "n_tiles": 215,
+    "eval_seconds": 15.13,
+    "threshold": 0.806
+  },
+  "training_dynamics": {
+    "n_records": 8820,
+    "epochs": 30,
+    "first_epoch": 0,
+    "last_epoch": 29,
+    "last_step": 4981,
+    "total_elapsed_s": 59218.8,
+    "loss_trajectory": {
+      "first": 0.9428787231445312,
+      "last": 0.011982562951743603,
+      "min": 6.82096288073808e-05,
+      "max": 4.717454433441162,
+      "final_window_avg": 0.01597259896944332
+    },
+    "strong_loss": {
+      "first": 0.9428787231445312,
+      "last": 0.01198100857436657,
+      "final_window_avg": 0.015903898042297977
+    },
+    "weak_negative_loss": {
+      "first": 0.0,
+      "last": 1.4945165958124562e-06,
+      "final_window_avg": 6.554524815569225e-05
+    },
+    "mil_loss": {
+      "first": 0.0,
+      "last": 5.960464477539063e-08,
+      "final_window_avg": 3.155581887714267e-06
+    },
+    "gradient_norms": {
+      "mean": 0.7145271243798903,
+      "median": 0.10641377419233322,
+      "max": 769.201171875,
+      "min": 0.0011057951487600803,
+      "clipped_count": 106,
+      "clipped_fraction": 0.012018140589569161,
+      "clip_threshold": 5.0
+    },
+    "vram_gb": 3.68,
+    "final_window": {
+      "win_steps": 17,
+      "win_loss_total": 0.01597259896944332,
+      "win_loss_strong": 0.015903898042297977,
+      "win_loss_weak_negative": 6.554524815569225e-05,
+      "win_loss_mil": 3.155581887714267e-06,
+      "win_mil_when_box": 4.470407674261878e-06,
+      "win_steps_with_box": 12,
+      "win_weak_samples": 13,
+      "win_boxes": 12
+    },
+    "optimization_assessment": "BENIGN"
+  },
+  "label_quality_caveat": "CALM-GRD-HOLDOUT labels are WEAK_BOX (bounding boxes, not pixel masks). IoU ceiling is ~0.38 for a perfect pixel-level detector on these labels. This is a known, pre-existing property of the ESSD/PANGAEA dataset, not a model defect.",
+  "source_domain_preservation": {
+    "status": "NOT_EVALUATED_IN_THIS_RUN",
+    "reason": "Zenodo Part III evaluation requires the v0.2 Gold test loader, which uses a different data format (3-channel with ratio). This evaluation focused on CALM-GRD-HOLDOUT as the primary surface."
+  },
+  "mc20_external": {
+    "status": "NOT_EVALUATED_IN_THIS_RUN",
+    "reason": "MC20 external evaluation is Phase 11, separate from the primary evaluation."
+  },
+  "safety": {
+    "files_modified": 0,
+    "files_deleted": 0,
+    "b1_checkpoint_hash_post_eval": "3b76c589ac220687c78e5db38be171294657ec6819413fd9af32221f6f8e12dd",
+    "v02_checkpoint_hash_post_eval": "9f38c690d0ef1629bdc7a59b76dbe054d45245cfccb4ba5b26f242f1d2e2cd66",
+    "checkpoints_unchanged": true
+  }
+}

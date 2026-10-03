@@ -15,7 +15,11 @@ Two things v1 got wrong and this module fixes:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import timezone, datetime
+import enum
+if not hasattr(enum, "StrEnum"):
+    class _StrEnum(str, enum.Enum): pass
+    enum.StrEnum = _StrEnum
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -23,16 +27,20 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from varuna_contracts.evidence import (
     CalibrationState,
     EvidenceEnvelope,
+    EvidenceMode,
     TrustState,
     ValidityState,
 )
 from varuna_contracts.schemas import GeoPoint, VesselType
+from typing import Literal
 
 __all__ = [
     "AttributionResultV2",
     "CandidateScore",
     "DecisionState",
     "GateCheck",
+    "GateReason",
+    "HistoricalReconstruction",
     "LatentFinding",
     "PriorContribution",
     "ValidityGateResult",
@@ -93,6 +101,34 @@ class CandidateScore(_Base):
     influence_weight: float = Field(1.0, ge=0, le=1)  # Bounded Evidence Influence
 
 
+class HistoricalReconstruction(_Base):
+    """A real-world vessel identity, carried alongside a computed attribution
+    without being confused for one.
+
+    M1+M2 fix (docs/product/HONESTY_LEDGER.md #3-4): the Indian-Ocean replay
+    fixtures previously fabricated a `CandidateScore` — a `posterior: 0.7`
+    VARUNA never computed — to attach a real, documented vessel identity
+    (e.g. `BW MAPLE`, the tanker publicly linked to a real historical
+    incident) to a case where `n_tracks: 0` / `ais: not_yet_produced`. That
+    made a historical record LOOK like a computed inference.
+
+    This type exists so a fixture can say "here is what is publicly known
+    about this real incident" without it ever entering the scored
+    candidate list. `provenance` is a frozen literal precisely so nothing
+    can ever relabel a historical record as computed output by changing a
+    string; the `_computed_output_cannot_carry_reconstruction` validator on
+    `AttributionResultV2` enforces the same rule structurally, not just by
+    convention.
+    """
+    vessel_name: str
+    mmsi: str | None = None
+    event_description: str
+    source_citation: str
+    provenance: Literal["historical_record_not_computed_by_varuna"] = (
+        "historical_record_not_computed_by_varuna"
+    )
+
+
 class AttributionResultV2(_Base):
     case_id: str
     slick_id: str
@@ -120,7 +156,13 @@ class AttributionResultV2(_Base):
     n_candidates_scored: int = Field(..., ge=0)
 
     envelope: EvidenceEnvelope
-    computed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    computed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    # M1+M2 fix: a real-world vessel identity that VARUNA did NOT compute —
+    # see `HistoricalReconstruction`'s docstring. Structurally separate from
+    # `candidates`; never scored, never a posterior, never averaged into
+    # anything.
+    historical_reconstruction: HistoricalReconstruction | None = None
 
     @model_validator(mode="after")
     def _normalised(self) -> AttributionResultV2:
@@ -134,8 +176,49 @@ class AttributionResultV2(_Base):
             raise ValueError("STRONG_LEAD requires at least one candidate")
         return self
 
+    @model_validator(mode="after")
+    def _computed_output_cannot_carry_reconstruction(self) -> AttributionResultV2:
+        """A REAL-mode attribution is VARUNA's own computed claim about the
+        world; it must never be dressed up with a historical record that
+        VARUNA didn't produce. SIMULATED/illustrative fixtures (like the
+        Indian-Ocean replay set) are exactly where this field belongs."""
+        if self.historical_reconstruction is not None and self.envelope.mode is EvidenceMode.REAL:
+            raise ValueError(
+                "historical_reconstruction may not be attached to a REAL-mode "
+                "AttributionResultV2 — it is a real-world record, not a VARUNA "
+                "computation, and REAL mode is reserved for VARUNA's own output"
+            )
+        return self
+
 
 # ───────────────────────── Validity / Uncertainty Gate ─────────────────────────
+
+class GateReason(StrEnum):
+    """
+    Machine-readable classification for a GateCheck's outcome. ADR-0006.
+
+    Complements, never replaces, GateCheck.detail — the free-text `detail`
+    field stays as the officer-facing explanation; `reason_code` is what a
+    caller can switch on without string-matching English sentences. Not
+    every check populates a code (an existing passing check may leave it
+    None), and not every code here is emitted by the current validity gate
+    — some (e.g. ACTION_NOT_AUTHORIZED, TEMPORAL_JOIN_UNAVAILABLE) belong to
+    gates implemented in a later tranche and exist here now so the contract
+    doesn't need a second ADR when they land.
+    """
+    DATA_INVALID = "data_invalid"
+    DATA_QUARANTINED = "data_quarantined"
+    EVIDENCE_INSUFFICIENT = "evidence_insufficient"
+    EVIDENCE_SIMULATED = "evidence_simulated"
+    PHI_NOT_CONVERGED = "phi_not_converged"
+    PHI_UNINFORMATIVE = "phi_uninformative"
+    PHI_DIAGNOSTICS_UNAVAILABLE = "phi_diagnostics_unavailable"
+    ATTRIBUTION_UNCERTAIN = "attribution_uncertain"
+    ATTRIBUTION_NOT_DISTINGUISHABLE = "attribution_not_distinguishable"
+    FORCING_INSUFFICIENT = "forcing_insufficient"
+    TEMPORAL_JOIN_UNAVAILABLE = "temporal_join_unavailable"
+    ACTION_NOT_AUTHORIZED = "action_not_authorized"
+
 
 class GateCheck(_Base):
     name: str
@@ -143,6 +226,9 @@ class GateCheck(_Base):
     observed: float | None = None
     threshold: float | None = None
     detail: str = ""
+    reason_code: GateReason | None = None  # defaulted: existing extra="forbid"
+                                            # consumers that construct GateCheck
+                                            # without this field keep working.
 
 
 class ValidityGateResult(_Base):
@@ -161,7 +247,7 @@ class ValidityGateResult(_Base):
 
     source_trust: TrustState = TrustState.TRUSTED
     envelope: EvidenceEnvelope
-    evaluated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    evaluated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @model_validator(mode="after")
     def _consistent(self) -> ValidityGateResult:

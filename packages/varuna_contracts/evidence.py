@@ -24,7 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -36,6 +36,7 @@ __all__ = [
     "DegradationState",
     "EnvelopedArtifact",
     "EvidenceEnvelope",
+    "EvidenceMode",
     "Provenance",
     "QualityMetrics",
     "TrustState",
@@ -45,7 +46,7 @@ __all__ = [
 
 
 def _utcnow() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class _Base(BaseModel):
@@ -90,6 +91,35 @@ class ValidityState(StrEnum):
     @property
     def allows_operational_action(self) -> bool:
         return self in (ValidityState.VALID, ValidityState.DEGRADED)
+
+
+class EvidenceMode(StrEnum):
+    """
+    Where this evidence actually came from, independent of TrustState.
+
+    TrustState answers "how much should this influence a decision?" — a
+    QUARANTINED real observation and a well-formed synthetic fixture can both
+    be TRUSTED=false or true for unrelated reasons. EvidenceMode answers a
+    different, non-negotiable question: "is this a measurement of the real
+    world, a stand-in for one, or absent?"
+
+    ADR-0006 governs this type. Its central rule:
+
+        EvidenceMode can only WORSEN as evidence flows downstream, never
+        improve. REAL -> SIMULATED -> UNAVAILABLE is the only direction of
+        travel. No code path, and in particular no configuration flag or
+        settings object, may construct or derive a SIMULATED/UNAVAILABLE
+        input into a REAL output. See EvidenceEnvelope.derive() and
+        tests/contract/test_evidence_mode.py.
+    """
+    REAL = "real"
+    SIMULATED = "simulated"
+    UNAVAILABLE = "unavailable"
+
+    @property
+    def rank(self) -> int:
+        """0 = best (real), 2 = worst (unavailable). Monotonic derive() uses this."""
+        return {"real": 0, "simulated": 1, "unavailable": 2}[self.value]
 
 
 class DegradationState(StrEnum):
@@ -210,6 +240,10 @@ class EvidenceEnvelope(_Base):
     units: dict[str, str] = Field(default_factory=dict)   # {"distance": "km", ...}
 
     provenance: Provenance
+    mode: EvidenceMode  # REQUIRED, no default — see EvidenceMode docstring / ADR-0006.
+                        # Every producer must explicitly declare real vs. simulated
+                        # vs. unavailable. A missing value is a construction error
+                        # by design, not an oversight to patch with a default.
     trust: TrustState = TrustState.TRUSTED
     influence_weight: float = Field(1.0, ge=0.0, le=1.0)  # Bounded Evidence Influence
     quality: QualityMetrics = Field(default_factory=QualityMetrics)
@@ -228,6 +262,22 @@ class EvidenceEnvelope(_Base):
             raise ValueError(
                 f"influence_weight {self.influence_weight} exceeds ceiling {ceiling} "
                 f"for trust={self.trust.value} (Bounded Evidence Influence, ADR-0003)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _cached_replay_cannot_claim_real(self) -> EvidenceEnvelope:
+        """
+        ADR-0006. A cached/offline replay (DEMO_MODE) is, by construction, not a
+        live real-world measurement — it is a recording of one played back later.
+        Reporting mode=REAL on it would let a demo look indistinguishable from a
+        live run. Reject the combination outright rather than trust every future
+        caller to remember not to do this.
+        """
+        if self.mode is EvidenceMode.REAL and self.degradation_state is DegradationState.CACHED_REPLAY:
+            raise ValueError(
+                "mode=REAL cannot be combined with degradation_state=CACHED_REPLAY "
+                "(ADR-0006) — a cached replay is not a live real-world measurement"
             )
         return self
 
@@ -263,6 +313,17 @@ class EvidenceEnvelope(_Base):
         worst_degradation = max((e.degradation_state for e in inputs), key=lambda d: d.rank)
         min_influence = min(e.influence_weight for e in inputs)
 
+        # EvidenceMode (ADR-0006): monotonic worsening only, exactly like trust/
+        # validity/degradation above. Deliberately no `mode=` override parameter
+        # exists on this method — unlike `validity=`/`degradation=`, which callers
+        # may push further down but never up, there is no legitimate reason for a
+        # caller to touch mode at all. It is derived, never asserted, downstream
+        # of the original producer. This is what makes "config cannot upgrade
+        # provenance" a structural fact rather than a convention: there is no
+        # parameter here through which a config value COULD flow even if someone
+        # tried.
+        derived_mode = max((e.mode for e in inputs), key=lambda m: m.rank)
+
         if validity is not None and validity.rank > worst_validity.rank:
             worst_validity = validity
         if degradation is not None and degradation.rank > worst_degradation.rank:
@@ -297,6 +358,7 @@ class EvidenceEnvelope(_Base):
                 }),
                 adapter_id=None,
             ),
+            mode=derived_mode,
             trust=worst_trust,
             influence_weight=min(min_influence, worst_trust.max_influence),
             quality=quality or QualityMetrics(),

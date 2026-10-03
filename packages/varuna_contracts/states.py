@@ -9,10 +9,12 @@ make illegal combinations expressible — so `check_case_invariants` can catch t
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from varuna_contracts.schemas import AssetTasking
 
 __all__ = [
     "MISSION_TRANSITIONS",
@@ -99,7 +101,7 @@ class CaseStateVector(_Base):
     response: ResponseState = ResponseState.NO_ACTION
     evidence: EvidenceState = EvidenceState.NONE
     lifecycle: CaseLifecycle = CaseLifecycle.OPEN
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 def check_case_invariants(s: CaseStateVector) -> list[str]:
@@ -192,13 +194,25 @@ class MissionRecord(_Base):
     human_approved_by: str | None = None      # user id — required before ASSIGNED
     human_override_reason: str | None = None
 
+    #: What this mission is actually tasked to do — search box, pattern,
+    #: launch window, flight hours, PoD, rationale. ABHIYAN computes it in the
+    #: pipeline decision stage and it was previously discarded at
+    #: MissionService.create_mission(), so a mission carried only an asset
+    #: base-name string and a map UI had nothing to draw. Optional so records
+    #: written before ADR-0015 stay valid. See ADR-0015.
+    tasking: AssetTasking | None = None
+
     state_history: list[tuple[str, datetime]] = Field(default_factory=list)
+    #: (state, reason) for transitions that carried one. `state_history`
+    #: records WHEN a state changed; for a physical dispatch, WHY matters
+    #: more. See ADR-0015.
+    state_change_reasons: list[tuple[str, str]] = Field(default_factory=list)
 
     def transition(self, dst: MissionState, *, at: datetime | None = None) -> None:
         if not is_legal_mission_transition(self.state, dst):
             raise ValueError(f"illegal mission transition {self.state.value} -> {dst.value}")
         if dst is MissionState.ASSIGNED and not self.human_approved_by:
             raise ValueError("ASSIGNED requires human_approved_by (authorization gate)")
-        ts = at or datetime.now(UTC)
+        ts = at or datetime.now(timezone.utc)
         self.state_history = [*self.state_history, (dst.value, ts)]
         self.state = dst

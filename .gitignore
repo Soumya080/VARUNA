@@ -24,6 +24,12 @@ env/
 *.env
 !.env.example
 
+# ── Credentials (CDS API / Copernicus / any local rc files) ──
+.cdsapirc
+*.cdsapirc
+.copernicusmarine/
+.netrc
+
 # ── IDE / Editor ──
 .vscode/
 .idea/
@@ -49,10 +55,20 @@ data/scenes/*.tiff
 data/scenes/*.safe
 data/scenes/*.zip
 data/output/
+data/raw/**
+!data/raw/**/.gitkeep
+data/bronze/**
+!data/bronze/**/.gitkeep
+data/silver/**
+!data/silver/**/.gitkeep
+data/gold/**
+!data/gold/**/.gitkeep
+data/manifests/**
+!data/manifests/**/.gitkeep
 *.npz
 *.npy
 
-# ── Models (large binary weights — do not commit) ──
+# ── Models & Artifacts (large binary weights, runs — do not commit) ──
 models/*.pt
 models/*.pth
 models/*.torchscript
@@ -60,6 +76,14 @@ models/*.onnx
 models/*.joblib
 models/*.pkl
 models/*.h5
+artifacts/models/**
+!artifacts/models/**/.gitkeep
+artifacts/checkpoints/**
+!artifacts/checkpoints/**/.gitkeep
+artifacts/experiments/**
+!artifacts/experiments/**/.gitkeep
+artifacts/reports/**
+!artifacts/reports/**/.gitkeep
 
 # ── Experiment results (large CSVs, plots) ──
 experiments/go_nogo/results/
@@ -85,8 +109,43 @@ htmlcov/
 # ── mypy ──
 .mypy_cache/
 
+# ── Node ──
+node_modules/
+
+# ── Linter / Tool Caches ──
+.ruff_cache/
+.hypothesis/
+
+# ── User notes / vaults (not project code) ──
+MEM/
+
 # ── Misc ──
 *.bak
 *.tmp
 *.temp
 .agents/
+
+# Playwright browser binaries (702 MB) — reinstall with:
+#   playwright install chromium
+.playwright-browsers/
+
+# Test/E2E output artifacts
+reports/product/_downloads/
+reports/product/_judge_downloads/
+
+# --- MC20 demo event: the ONE shippable slice of data/gold ---------------
+# data/gold is 131 GB and stays ignored above. This single event directory is
+# 19 MB and is read at request time by the CHHAYA endpoint, so it must ship or
+# a fresh clone has no SAR to investigate. Parents are re-included step by
+# step because git cannot un-ignore a file inside an excluded directory.
+!data/gold/events/
+!data/gold/events/mc20_v0_1/
+!data/gold/events/mc20_v0_1/**
+!data/gold/events/mc20_v0_1/**/*.npy
+
+# Runtime operational state (alerts, missions, audit, case snapshots).
+# Machine-local: delete this directory to reset a demo to a clean slate.
+reports/state/
+
+# Captured messages from scripts/smtp_sink.py (local email-path verification)
+reports/product/_smtp_capture/

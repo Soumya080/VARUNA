@@ -1,0 +1,277 @@
+{
+  "experiment_id": "experimentA_nesz_audit",
+  "date": "2026-08-30",
+  "title": "MC20 Sentinel-1 NESZ / thermal-noise implementation audit",
+  "hypothesis": "The Experiment-0 VH overshoot (variance ratio 0.6963 -> 3.8023) is caused by an implementation, LUT-interpretation, registration, unit, or sub-swath handling error in the NESZ correction.",
+  "verdict_summary": "REFUTED. The implementation was audited against the real SAFE product and verified correct on every axis tested. The VH behaviour is a legitimate physical property of this scene: cross-pol backscatter sits at the sensor's own noise floor.",
+
+  "experiment_0_recap": {
+    "classification": "MEASURED (prior task, reproduced bit-identically this task)",
+    "vv_variance_ratio": {"original": 0.2478, "denoised": 0.4212},
+    "vh_variance_ratio": {"original": 0.6963, "denoised": 3.8023},
+    "frozen_netra_max_probability": {"original": 3.0535e-06, "denoised": 5.1136e-06},
+    "reproduced_this_task": true,
+    "note": "Adding the below_noise_policy parameter did not perturb Experiment 0: re-running it produced identical numbers, because the default policy is the original behaviour."
+  },
+
+  "safe_evidence": {
+    "classification": "MEASURED",
+    "ipf_version": "003.52",
+    "ipf_significance": "The range x azimuth noise-vector combination rule applies from IPF 2.9 onward; this product at 3.52 is well past that threshold, so a product-level noiseAzimuthVectorList is expected and present.",
+    "noise_xml_structure": {
+      "noiseRangeVectorList": {"n_vectors": 27, "points_per_vector": 652, "field": "noiseRangeLut"},
+      "noiseAzimuthVectorList": {"n_vectors": 3, "swaths": ["IW1", "IW2", "IW3"], "field": "noiseAzimuthLut"}
+    },
+    "pixel_axis_shared_across_range_vectors": true,
+    "pixel_axis_strictly_monotonic": true,
+    "pixel_axis_note": "The axis is NON-uniformly spaced (it inserts extra samples at sub-swath boundaries, e.g. ...8560 8600 8619 8620 8660...). scipy RegularGridInterpolator accepts non-uniform but monotonic axes, so this is handled correctly. The pre-existing calibration-LUT docstring's claim of 'regularly spaced' happens not to hold for the NOISE axis, but does not affect correctness.",
+    "lut_magnitudes": {
+      "vv_noiseRangeLut_max": 1891.2, "vh_noiseRangeLut_max": 2151.4,
+      "azimuth_lut_range": [0.9995, 1.1389],
+      "sigmaNought_range": [557.66, 662.48],
+      "sigmaNought_identical_for_vv_and_vh": true
+    },
+    "polarization_binding_verified": {
+      "vv_noise_xml_declares": "VV", "vh_noise_xml_declares": "VH",
+      "note": "Each noise XML's adsHeader/polarisation matches the polarization its filename claims -- no wrong-file / swapped-polarization bug."
+    },
+    "subswath_coverage": {
+      "crop_columns": [18657, 20193],
+      "iw3_range_span": [17439, 25898],
+      "crop_entirely_within": "IW3",
+      "note": "No sub-swath boundary crosses the crop, so sub-swath selection cannot produce a discontinuity artifact here."
+    }
+  },
+
+  "authoritative_processing_evidence": {
+    "classification": "MEASURED (external documentation fetched this task)",
+    "sources_consulted": [
+      {"source": "Copernicus SentiWiki, Sentinel-1 Processing (https://sentiwiki.copernicus.eu/web/s1-processing)", "supports": "Noise vectors are provided in LINEAR POWER. Noise is subtracted from power-detected GRD data BEFORE the sigmaNought calibration factor is applied (Eq. 5-6: calibrated = A * [DN - eta*noiseLut]). This directly supports the implemented form sigma0_linear = (DN^2 - NoisePower) / sigmaNought^2."}
+    ],
+    "documented_conflict_or_gap": {
+      "issue": "Neither ESA source consulted explicitly states that total noise = noiseRangeLut * noiseAzimuthLut (multiplication) as opposed to some other combination. SentiWiki describes range and azimuth contributions as separate computational steps without specifying the combination operator.",
+      "recorded_not_hidden": true,
+      "why_it_does_not_change_this_audit_s_conclusion": "The azimuth LUT over this crop spans only 0.9996-1.1083, i.e. at most an 11% multiplicative effect. Whether it is multiplied, or omitted entirely, cannot produce the ~2.3x VH standard-deviation change observed. The VH result is therefore robust to this documentation gap.",
+      "recommended_follow_up": "If the NESZ path is ever promoted toward production default, confirm the combination operator against the ESA S1 IPF product specification or the SNAP Sentinel1RemoveThermalNoiseOp source before doing so."
+    }
+  },
+
+  "current_implementation_audit": {
+    "classification": "MEASURED",
+    "operations_traced": {
+      "input_dn": "uint16 DN read by direct file-seek from the real measurement TIFF, 1536x1536 crop at (top=7268, left=18657)",
+      "calibration_lut": "parse_calibration_lut -> sigmaNought vectors, shifted into the crop's local frame by (row_offset, col_offset), bilinear via RegularGridInterpolator",
+      "range_noise_lut": "parse_noise_lut -> noiseRangeLut, same shift-then-interpolate convention as the calibration LUT",
+      "azimuth_noise_lut": "per-column sub-swath selection by full-scene range-sample span, then np.interp of that swath's noiseAzimuthLut over full-scene azimuth lines",
+      "noise_combination": "NoisePower = range_grid * azimuth_grid",
+      "subtraction": "denoised_power = DN^2 - NoisePower",
+      "floor_or_mask": "below_noise_policy in {floor, mask}",
+      "sigma0": "usable_power / sigmaNought^2",
+      "db": "10 * log10(sigma0_linear)",
+      "nodata": "DN == 0 forced to NaN (unchanged pre-existing convention)"
+    },
+    "bug_checks": {
+      "A_implementation_bug": "NOT FOUND",
+      "B_lut_interpretation_bug": "NOT FOUND -- LUT magnitudes (~300-490 over the crop) are in the same numeric regime as DN^2 (461-2609), which is the expected relationship for a linear-power noise LUT. An amplitude-vs-power confusion would have shown a square-root-scale mismatch (~19 vs ~370); it does not.",
+      "C_polarization_lut_mismatch": "NOT FOUND -- each noise/calibration XML declares the polarization its filename claims (asserted in tests).",
+      "D_line_pixel_registration_error": "NOT FOUND -- see registration_verification below.",
+      "E_unit_scaling_error": "NOT FOUND -- see B.",
+      "F_subswath_handling_error": "NOT FOUND -- crop lies entirely inside IW3; uncovered columns raise rather than silently defaulting to a neutral factor (asserted in tests)."
+    },
+    "registration_verification": {
+      "method": "Independent manual bilinear reconstruction directly from the raw noise XML at a probe point, compared against the implementation's interpolated grid.",
+      "probe_local": [500, 700],
+      "probe_absolute": {"line": 7768, "pixel": 19357},
+      "bracketing_lines": [7359, 8028],
+      "bracketing_pixels": [19319, 19359],
+      "manual_range_lut_value": 356.125491,
+      "azimuth_factor": 1.015355,
+      "manual_total_noise_power": 361.593798,
+      "implementation_value": 361.593798,
+      "absolute_difference": 0.0,
+      "verdict": "EXACT MATCH -- rules out off-by-one, crop-origin offset, absolute-vs-local line numbering, wrong swath offset, and wrong LUT dimensions."
+    }
+  },
+
+  "corrected_implementation": {
+    "classification": "DERIVED",
+    "change_made": "Added below_noise_policy parameter to calibrate_to_db_denoised(). Default 'floor' preserves Experiment-0 behaviour exactly; new opt-in 'mask' marks below-noise pixels NaN instead of substituting an arbitrary 1e-6 constant.",
+    "physical_justification": "Where the real, product-supplied noise power exceeds DN^2, sigma0 is UNMEASURABLE -- not 'very small'. Flooring substitutes an arbitrary constant (~-115 dB) that then dominates any statistic computed over those pixels. Masking is the honest representation and is consistent with the module's existing treatment of DN==0 border pixels (NaN) and with apply_netra_normalization()'s existing non-finite -> 0.0 nodata handling.",
+    "explicitly_not_a_score_driven_change": "This change was made because flooring fabricates a value where none is measurable, NOT because it improves NETRA output. It is verified below to have ZERO effect on NETRA's input or output.",
+    "default_production_behaviour_changed": false,
+    "calibrate_to_db_modified": false,
+    "opt_in": true
+  },
+
+  "vv_findings": {
+    "classification": "MEASURED",
+    "dn2_mean": 2608.91,
+    "noise_power_mean": 368.79,
+    "snr_mean": 7.180,
+    "snr_median": 6.165,
+    "below_noise_fraction": 0.0017,
+    "variance_ratio_progression": {"A_original": 0.2478, "B_exp0_floor": 1.1622, "C_expA_mask": 0.4212},
+    "interpretation": "VV signal sits comfortably above the noise floor (median SNR 6.2). Removing noise from a strong signal is a modest, well-conditioned correction: std rises 2.215 -> 2.888 dB and the variance ratio moves from 0.248 toward, but still below, 1.0. This is the expected, well-behaved outcome."
+  },
+
+  "vh_findings": {
+    "classification": "MEASURED",
+    "dn2_mean": 460.85,
+    "noise_power_mean": 371.28,
+    "snr_mean": 1.249,
+    "snr_median": 1.079,
+    "below_noise_fraction": 0.4381,
+    "variance_ratio_progression": {"A_original": 0.6963, "B_exp0_floor": 226.0960, "C_expA_mask": 3.8023},
+    "root_mechanism": "The MEDIAN VH pixel carries only 7.9% more power than the sensor's own thermal-noise floor (SNR median 1.079), and the mean noise power is nearly identical between the two channels (VV 368.8 vs VH 371.3) because NESZ is a receiver-chain property, not a target property. VH's signal, however, is ~5.7x weaker than VV's. Subtracting a nearly-equal quantity leaves a small residual whose RELATIVE spread is enormous; in the logarithmic dB domain this inflates the standard deviation from 2.236 to 5.226 dB. The 'overshoot' past a variance ratio of 1.0 is therefore an arithmetic consequence of near-noise-floor subtraction, not an error.",
+    "why_this_is_expected_physics": "Sentinel-1 cross-polarized (VH) backscatter over calm open water is well known to approach the instrument NESZ. A scene where ~44% of VH pixels fall below the noise floor is consistent with a low-wind / calm-sea acquisition, not with a processing defect."
+  },
+
+  "noise_floor_analysis": {
+    "classification": "MEASURED",
+    "vv_below_noise_pixels": 4059,
+    "vv_below_noise_fraction": 0.0017212761773003472,
+    "vh_below_noise_pixels": 1033286,
+    "vh_below_noise_fraction": 0.4381374782986111,
+    "headline_finding_retained": "43.8% of this MC20 crop's VH pixels have signal power at or below the sensor's own real, product-supplied thermal-noise floor. This finding is retained explicitly and is NOT diminished by the fact that it complicates the model story -- it is arguably the most important physical fact this audit established about the scene.",
+    "statistical_contamination_removed": "All decision-relevant statistics are computed over physically meaningful populations only. The floor-contaminated VH variance ratio of 226.1 is retained in the record but explicitly labelled as an artifact of the arbitrary epsilon, never used for any conclusion."
+  },
+
+  "spatial_analysis": {
+    "classification": "MEASURED",
+    "method": "4x4 block means over the 1536x1536 crop, plus range-direction (column) and azimuth-direction (row) profiles.",
+    "vh_below_noise_mask_block_means": [
+      [0.4284, 0.4223, 0.4339, 0.3995],
+      [0.4601, 0.4359, 0.4224, 0.4114],
+      [0.4696, 0.4625, 0.4464, 0.4492],
+      [0.4687, 0.4448, 0.4161, 0.4390]
+    ],
+    "vh_noise_power_block_means": [
+      [415.88, 369.17, 336.33, 314.16],
+      [425.12, 377.35, 343.76, 321.08],
+      [446.56, 396.36, 361.06, 337.23],
+      [433.60, 384.84, 350.55, 327.39]
+    ],
+    "range_direction_trend": {
+      "vh_noise_power_first_to_last_column": [460.54, 316.50],
+      "vh_below_noise_fraction_first_to_last_column": [0.4674, 0.4102],
+      "note": "Noise power decreases smoothly and monotonically with range, and the below-noise fraction follows it. This is the expected elevation-beam-pattern / range-spreading-loss behaviour."
+    },
+    "verdict": "SPATIALLY COHERENT, NOT LOCALIZED OR PATHOLOGICAL. The below-noise mask is near-uniform across all 16 blocks (0.40-0.47) with a smooth range-direction gradient and no discontinuities, no sub-swath seams, and no crop-boundary artifacts. A registration or indexing bug would be expected to produce exactly such artifacts; none are present."
+  },
+
+  "three_way_comparison": {
+    "classification": "MEASURED",
+    "zenodo_reference_raw_sigma0_db": {"VV": {"mean": -34.78, "std": 4.45}, "VH": {"mean": -20.14, "std": 2.68}},
+    "A_original": {
+      "VV": {"mean": -21.775, "std": 2.215, "P5": -25.63, "P50": -21.59, "P95": -18.44, "variance_ratio": 0.2478, "valid_fraction": 1.0},
+      "VH": {"mean": -29.338, "std": 2.236, "P5": -32.93, "P50": -29.17, "P95": -25.97, "variance_ratio": 0.6963, "valid_fraction": 1.0}
+    },
+    "B_exp0_floor": {
+      "VV": {"mean": -22.897, "std": 4.797, "P5": -27.82, "P50": -22.42, "P95": -18.82, "variance_ratio": 1.1622, "valid_fraction": 1.0},
+      "VH": {"mean": -69.772, "std": 40.298, "P5": -115.22, "P50": -40.54, "P95": -28.72, "variance_ratio": 226.096, "valid_fraction": 1.0, "CONTAMINATED": "std and mean dominated by the arbitrary -115 dB floor constant; not a physical measurement"}
+    },
+    "C_expA_mask": {
+      "VV": {"mean": -22.738, "std": 2.888, "P5": -27.74, "P50": -22.41, "P95": -18.82, "variance_ratio": 0.4212, "valid_fraction": 0.9983},
+      "VH": {"mean": -34.355, "std": 5.226, "P5": -44.23, "P50": -33.39, "P95": -27.94, "variance_ratio": 3.8023, "valid_fraction": 0.5619}
+    },
+    "calibration_fidelity_phase9": {"max_abs_diff_vs_production_mc20_gold": 0.0, "status": "PASS -- exact reproduction"}
+  },
+
+  "frozen_netra_behaviour": {
+    "classification": "MEASURED",
+    "checkpoint_sha256": "9f38c690d0ef1629bdc7a59b76dbe054d45245cfccb4ba5b26f242f1d2e2cd66",
+    "threshold": 0.806,
+    "architecture_threshold_normalization_checkpoint_all_unchanged": true,
+    "A_original": {"max": 3.0535e-06, "mean": 5.5646e-09, "P50": 4.8299e-09, "P90": 8.7458e-09, "P95": 1.0716e-08, "P99": 2.2333e-08, "foreground_fraction_at_0.806": 0.0, "oil_logit_mean": -9.6239, "oil_logit_max": -6.0430},
+    "B_exp0_floor": {"max": 5.1136e-06, "mean": 1.3799e-08, "P50": 1.2528e-08, "P90": 1.8660e-08, "P95": 2.1646e-08, "P99": 4.2714e-08, "foreground_fraction_at_0.806": 0.0, "oil_logit_mean": -9.1683, "oil_logit_max": -5.7930},
+    "C_expA_mask": {"max": 5.1136e-06, "mean": 1.3799e-08, "P50": 1.2528e-08, "P90": 1.8660e-08, "P95": 2.1646e-08, "P99": 4.2714e-08, "foreground_fraction_at_0.806": 0.0, "oil_logit_mean": -9.1683, "oil_logit_max": -5.7930},
+    "critical_finding_B_equals_C_exactly": {
+      "normalized_input_max_abs_difference": 0.0,
+      "explanation": "The floor policy produces ~-115 dB, which the frozen normalization clips to VH clip_low = -33.425 and rescales to exactly 0.0. The mask policy produces NaN, which apply_netra_normalization forces to the 0.0 nodata sentinel. BOTH COLLAPSE TO THE SAME VALUE. The corrected representation is therefore strictly a statistical-honesty improvement; it cannot and does not change what NETRA sees.",
+      "significance": "This forecloses any hope that a better below-noise representation would rescue detection under the frozen normalization contract."
+    },
+    "nodata_sentinel_fraction_in_model_input": {
+      "A_original_vh_fraction_exactly_zero": 0.0471,
+      "B_and_C_denoised_vh_fraction_exactly_zero": 0.7172,
+      "training_corpus_nodata_fraction": 0.02585,
+      "interpretation": "This is the decisive result. NESZ correction drives 71.7% of the VH channel to the exact nodata sentinel value 0.0, versus 4.7% before correction and 2.585% in the training corpus. The physically-correct preprocessing makes MC20 MORE degenerate and FURTHER out of distribution from NETRA's perspective, not closer to it. Note 71.7% exceeds the 43.8% below-noise fraction because additional above-noise pixels still fall below the frozen VH clip_low of -33.425 dB after subtraction and are clipped to 0."
+    },
+    "phase13_interpretation_discipline": "Foreground fraction at the 0.806 operating threshold is 0.0 in all three conditions. Per Phase 13 this does NOT establish 'no oil at MC20'. The correct status remains OOD / DETECTION_UNAVAILABLE. Equally, the 1.67x probability rise from A to B/C is not 'improved detection' -- both values are ~5-6 orders of magnitude below threshold and the oil logit stays near -9."
+  },
+
+  "root_cause": {
+    "classification_from_phase1_list": "G -- legitimate physical property of the scene (with the caveat that the arbitrary floor constant, a real but purely presentational defect, was separately identified and corrected)",
+    "evidence_for": [
+      "Registration verified EXACTLY against independent manual reconstruction (0.0 difference).",
+      "Noise LUT magnitudes are in the correct numeric regime relative to DN^2, ruling out unit/amplitude-vs-power errors.",
+      "Polarization bindings verified correct in both noise and calibration XMLs.",
+      "Crop lies entirely within IW3; no sub-swath seam can contribute.",
+      "IPF 3.52 is consistent with the presence and use of a noiseAzimuthVectorList.",
+      "Below-noise mask is spatially coherent and near-uniform (0.40-0.47 across 16 blocks) with a smooth monotonic range-direction gradient tracking the noise power itself -- the signature of correct physics, not of an indexing bug.",
+      "VH median SNR is 1.079: the median VH pixel is only 7.9% above the noise floor, so near-equal subtraction mathematically must inflate relative (and hence dB) variance.",
+      "Mean noise power is nearly identical for VV and VH (368.8 vs 371.3) as expected for a receiver-chain NESZ, while VH signal is ~5.7x weaker -- fully explaining why only VH overshoots."
+    ],
+    "evidence_against": [
+      "The ESA documentation consulted does not explicitly confirm the range x azimuth multiplication operator. This is recorded as an open documentation gap. However the azimuth factor spans only 0.9996-1.1083 over this crop, so no choice of operator could account for the observed ~2.3x VH std change."
+    ],
+    "confidence": "HIGH that no implementation bug is responsible for the VH overshoot. MEDIUM-HIGH that the scene is a genuinely calm/low-wind acquisition (inferred from cross-pol at NESZ; not independently confirmed against the ERA5 wind field available in MC20 Event Gold, which would be a cheap next check)."
+  },
+
+  "decision": {
+    "selected": "B -- NESZ_IMPLEMENTATION_VALID_BUT_INSUFFICIENT",
+    "reasoning": "The audit's assigned question was whether the Experiment-0 NESZ correction is physically and implementation-wise correct. Every axis tested (A implementation, B LUT interpretation, C polarization mismatch, D registration, E units, F sub-swath) came back clean, with registration verified to exact numerical equality. The VH overshoot is explained by scene physics (cross-pol at the noise floor), not by a defect. But the correction does not restore NETRA's discriminative response -- and in fact drives 71.7% of the VH channel to the nodata sentinel, moving MC20 further from the training distribution. The implementation is valid; it is insufficient to resolve the OOD condition.",
+    "why_not_A": "No implementation bug was found; the one defect identified (the arbitrary floor constant) was presentational, affected statistics only, and is proven to have zero effect on model input or output.",
+    "why_not_C_alone": "The scene-specific physical effect (cross-pol at NESZ) is the MECHANISM behind the VH overshoot and is well supported, but selecting C alone would understate the operative conclusion, which is about sufficiency for the NETRA problem.",
+    "why_not_D": "'Mixed calibration and domain effect' implies a calibration error contributing to the outcome. No calibration error was found.",
+    "why_not_E": "The question posed was resolved with high confidence on direct evidence.",
+    "not_based_on_netra_score": "This decision is supported by SAR-processing evidence (registration equality, LUT units, spatial coherence, SNR statistics). NETRA's output was used only as a diagnostic observation, per Phase 13."
+  },
+
+  "next_netra_experiment": {
+    "per_phase15_rule": "Calibration is correct but NETRA remains OOD -> NEXT = training-domain expansion",
+    "selected_next": "EXPERIMENT B -- TRAINING_DOMAIN_EXPANSION",
+    "cheap_prerequisite_check_recommended_first": "MC20 Event Gold already contains a REAL ERA5 10m-wind field for this acquisition. Reading it to confirm or refute the calm-sea inference behind the cross-pol-at-NESZ explanation costs no new data and no training, and would raise the root-cause confidence from MEDIUM-HIGH to HIGH. Recommended before committing to data acquisition.",
+    "what_this_audit_rules_out_for_v0_3": [
+      "Fixing MC20 by preprocessing correction alone -- proven ineffective here, and it worsens the nodata-sentinel fraction.",
+      "Expecting a better below-noise representation to help under the frozen normalization contract -- proven to collapse to the identical input.",
+      "Any explanation resting on a calibration or registration defect."
+    ],
+    "constraint_carried_forward": "The frozen v0.2 normalization contract (VH clip_low = -33.425 dB) is itself now implicated: noise-corrected cross-pol over calm water falls largely below that bound. If a v0.3 dataset ever adopts thermal-noise-removed inputs, the normalization statistics must be re-derived FROM TRAINING DATA under that same convention, as an explicitly disclosed, separately-versioned change -- never refitted from MC20."
+  },
+
+  "future_data_requirements": {
+    "classification": "DERIVED -- specification only, nothing downloaded",
+    "sensor": "Sentinel-1",
+    "product": "GRD (IW), matching MC20's own product type",
+    "polarizations": "VV + VH, with band semantics verified from each product's own annotation XML at ingestion rather than assumed",
+    "calibration_consistency": "Sigma0-dB via the documented DN^2/sigmaNought^2 chain",
+    "thermal_noise_consistency": "A SINGLE declared convention applied to training and inference alike -- this audit shows a train/infer mismatch in noise handling materially changes the input distribution",
+    "geographic_diversity": "Beyond the Zenodo corpus's apparent ~55N Northern-European concentration",
+    "seasonal_diversity": "Multiple seasons; Zenodo scenes carry no verified timestamps at all",
+    "sea_state_diversity": "Must explicitly include calm / low-wind acquisitions where cross-pol approaches NESZ -- this audit shows that regime is where the current model fails, and it is likely under-represented in training",
+    "positive_examples": "Real oil-spill positives",
+    "negative_examples": "Clean-sea negatives in the same calm regime",
+    "lookalikes": "Where obtainable",
+    "timestamps": "Real acquisition timestamps",
+    "viewing_geometry": "Incidence angle, orbit, look direction"
+  },
+
+  "safety": {
+    "deleted": 0, "moved": 0, "renamed": 0, "overwritten": 0,
+    "checkpoint_modified": 0, "gold_modified": 0, "official_test_modified": 0, "mc20_modified": 0,
+    "raw_safe_modified": 0,
+    "netra_retrained_or_finetuned": false,
+    "threshold_tuned": false,
+    "normalization_fitted_from_mc20": false,
+    "calibration_fidelity_verified_after_change": "max_abs_diff vs production MC20 Event Gold = 0.0 (exact)",
+    "tests": "tests/unit/test_sentinel1_nesz_correction.py (8 new) + existing calibration/MC20 regression suites = 22 passed",
+    "files_changed": [
+      "packages/varuna_data_eng/preprocessing/sentinel1_grd_calibration.py -- added below_noise_policy parameter to the already-additive calibrate_to_db_denoised(); calibrate_to_db() and all production callers unchanged",
+      "scripts/netra_v02/experimentA_nesz_audit.py (new)",
+      "tests/unit/test_sentinel1_nesz_correction.py (new)",
+      "reports/netra_v02/experimentA_nesz/experimentA_nesz_audit_raw.json (new)",
+      "reports/netra_v02/EXPERIMENT_A_NESZ_AUDIT.md (new)",
+      "reports/netra_v02/experimentA_nesz_audit.json (new, this file)"
+    ]
+  }
+}

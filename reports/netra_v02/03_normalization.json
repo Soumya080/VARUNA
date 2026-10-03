@@ -1,0 +1,48 @@
+{
+  "normalization_version": "netra-norm-v0.2-nodata-excluded",
+  "method": "clip_p2_p98_then_scale_unit",
+  "formula": "x_norm = (clip(x, p2, p98) - p2) / (p98 - p2); nodata pixels forced to 0.0",
+  "computed_from_split": "train",
+  "n_train_scenes": 2187,
+  "valid_pixel_rule": "finite AND NOT (VV == 0.0 AND VH == 0.0)",
+  "nodata_excluded": true,
+  "valid_px": 8935820149,
+  "total_px": 9172942848,
+  "nodata_frac": 0.02585023180992574,
+  "hist_bin_db": 0.05,
+  "channels": {
+    "VV": {
+      "n_valid_px": 8935820149,
+      "mean": -32.09614066781217,
+      "std": 6.141141318307055,
+      "min": -114.19413757324219,
+      "max": 28.29137420654297,
+      "p1": -44.074999999999996,
+      "p2": -42.475,
+      "p50": -32.775,
+      "p98": -13.825000000000003,
+      "p99": -12.625,
+      "hist_underflow_px": 6351,
+      "hist_overflow_px": 0,
+      "clip_low": -42.475,
+      "clip_high": -13.825000000000003
+    },
+    "VH": {
+      "n_valid_px": 8935820149,
+      "mean": -20.33014121512895,
+      "std": 5.501367039011562,
+      "min": -114.67024993896484,
+      "max": 30.896255493164062,
+      "p1": -35.625,
+      "p2": -33.425,
+      "p50": -20.275,
+      "p98": -7.5249999999999915,
+      "p99": -6.174999999999997,
+      "hist_underflow_px": 2892,
+      "hist_overflow_px": 0,
+      "clip_low": -33.425,
+      "clip_high": -7.5249999999999915
+    }
+  },
+  "elapsed_s": 812.8
+}

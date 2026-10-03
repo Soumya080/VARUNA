@@ -1,0 +1,165 @@
+{
+  "event_id": "mc20_2023-01-15",
+  "case_name": "MC20 / Taylor Energy",
+  "dataset_version": "mc20_v0_1",
+  "creation_timestamp": "2026-08-29T18:58:16.082849+00:00",
+  "processing_git_commit": "cf0e21307afe519094c04eea35bddeba96c77702",
+  "modalities": {
+    "sar": {
+      "source": "sentinel1_grd_mc20",
+      "product_id": "6fc676ba-b961-5bfc-9211-8076f8f1481c",
+      "source_checksum": "68f5c1f4a35fc64f92f07ee595036d668ef87582bfeaa69b1b8fe86742857d96",
+      "timestamp": "2023-01-15T00:02:06.898000+00:00",
+      "timestamp_status": "AVAILABLE",
+      "bbox": {
+        "min_lon": -91.1010118219466,
+        "min_lat": 27.95329274647808,
+        "max_lon": -88.17327691711878,
+        "max_lat": 29.87673357027931
+      },
+      "crs": "EPSG:4326",
+      "resolution": "IW GRD, ~10m ground range sample spacing (native product)",
+      "variables": [
+        "VV",
+        "VH"
+      ],
+      "channels": 2,
+      "preprocessing_version": "sentinel1_grd_calibration.py (unmodified)",
+      "normalization_version": "netra-norm-v0.2-nodata-excluded",
+      "evidence_mode": "real",
+      "quality_status": "REAL, validated against real SAFE product",
+      "parent_source": "data/raw/sentinel1_grd/mc20_2023-01-15/S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE"
+    },
+    "ais": {
+      "source": "ais.marinecadastre.2023-01-15",
+      "product_id": "AIS_2023_01_15",
+      "source_checksum": null,
+      "timestamp": "2023-01-15 (full day)",
+      "timestamp_status": "AVAILABLE",
+      "bbox": null,
+      "crs": "EPSG:4326",
+      "variables": [
+        "mmsi",
+        "lat",
+        "lon",
+        "sog",
+        "cog",
+        "heading",
+        "timestamp"
+      ],
+      "evidence_mode": "real",
+      "quality_status": "REAL, 530 tracks, 425 spatially matched",
+      "parent_source": "data/bronze/ais/mc20_2023-01-15_tracks.json"
+    },
+    "era5": {
+      "source": "era5.real.mc20",
+      "product_id": "reanalysis-era5-single-levels:10m_wind",
+      "source_checksum": "8db79ceb5b3aa417d688a0d75e01bd6e5f2f0d9119d6280d1beed5c1d8d8e399",
+      "timestamp": [
+        "2023-01-11T00:00:00+00:00",
+        "2023-01-17T23:00:00+00:00"
+      ],
+      "timestamp_status": "AVAILABLE",
+      "bbox": {
+        "min_lon": -91.0,
+        "min_lat": 27.0,
+        "max_lon": -87.0,
+        "max_lat": 31.0
+      },
+      "crs": "EPSG:4326",
+      "variables": [
+        "u10",
+        "v10"
+      ],
+      "evidence_mode": "real",
+      "quality_status": "REAL, 168 timesteps, time_series_status=sufficient",
+      "parent_source": "data/raw/era5_mc20/era5_mc20_2023-01-11_to_2023-01-17.nc"
+    },
+    "cmems": {
+      "source": "cmems.real.mc20",
+      "product_id": "cmems_mod_glo_phy_anfc_0.083deg_PT1H-m",
+      "source_checksum": "06163c96bf97b8fd2c34fb7b18720c3219d3bd1824f428dfb56ce24a5b0b9130",
+      "timestamp": [
+        "2023-01-11T12:00:00+00:00",
+        "2023-01-17T00:00:00+00:00"
+      ],
+      "timestamp_status": "AVAILABLE",
+      "bbox": {
+        "min_lon": -91.0,
+        "min_lat": 27.0,
+        "max_lon": -87.0,
+        "max_lat": 31.0
+      },
+      "crs": "EPSG:4326",
+      "variables": [
+        "uo",
+        "vo"
+      ],
+      "evidence_mode": "real",
+      "quality_status": "REAL, 133 timesteps, time_series_status=sufficient",
+      "parent_source": "data/raw/cmems_mc20_timeseries/cmems_mc20_2023-01-11_to_2023-01-17.nc"
+    }
+  },
+  "spatial_alignment": {
+    "sar_footprint": {
+      "min_lon": -91.1010118219466,
+      "min_lat": 27.95329274647808,
+      "max_lon": -88.17327691711878,
+      "max_lat": 29.87673357027931
+    },
+    "sar_ais": {
+      "n_spatially_matched_tracks": 425,
+      "n_total_tracks": 530
+    },
+    "sar_era5_contains_anchor": true,
+    "sar_cmems_contains_anchor": true,
+    "four_way_non_empty": true
+  },
+  "temporal_alignment": {
+    "t_sar": "2023-01-15T00:02:06.898000+00:00",
+    "ais_closest_by_pure_distance": {
+      "distance_km": 0.059863023196680576,
+      "time_delta_seconds": 82872.10199999809,
+      "track_id": "367640910_1673740800_1673827154",
+      "mmsi": "367640910",
+      "timestamp": "2023-01-15T23:03:19+00:00"
+    },
+    "ais_closest_temporally_matched": {
+      "distance_km": 3.2554040397444735,
+      "time_delta_seconds": 1017.1019999980927,
+      "track_id": "368181750_1673740805_1673765975",
+      "mmsi": "368181750",
+      "timestamp": "2023-01-15T00:19:04+00:00"
+    },
+    "ais_closest_note": "closest_by_pure_distance is the nearest AIS point regardless of time -- informational only. closest_temporally_matched is the nearest point that is ALSO within the AIS join window -- this is the scientifically relevant figure, and matches the prior data-track report's finding (MMSI 368181750, 3.26km, +16m57s).",
+    "era5_contains_t_sar": true,
+    "cmems_contains_t_sar": true
+  },
+  "paths": {
+    "sar_tiles_dir": "data/gold/events/mc20_v0_1/sar/tiles",
+    "sar_tile_records": "data/gold/events/mc20_v0_1/sar/tile_records.json",
+    "ais_event_join": "data/gold/events/mc20_v0_1/ais/event_ais_join.json",
+    "era5_cube": "data/gold/events/mc20_v0_1/forcing/era5_cube.json",
+    "cmems_cube": "data/gold/events/mc20_v0_1/forcing/cmems_cube.json",
+    "metadata": "data/gold/events/mc20_v0_1/metadata/event_metadata.json",
+    "provenance": "data/gold/events/mc20_v0_1/provenance/provenance.json",
+    "diagnostics": "data/gold/events/mc20_v0_1/diagnostics/alignment.json",
+    "validation": "data/gold/events/mc20_v0_1/validation/validation_report.json"
+  },
+  "netra_training_isolation": {
+    "split_value": "mc20_event_inference",
+    "note": "deliberately outside NetraGoldDataset.VALID_SPLITS; not referenced by any NETRA manifest"
+  },
+  "locked_evaluation_isolation": {
+    "zenodo_part3_used": false,
+    "essd_used": false
+  },
+  "purpose": "inference and E2E validation -- NOT a training dataset, no oil labels",
+  "_portability": {
+    "rewritten_by": "scripts/make_mc20_manifest_portable.py",
+    "original_repo_root": "D:\\ROUTER(DATASETS)\\VARUNA",
+    "note": "Absolute paths were rewritten as POSIX repo-relative so this event directory can be committed and used on any machine. Resolve them against the repository root.",
+    "n_rewritten": 13,
+    "n_left_absolute_outside_repo": 0
+  }
+}

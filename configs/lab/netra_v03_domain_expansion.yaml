@@ -1,0 +1,131 @@
+# NETRA v0.3 — DOMAIN-EXPANSION PILOT (MIL weak supervision)
+#
+# HARDWARE NOTE (correction): this machine DOES have a CUDA GPU --
+#   NVIDIA GeForce RTX 3060, 12.88 GB. Earlier reports in this
+#   investigation stated "no GPU"; that was wrong, measured against the
+#   system Python instead of ./.venv. Measured peak VRAM for this config
+#   at batch_size 8 is 2.00 GB, so there is ample headroom.
+#
+# STATUS: GPU-READY. Validated by
+#   reports/netra_v03/WEAK_SUPERVISION_FORMULATION_REPORT.md
+# This is a PILOT: it tests whether low-wind Sentinel-1 domain exposure
+# improves generalization. It is NOT final production NETRA, NOT a
+# segmentation benchmark, NOT evidence of accuracy improvement.
+
+experiment_id: netra_v03_domain_expansion_pilot_01
+dataset_version: NETRA-GOLD-v0.3-CANDIDATE
+
+strong_source:
+  records: data/manifests/netra_gold_v0_2.json     # READ-ONLY, never modified
+  label_quality: STRONG_PIXEL
+  role: the only source of confirmed positive pixels (34,992 train tiles)
+weak_source:
+  records: data/gold/netra_v0_3/provenance/tile_records_v2.json
+  label_quality: WEAK_BOX
+  role: low-wind domain exposure + reliable negatives + MIL existence constraint
+  train_tiles: 213
+
+channel_order: "channel0=VH, channel1=VV"   # physical; identical in both sources
+
+normalization:
+  version: netra-norm-v0.2-COMPAT-for-v0.3-mixed-pilot
+  file: data/gold/netra_v0_3/reports/normalization_v02_compat.json
+  rationale: >
+    Both sources must share one input space or the model can identify the
+    domain from input statistics alone. v0.2's transform is used for both;
+    it was fit on v0.2 TRAIN ONLY -- no v0.3 val/holdout, Part III, MC20.
+
+architecture:                # UNCHANGED from v0.2 -- domain is the only variable
+  encoder_name: resnet34
+  encoder_weights: null
+  in_channels: 2
+  classes: 2
+
+loss:
+  name: NetraV03WeakSupervisionLoss
+  formulation: L_total = w_s*L_strong + w_n*L_weak_negative + w_mil*L_MIL
+  L_strong: pixelwise CE on STRONG_PIXEL samples
+  L_weak_negative: pixelwise CE on weak samples OUTSIDE boxes (inside = IGNORE 255)
+  L_MIL: -log(topk_mean(p_oil inside box))   # "an oil object exists in this box"
+  mil_pooling: topk_mean
+  mil_topk_frac: 0.10
+  mil_topk_min: 16
+  ignore_index: 255
+  w_strong: 1.0
+  w_weak_negative: 1.0
+  w_mil: 1.0
+  weight_rationale: >
+    Measured raw magnitudes on real data with an untrained model:
+    L_strong=0.9385, L_weak_negative=0.9460, L_MIL=0.2032 (MIL/strong=0.22).
+    All three are the same order, so unit weights give comparable gradient
+    influence. No weight was tuned, and none was selected using MC20,
+    Part III, or the holdout.
+  pooling_rationale: >
+    Real box sizes span 144-248,320 px (1,700x). Measured across that range:
+    noisy-OR saturates to 1.000 on PURE NOISE (unusable); LSE grows with box
+    size and separates noise from object by only 0.06; hard max lets ONE
+    pathological pixel score 0.990 vs 0.900 for a genuine object (exploitable).
+    top-k: one hot pixel is indistinguishable from noise (0.095 vs 0.095) while
+    a real object scores ~5x higher, stable across sizes. Also more faithful:
+    a box bounds an OBJECT (many contiguous pixels), not one pixel.
+
+weak_sampling_ratio: 0.10
+sampling_rationale: >
+  Measured at batch_size 8 over one pass of the strong data: 5% leaves most
+  batches with no weak sample; 20%/25% re-show the 213 weak tiles (only 8
+  scenes) 41x/55x per strong epoch -> memorization risk. 10% gives 18.3x and
+  ~0.8 weak samples/batch. Smallest ratio that represents the domain without
+  letting weak supervision dominate. Deterministic, index-based, no file
+  duplication.
+
+log_every_steps: 17
+log_every_rationale: >
+  MUST be coprime with the weak-sampler period (1/weak_sampling_ratio = 5).
+  The original 20 aliased exactly onto the one phase with no weak sample, so
+  0 of 227 logged rows showed any MIL activity even though 80%% of steps
+  carried weak data. Logged rows now also carry win_* window means computed
+  over EVERY step since the previous log, which are alias-proof by design.
+
+grad_clip_norm: 5.0
+grad_clip_rationale: >
+  MEASURED: weak-only batches produce grad norm 18.6 vs 3.7 for strong-only,
+  because the MIL -log(topk) gradient concentrates on few pixels. Finite and
+  stable, but asymmetric, so a standard clip at 5.0 keeps weak batches from
+  taking outsized steps. Not a tuned value -- a conservative guard.
+
+optimizer: adamw
+learning_rate: 1.0e-4
+batch_size: 8
+epoch_budget: 30            # FIXED. Early stopping deliberately disabled.
+seed: 42
+augmentation: none          # keeping domain as the single experimental variable
+
+evaluation:
+  primary: CALM-GRD-HOLDOUT (215 tiles / 8 scenes / 100% low-wind / 0 proximity-flagged)
+  diagnostic_only: v0.3 val (81 tiles) -- 3/3 scenes proximity-contaminated
+  early_stopping: DISABLED
+  early_stopping_rationale: >
+    The only uncontaminated surface is the holdout, which must never influence
+    training. Val is source-proximity biased, so selecting on it would select
+    for the OLD domain. Report the full trajectory instead of a "best val" model.
+  threshold: reuse v0.2's frozen 0.806 for reporting comparability; never retuned
+  never_for_tuning: [MC20, "Zenodo Part III", CALM-GRD-HOLDOUT]
+
+checkpoint_policy:
+  dir: artifacts/experiments/netra_v03/pilot_01/
+  keep: [last]              # no "best-by-val": val is contaminated
+  never_writes_to: artifacts/checkpoints/netra_v0_2/**
+  crash_policy: preserve logs + last valid checkpoint; resume only with an
+    identical config; never overwrite a valid checkpoint with a broken run
+
+monitoring:                 # poll every 10-20 min on the GPU run
+  logged_every_n_steps: 20
+  fields: [epoch, step, elapsed_s, loss_total, loss_strong, loss_weak_negative,
+           loss_mil, grad_norm, n_strong, n_weak, n_boxes, vram_gb]
+  external: [gpu_util, ram, disk_free, checkpoint_age, process_status]
+  nan_guard: non-finite loss -> batch skipped and logged (never silently absorbed)
+
+command: |
+  python scripts/netra_v03/07_train_v03_pilot.py \
+    --config configs/lab/netra_v03_domain_expansion.yaml \
+    --out artifacts/experiments/netra_v03/pilot_01/

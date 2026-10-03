@@ -1,0 +1,704 @@
+{
+  "demo": "B",
+  "kind": "REPLAY",
+  "status": "completed",
+  "case_id": "CASE-VALID",
+  "run_id": "RUN-REPLAY-50211161",
+  "pipeline": {
+    "run_id": "RUN-REPLAY-50211161",
+    "case_id": "CASE-VALID",
+    "run_class": "REPLAY",
+    "scientific_result": false,
+    "started_at": "2026-09-02T02:54:59.645173+00:00",
+    "finished_at": "2026-09-02T02:54:59.645173+00:00",
+    "total_seconds": 0.0,
+    "evidence_mode": "real",
+    "blocked_at": null,
+    "config": {
+      "gold_dir": "replay://fixture",
+      "n_particles": 20,
+      "n_ensemble": 4,
+      "backward_duration_hours": 24.0,
+      "forecast_horizon_hours": 24.0,
+      "seed": 42,
+      "ais_status": "temporally_matched"
+    },
+    "stages": {
+      "forcing": {
+        "stage": "forcing",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": null,
+        "detail": {
+          "overlap_hours": 132.0
+        }
+      },
+      "ais_ingest": {
+        "stage": "ais_ingest",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": null,
+        "detail": {
+          "n_returned": 0,
+          "requested_status": "temporally_matched"
+        }
+      },
+      "netra_detection": {
+        "stage": "netra_detection",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": null,
+        "detail": {
+          "model_version": "netra-replay-frozen",
+          "n_detections": 1,
+          "scientific_status": "VALIDATED",
+          "max_probability": 0.91,
+          "decision_threshold": 0.806
+        }
+      },
+      "phi_reconstruction": {
+        "stage": "phi_reconstruction",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": null,
+        "detail": {
+          "phi_id": "replay-phi-CASE-VALID",
+          "convergence_flag": "converged"
+        }
+      },
+      "attribution": {
+        "stage": "attribution",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": null,
+        "detail": {
+          "decision_state": "strong_lead"
+        }
+      },
+      "validity": {
+        "stage": "validity",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": null,
+        "detail": {
+          "gate_state": "valid",
+          "allows_operational_action": true
+        }
+      },
+      "forecast": {
+        "stage": "forecast",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": null,
+        "detail": {
+          "forecast_id": "replay-forecast-CASE-VALID"
+        }
+      },
+      "decision": {
+        "stage": "decision",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": null,
+        "detail": {
+          "n_taskings": 1
+        }
+      },
+      "mission": {
+        "stage": "mission",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": null,
+        "detail": {
+          "n_missions": 1
+        }
+      },
+      "alerts": {
+        "stage": "alerts",
+        "status": "produced",
+        "evidence_mode": "real",
+        "reason": null,
+        "runtime_seconds": null,
+        "detail": {
+          "n_results": 1
+        }
+      }
+    }
+  },
+  "intelligence": {
+    "case_id": "CASE-VALID",
+    "evidence_mode": "real",
+    "uncertainty": {
+      "dominant_concern": "model_confidence",
+      "ood_risk": "in_domain",
+      "conflicts": 0,
+      "notes": {}
+    },
+    "terminal_action": "proceed_to_decision",
+    "terminal_reason": "All available evidence has been gathered and no unresolved contradiction or unassessed uncertainty remains.",
+    "iterations": 4,
+    "detection_evidence": {
+      "evidence_id": "detev-CASE-VALID",
+      "case_id": "CASE-VALID",
+      "run_id": "RUN-REPLAY-50211161",
+      "model_id": "netra",
+      "model_version": "netra-replay-frozen",
+      "checkpoint_sha256": null,
+      "preprocessing_version": null,
+      "channel_binding": [],
+      "input_asset_ids": [],
+      "n_tiles": 0,
+      "classification": "oil",
+      "confidence": {
+        "value": 0.7,
+        "status": "measured",
+        "units": null,
+        "note": null
+      },
+      "decision_threshold": {
+        "value": 0.806,
+        "status": "measured",
+        "units": null,
+        "note": null
+      },
+      "segmentation_ref": null,
+      "foreground_fraction": null,
+      "n_connected_components": null,
+      "area_km2": {
+        "value": 12.0,
+        "status": "measured",
+        "units": "km^2",
+        "note": null
+      },
+      "centroid": {
+        "lon": -88.97,
+        "lat": 28.936
+      },
+      "bbox": {
+        "min_lon": -89.02,
+        "min_lat": 28.9,
+        "max_lon": -88.92,
+        "max_lat": 28.98
+      },
+      "score_max": {
+        "value": 0.91,
+        "status": "measured",
+        "units": null,
+        "note": null
+      },
+      "score_mean": null,
+      "score_p99": null,
+      "ood_risk": "in_domain",
+      "ood_rationale": "Peak oil-class probability 0.91 reached the decision threshold 0.806. HEURISTIC: reflects only the oil-class probability, not overall representation familiarity. No energy-score signal was available for this run.",
+      "low_wind_context": {
+        "value": null,
+        "status": "unavailable",
+        "units": "m/s",
+        "note": null
+      },
+      "limitations": [
+        "Model scientific status: VALIDATED"
+      ],
+      "observed_at": "2023-01-15T00:02:06Z",
+      "created_at": "2026-09-02T02:54:59.647173Z",
+      "envelope": {
+        "artifact_id": "detev-CASE-VALID",
+        "case_id": "CASE-VALID",
+        "parent_artifact_ids": [
+          "intel-parent-CASE-VALID"
+        ],
+        "produced_by": "netra.detection_evidence",
+        "model_version": "netra-replay-frozen",
+        "processing_version": "0.1.0",
+        "created_at": "2026-09-02T02:54:59.647173Z",
+        "crs": "EPSG:4326",
+        "units": {},
+        "provenance": {
+          "source_id": "netra.detection_evidence",
+          "source_version": null,
+          "raw_artifact_refs": [],
+          "retrieved_at": null,
+          "adapter_id": null,
+          "license": null,
+          "citation": null,
+          "notes": null
+        },
+        "mode": "real",
+        "trust": "trusted",
+        "influence_weight": 1.0,
+        "quality": {
+          "completeness": null,
+          "freshness_seconds": null,
+          "spatial_coverage": null,
+          "resolution_m": null,
+          "ood_score": null,
+          "model_confidence": null,
+          "extra": {}
+        },
+        "uncertainty": {
+          "representation": "none",
+          "mean": null,
+          "std": null,
+          "lower": null,
+          "upper": null,
+          "interval_confidence": null,
+          "entropy": null,
+          "n_samples": null,
+          "sensitivity": {}
+        },
+        "calibration_state": "not_applicable",
+        "validity_state": "valid",
+        "degradation_state": "nominal",
+        "anomaly_flags": [],
+        "content_hash": null
+      }
+    },
+    "hypotheses": {
+      "case_id": "CASE-VALID",
+      "hypotheses": [
+        {
+          "source_class": "natural_seep",
+          "posterior": 0.7381635581061693,
+          "prior": 0.35,
+          "supporting": [
+            {
+              "factor": "compact_morphology",
+              "detail": "Elongation 2.1 < 3.0 is more consistent with a fixed point source.",
+              "log_likelihood_ratio": 0.3364722366212129,
+              "evidence_ids": [
+                "ev-forcing-9e64cdfe",
+                "ev-detection-4ab282e5",
+                "ev-ais-2c996921",
+                "ev-origin-21674e2b",
+                "ev-attribution-f0e941db",
+                "ev-validity-cf833875",
+                "ev-forecast-29e91a68",
+                "ev-decision-02c5ee3a",
+                "ev-data_quality-1429ab17",
+                "ev-data_quality-56238ac8"
+              ],
+              "measured": true
+            },
+            {
+              "factor": "known_seep_basin",
+              "detail": "Location falls in a basin with documented natural hydrocarbon seepage.",
+              "log_likelihood_ratio": 1.0986122886681098,
+              "evidence_ids": [
+                "ev-forcing-9e64cdfe",
+                "ev-detection-4ab282e5",
+                "ev-ais-2c996921",
+                "ev-origin-21674e2b",
+                "ev-attribution-f0e941db",
+                "ev-validity-cf833875",
+                "ev-forecast-29e91a68",
+                "ev-decision-02c5ee3a",
+                "ev-data_quality-1429ab17",
+                "ev-data_quality-56238ac8"
+              ],
+              "measured": true
+            }
+          ],
+          "contradicting": [],
+          "rationale": "Prior 0.35 raised 0.74 by: compact_morphology(+0.34), known_seep_basin(+1.10)."
+        },
+        {
+          "source_class": "vessel_associated",
+          "posterior": 0.10760401721664276,
+          "prior": 0.3,
+          "supporting": [],
+          "contradicting": [
+            {
+              "factor": "no_ais_coverage",
+              "detail": "No AIS tracks were available. This is weak evidence at best: a dark vessel would also produce no AIS.",
+              "log_likelihood_ratio": -0.3364722366212129,
+              "evidence_ids": [
+                "ev-forcing-9e64cdfe",
+                "ev-detection-4ab282e5",
+                "ev-ais-2c996921",
+                "ev-origin-21674e2b",
+                "ev-attribution-f0e941db",
+                "ev-validity-cf833875",
+                "ev-forecast-29e91a68",
+                "ev-decision-02c5ee3a",
+                "ev-data_quality-1429ab17",
+                "ev-data_quality-56238ac8"
+              ],
+              "measured": false
+            }
+          ],
+          "rationale": "Prior 0.30 lowered 0.11 by: no_ais_coverage(-0.34)."
+        },
+        {
+          "source_class": "other_anthropogenic",
+          "posterior": 0.05380200860832138,
+          "prior": 0.15,
+          "supporting": [],
+          "contradicting": [
+            {
+              "factor": "known_seep_basin",
+              "detail": "A documented natural source is a competing explanation.",
+              "log_likelihood_ratio": -0.3364722366212129,
+              "evidence_ids": [
+                "ev-forcing-9e64cdfe",
+                "ev-detection-4ab282e5",
+                "ev-ais-2c996921",
+                "ev-origin-21674e2b",
+                "ev-attribution-f0e941db",
+                "ev-validity-cf833875",
+                "ev-forecast-29e91a68",
+                "ev-decision-02c5ee3a",
+                "ev-data_quality-1429ab17",
+                "ev-data_quality-56238ac8"
+              ],
+              "measured": true
+            }
+          ],
+          "rationale": "Prior 0.15 lowered 0.05 by: known_seep_basin(-0.34)."
+        },
+        {
+          "source_class": "coastal",
+          "posterior": 0.050215208034433294,
+          "prior": 0.1,
+          "supporting": [],
+          "contradicting": [],
+          "rationale": "No evidence bore on coastal; posterior 0.05 reflects the declared prior 0.10 only."
+        },
+        {
+          "source_class": "unknown",
+          "posterior": 0.050215208034433294,
+          "prior": 0.1,
+          "supporting": [],
+          "contradicting": [],
+          "rationale": "No evidence bore on unknown; posterior 0.05 reflects the declared prior 0.10 only."
+        }
+      ],
+      "method": "declared_likelihood_ratio",
+      "methodology_note": "CHHAYA chhaya-v0.1-declared-lr: deterministic Bayesian update over 3 declared likelihood ratio(s). NOT a trained or learned model \u2014 every weight is an expert-declared constant in packages/varuna_chhaya/hypothesis_engine.py with a written justification. UNCALIBRATED: posteriors are internally consistent but have never been validated against outcome data, so they express relative plausibility under the stated assumptions, not empirical frequencies. Regional prior note: Gulf of Mexico: documented persistent seepage",
+      "engine_version": "chhaya-v0.1-declared-lr",
+      "uncertainty_note": null,
+      "insufficient_evidence": false,
+      "contradictions": [],
+      "evidence_ids_considered": [
+        "ev-forcing-9e64cdfe",
+        "ev-detection-4ab282e5",
+        "ev-ais-2c996921",
+        "ev-origin-21674e2b",
+        "ev-attribution-f0e941db",
+        "ev-validity-cf833875",
+        "ev-forecast-29e91a68",
+        "ev-decision-02c5ee3a",
+        "ev-data_quality-1429ab17",
+        "ev-data_quality-56238ac8"
+      ],
+      "created_at": "2026-09-02T02:54:59.647173Z",
+      "envelope": {
+        "artifact_id": "chhaya-CASE-VALID",
+        "case_id": "CASE-VALID",
+        "parent_artifact_ids": [
+          "intel-parent-CASE-VALID"
+        ],
+        "produced_by": "chhaya.hypothesis_engine",
+        "model_version": "chhaya-v0.1-declared-lr",
+        "processing_version": "0.1.0",
+        "created_at": "2026-09-02T02:54:59.647173Z",
+        "crs": "EPSG:4326",
+        "units": {},
+        "provenance": {
+          "source_id": "chhaya.hypothesis_engine",
+          "source_version": null,
+          "raw_artifact_refs": [],
+          "retrieved_at": null,
+          "adapter_id": null,
+          "license": null,
+          "citation": null,
+          "notes": null
+        },
+        "mode": "real",
+        "trust": "trusted",
+        "influence_weight": 1.0,
+        "quality": {
+          "completeness": null,
+          "freshness_seconds": null,
+          "spatial_coverage": null,
+          "resolution_m": null,
+          "ood_score": null,
+          "model_confidence": null,
+          "extra": {}
+        },
+        "uncertainty": {
+          "representation": "none",
+          "mean": null,
+          "std": null,
+          "lower": null,
+          "upper": null,
+          "interval_confidence": null,
+          "entropy": null,
+          "n_samples": null,
+          "sensitivity": {}
+        },
+        "calibration_state": "not_applicable",
+        "validity_state": "valid",
+        "degradation_state": "nominal",
+        "anomaly_flags": [],
+        "content_hash": null
+      }
+    },
+    "memory_hits": [
+      {
+        "case_id": "SYNTHETIC-HIST-2",
+        "score": 0.844,
+        "coverage": 0.5,
+        "outcome": "confirmed",
+        "provenance_source": "SYNTHETIC-DEMO-SEED (not a real historical case)"
+      },
+      {
+        "case_id": "SYNTHETIC-HIST-1",
+        "score": 0.837,
+        "coverage": 0.5,
+        "outcome": "unresolved",
+        "provenance_source": "SYNTHETIC-DEMO-SEED (not a real historical case)"
+      },
+      {
+        "case_id": "SYNTHETIC-HIST-3",
+        "score": 0.527,
+        "coverage": 0.5,
+        "outcome": "not_found",
+        "provenance_source": "SYNTHETIC-DEMO-SEED (not a real historical case)"
+      }
+    ],
+    "audit_trail": [
+      {
+        "evidence_id": "ev-forcing-9e64cdfe",
+        "kind": "forcing",
+        "produced_by": "pipeline.forcing",
+        "summary": "forcing produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.646173+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-detection-4ab282e5",
+        "kind": "detection",
+        "produced_by": "pipeline.netra_detection",
+        "summary": "netra_detection produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": 0.7,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.647173+00:00",
+        "depends_on": [
+          "ev-forcing-9e64cdfe"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-ais-2c996921",
+        "kind": "ais",
+        "produced_by": "pipeline.ais_ingest",
+        "summary": "ais_ingest produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.647173+00:00",
+        "depends_on": [
+          "ev-forcing-9e64cdfe"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-origin-21674e2b",
+        "kind": "origin",
+        "produced_by": "pipeline.phi_reconstruction",
+        "summary": "phi_reconstruction produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.647173+00:00",
+        "depends_on": [
+          "ev-forcing-9e64cdfe"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-attribution-f0e941db",
+        "kind": "attribution",
+        "produced_by": "pipeline.attribution",
+        "summary": "attribution produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.647173+00:00",
+        "depends_on": [
+          "ev-forcing-9e64cdfe"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-validity-cf833875",
+        "kind": "validity",
+        "produced_by": "pipeline.validity",
+        "summary": "validity produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.647173+00:00",
+        "depends_on": [
+          "ev-forcing-9e64cdfe"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-forecast-29e91a68",
+        "kind": "forecast",
+        "produced_by": "pipeline.forecast",
+        "summary": "forecast produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.647173+00:00",
+        "depends_on": [
+          "ev-forcing-9e64cdfe"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-decision-02c5ee3a",
+        "kind": "decision",
+        "produced_by": "pipeline.decision",
+        "summary": "decision produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.647173+00:00",
+        "depends_on": [
+          "ev-forcing-9e64cdfe"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-data_quality-1429ab17",
+        "kind": "data_quality",
+        "produced_by": "ood_assessor",
+        "summary": "OOD risk: in_domain",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.647173+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-data_quality-56238ac8",
+        "kind": "data_quality",
+        "produced_by": "data_guard",
+        "summary": "Inputs accepted: real forcing loaded",
+        "mode": "real",
+        "status": "active",
+        "confidence": 0.9,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.647173+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-source_hypothesis-8b6d52c5",
+        "kind": "source_hypothesis",
+        "produced_by": "chhaya",
+        "summary": "top hypothesis: natural_seep (0.74)",
+        "mode": "real",
+        "status": "active",
+        "confidence": 0.7381635581061693,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.647173+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-memory-83bc6add",
+        "kind": "memory",
+        "produced_by": "smriti",
+        "summary": "3 similar prior case(s) retrieved (advisory only)",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T02:54:59.647173+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      }
+    ],
+    "decision_trace": "Decision trace for case CASE-VALID (4 iteration(s)):\n  [0] observe: 9 active evidence item(s) in the ledger.\n  [0] identify_uncertainty: dominant concern: model_confidence; conflicts: 0; ood: in_domain\n  [0] select_action: selected inspect_detection_quality (priority 1)\n        action=inspect_detection_quality because=No data-quality assessment exists, so the trustworthiness of the perception input is unknown.\n  [0] execute: inspect_detection_quality -> executed\n        action=inspect_detection_quality because=No data-quality assessment exists, so the trustworthiness of the perception input is unknown.\n        outcome=executed changed=True :: Inputs accepted: real forcing loaded\n  [0] update_evidence: evidence 9 -> 10\n  [1] observe: 10 active evidence item(s) in the ledger.\n  [1] identify_uncertainty: dominant concern: model_confidence; conflicts: 0; ood: in_domain\n  [1] select_action: selected run_source_hypothesis (priority 3)\n        action=run_source_hypothesis because=No source-class hypothesis exists; attributing to a vessel before establishing that a vessel is even the likely source class would beg the question.\n  [1] execute: run_source_hypothesis -> executed\n        action=run_source_hypothesis because=No source-class hypothesis exists; attributing to a vessel before establishing that a vessel is even the likely source class would beg the question.\n        outcome=executed changed=True :: CHHAYA: natural_seep at 0.74\n  [1] update_evidence: evidence 10 -> 11\n  [2] observe: 11 active evidence item(s) in the ledger.\n  [2] identify_uncertainty: dominant concern: model_confidence; conflicts: 0; ood: in_domain\n  [2] select_action: selected consult_memory (priority 4)\n        action=consult_memory because=Prior similar cases have not been consulted; recurrence and past failure patterns are unknown.\n  [2] execute: consult_memory -> executed\n        action=consult_memory because=Prior similar cases have not been consulted; recurrence and past failure patterns are unknown.\n        outcome=executed changed=True :: 3 prior case(s), advisory only\n  [2] update_evidence: evidence 11 -> 12\n  [3] observe: 12 active evidence item(s) in the ledger.\n  [3] identify_uncertainty: dominant concern: model_confidence; conflicts: 0; ood: in_domain\n  [3] select_action: selected proceed_to_decision (priority 0)\n        action=proceed_to_decision because=All available evidence has been gathered and no unresolved contradiction or unassessed uncertainty remains.\n  [3] terminate: terminal action proceed_to_decision: All available evidence has been gathered and no unresolved contradiction or unassessed uncertainty remains.\n        action=proceed_to_decision because=All available evidence has been gathered and no unresolved contradiction or unassessed uncertainty remains.\n  TERMINAL: proceed_to_decision \u2014 All available evidence has been gathered and no unresolved contradiction or unassessed uncertainty remains.",
+    "runtime_seconds": 0.0018933999817818403
+  },
+  "authorization_audit": [
+    {
+      "audit_id": "aud-3a12bb205e",
+      "principal_id": "analyst_7",
+      "role": "analyst",
+      "permission": "approve_mission",
+      "operation": "mission.approve_and_assign",
+      "allowed": false,
+      "subject_id": "MSN-11D669EA",
+      "at": "2026-09-02T02:54:59.648173Z",
+      "note": null
+    },
+    {
+      "audit_id": "aud-843aa966b5",
+      "principal_id": "system",
+      "role": "system",
+      "permission": "approve_mission",
+      "operation": "mission.approve_and_assign",
+      "allowed": false,
+      "subject_id": "MSN-11D669EA",
+      "at": "2026-09-02T02:54:59.648173Z",
+      "note": null
+    },
+    {
+      "audit_id": "aud-d5caba2504",
+      "principal_id": "officer_1",
+      "role": "duty_officer",
+      "permission": "approve_mission",
+      "operation": "mission.approve_and_assign",
+      "allowed": true,
+      "subject_id": "MSN-11D669EA",
+      "at": "2026-09-02T02:54:59.648173Z",
+      "note": null
+    }
+  ],
+  "praman": {
+    "artifact_id": "case_intelligence-acc7ca3b",
+    "content_hash": "5fc4194d2318189f85235e50448d7370d62aa2a8293fc33485fc529c9ee13ee5",
+    "verified": true
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "generated_at": "2026-08-29T19:02:58.135259+00:00",
+  "event_dir": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\events\\mc20_v0_1",
+  "checks": {
+    "SAR_READY": {
+      "pass": true,
+      "detail": "9 real tiles, all [2,512,512] float32, no NaN/Inf, range within [0,1]"
+    },
+    "AIS_READY": {
+      "pass": true,
+      "detail": "425/530 spatially matched, 320 temporally matched"
+    },
+    "ERA5_READY": {
+      "pass": true,
+      "detail": "168 timesteps, sufficient"
+    },
+    "CMEMS_READY": {
+      "pass": true,
+      "detail": "133 timesteps, sufficient"
+    },
+    "SPATIAL_ALIGNMENT_READY": {
+      "pass": true,
+      "detail": "{\"sar_footprint\": {\"min_lon\": -91.1010118219466, \"min_lat\": 27.95329274647808, \"max_lon\": -88.17327691711878, \"max_lat\": 29.87673357027931}, \"sar_ais\": {\"n_spatially_matched_tracks\": 425, \"n_total_tracks\": 530}, \"sar_era5_contains_anchor\": true, \"sar_cmems_contains_anchor\": true, \"four_way_non_empty\": true}"
+    },
+    "TEMPORAL_ALIGNMENT_READY": {
+      "pass": true,
+      "detail": "{\"era5_contains_t_sar\": true, \"cmems_contains_t_sar\": true}"
+    },
+    "PROVENANCE_READY": {
+      "pass": true,
+      "detail": "all four modalities + git commit present"
+    },
+    "LOCKED_DATA_SAFE": {
+      "pass": true,
+      "detail": "no Zenodo Part III / ESSD reference anywhere in manifest"
+    },
+    "NETRA_DISCOVERY_SAFE": {
+      "pass": true,
+      "detail": "NetraGoldDataset rejects split='mc20_event_inference' (not in VALID_SPLITS): split must be one of ('train', 'val', 'test'), got 'mc20_event_inference'"
+    }
+  },
+  "event_gold_ready": true,
+  "blockers": []
+}

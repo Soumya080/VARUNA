@@ -1,0 +1,159 @@
+{
+  "run_id": "RUN-20260831T125418Z-116e95",
+  "case_id": "mc20_2023-01-15",
+  "run_class": "INTEGRATION_SMOKE",
+  "scientific_result": false,
+  "started_at": "2026-08-31T12:54:18.875725+00:00",
+  "finished_at": "2026-08-31T12:54:43.021280+00:00",
+  "total_seconds": 24.145555,
+  "evidence_mode": "real",
+  "blocked_at": null,
+  "config": {
+    "gold_dir": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\events\\mc20_v0_1",
+    "n_particles": 20,
+    "n_ensemble": 4,
+    "backward_duration_hours": 24.0,
+    "forecast_horizon_hours": 24.0,
+    "seed": 42,
+    "ais_status": "temporally_matched"
+  },
+  "stages": {
+    "forcing": {
+      "stage": "forcing",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": 0.6312200999818742,
+      "detail": {
+        "era5_cube_id": "era5-mc20-era5_mc20_2023-01-11_to_2023-01-17",
+        "cmems_cube_id": "cmems-mc20-cmems_mc20_2023-01-11_to_2023-01-17",
+        "era5_time_series_status": "sufficient",
+        "cmems_time_series_status": "sufficient",
+        "era5_grid_shape": [
+          168,
+          17,
+          17
+        ],
+        "cmems_grid_shape": [
+          133,
+          49,
+          49
+        ],
+        "overlap_hours": 132.0
+      }
+    },
+    "netra_detection": {
+      "stage": "netra_detection",
+      "status": "not_yet_produced",
+      "evidence_mode": null,
+      "reason": "NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+      "runtime_seconds": 4.517608599970117,
+      "detail": {
+        "n_tiles": 9,
+        "model_version": "netra-v0.2-baseline",
+        "scientific_status": "EXPERIMENTAL / UNVALIDATED",
+        "model_metrics": {
+          "epoch": 32,
+          "iou_oil": 0.614925,
+          "dice_oil": 0.7615526063403129,
+          "precision_oil": 0.6834434108608659,
+          "recall_oil": 0.8598194147992351,
+          "f1_oil_at_thr_0.5": 0.7615526063403129,
+          "pr_auc": 0.8424321168629041,
+          "best_f1": 0.7885,
+          "best_f1_threshold": 0.806
+        },
+        "decision_threshold": 0.806
+      }
+    },
+    "ais_ingest": {
+      "stage": "ais_ingest",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": 17.50900499999989,
+      "detail": {
+        "requested_status": "temporally_matched",
+        "n_returned": 5,
+        "n_tracks_total": 530,
+        "n_spatially_matched": 425,
+        "n_temporally_matched": 320,
+        "n_temporally_unavailable": 210,
+        "closest_temporally_matched": {
+          "distance_km": 3.2554040397444735,
+          "time_delta_seconds": 1017.1019999980927,
+          "track_id": "368181750_1673740805_1673765975",
+          "mmsi": "368181750",
+          "timestamp": "2023-01-15T00:19:04+00:00"
+        },
+        "t_sar": "2023-01-15T00:02:06.898000+00:00",
+        "window_before_hours": 48.0,
+        "window_after_hours": 6.0,
+        "track_join_status": {
+          "367640910": "temporally_matched",
+          "368181750": "temporally_matched",
+          "367123550": "temporally_matched",
+          "367492110": "temporally_matched",
+          "366847780": "temporally_matched"
+        },
+        "source_id": "ais.marinecadastre.event_gold"
+      }
+    },
+    "phi_reconstruction": {
+      "stage": "phi_reconstruction",
+      "status": "not_yet_produced",
+      "evidence_mode": null,
+      "reason": "NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+      "runtime_seconds": null,
+      "detail": {}
+    },
+    "attribution": {
+      "stage": "attribution",
+      "status": "not_yet_produced",
+      "evidence_mode": null,
+      "reason": "UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+      "runtime_seconds": null,
+      "detail": {}
+    },
+    "validity": {
+      "stage": "validity",
+      "status": "not_yet_produced",
+      "evidence_mode": null,
+      "reason": "UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+      "runtime_seconds": null,
+      "detail": {}
+    },
+    "forecast": {
+      "stage": "forecast",
+      "status": "not_yet_produced",
+      "evidence_mode": null,
+      "reason": "NO_SLICK_TO_FORECAST: forward drift needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+      "runtime_seconds": null,
+      "detail": {}
+    },
+    "decision": {
+      "stage": "decision",
+      "status": "not_yet_produced",
+      "evidence_mode": null,
+      "reason": "UPSTREAM_VALIDITY_UNAVAILABLE: UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+      "runtime_seconds": null,
+      "detail": {}
+    },
+    "mission": {
+      "stage": "mission",
+      "status": "not_yet_produced",
+      "evidence_mode": null,
+      "reason": "NO_TASKING_TO_PROPOSE: a mission requires an ABHIYAN tasking. Decision stage says: UPSTREAM_VALIDITY_UNAVAILABLE: UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+      "runtime_seconds": null,
+      "detail": {}
+    },
+    "alerts": {
+      "stage": "alerts",
+      "status": "not_yet_produced",
+      "evidence_mode": null,
+      "reason": "UPSTREAM_VALIDITY_UNAVAILABLE: UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+      "runtime_seconds": null,
+      "detail": {}
+    }
+  }
+}

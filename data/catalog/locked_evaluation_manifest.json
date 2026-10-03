@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-08-29T00:00:00+00:00",
+  "policy": {
+    "training_allowed": false,
+    "normalization_allowed": false,
+    "tuning_allowed": false,
+    "threshold_tuning_allowed": false,
+    "early_stopping_allowed": false,
+    "final_evaluation_only": true
+  },
+  "policy_note": "This policy applies identically to every dataset listed below. It is enforced at two levels: (1) this manifest, read by scripts/guard_locked_datasets.py before any training-discovery path may include a dataset_id; (2) documentation in docs/datasets/EXTERNAL_EVALUATION_DATA.md. Neither dataset below has been downloaded — both are MISSING per data/catalog/dataset_inventory.json — so no enforcement action has been needed yet; the guard exists so that the moment either is acquired, it is protected from day one rather than added to protection later.",
+  "datasets": {
+    "zenodo_part3": {
+      "status": "missing_not_downloaded",
+      "reason": "Held-out test split defined by the Zenodo dataset's own authors. Source identity needs confirming against the exact Zenodo record ID used for Parts I/II before acquisition (see docs/datasets/EXTERNAL_EVALUATION_DATA.md).",
+      "planned_path_if_acquired": "data/raw/zenodo_part3_LOCKED/",
+      "naming_convention_guard": "_LOCKED suffix on the top-level directory is a human-visible guard against accidental inclusion in a training glob, in addition to the manifest-based guard."
+    },
+    "essd": {
+      "status": "missing_not_downloaded",
+      "reason": "ESSD 2025 Eastern Mediterranean oil spill dataset, external to Zenodo. Requires locating the specific ESSD DOI/publication and its data availability statement first (see docs/datasets/EXTERNAL_EVALUATION_DATA.md).",
+      "planned_path_if_acquired": "data/raw/essd_LOCKED/",
+      "naming_convention_guard": "_LOCKED suffix, same as zenodo_part3."
+    }
+  }
+}

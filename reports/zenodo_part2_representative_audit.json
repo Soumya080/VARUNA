@@ -1,0 +1,410 @@
+{
+  "Lookalike": {
+    "images": [
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 2,
+        "dtype": "float32",
+        "crs": "EPSG:4326",
+        "transform": [
+          8.983152841195215e-05,
+          0.0,
+          3.408528805880093,
+          0.0,
+          -8.983152841195215e-05,
+          54.66382188076325,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          3.408528805880093,
+          54.479846910575574,
+          3.5925037760677707,
+          54.66382188076325
+        ],
+        "resolution": [
+          8.983152841195215e-05,
+          8.983152841195215e-05
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": null
+      },
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 2,
+        "dtype": "float32",
+        "crs": "EPSG:4326",
+        "transform": [
+          8.983152841195215e-05,
+          0.0,
+          29.05684762524395,
+          0.0,
+          -8.983152841195215e-05,
+          32.83960722367196,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          29.05684762524395,
+          32.655632253484285,
+          29.240822595431627,
+          32.83960722367196
+        ],
+        "resolution": [
+          8.983152841195215e-05,
+          8.983152841195215e-05
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": null
+      },
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 2,
+        "dtype": "float32",
+        "crs": "EPSG:4326",
+        "transform": [
+          8.983152841195215e-05,
+          0.0,
+          28.66104991106089,
+          0.0,
+          -8.983152841195215e-05,
+          32.404822626158115,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          28.66104991106089,
+          32.22084765597044,
+          28.845024881248566,
+          32.404822626158115
+        ],
+        "resolution": [
+          8.983152841195215e-05,
+          8.983152841195215e-05
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": null
+      }
+    ],
+    "masks": [
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 1,
+        "dtype": "uint8",
+        "crs": null,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          0.0,
+          2048.0,
+          2048.0,
+          0.0
+        ],
+        "resolution": [
+          1.0,
+          1.0
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": [
+          0
+        ]
+      },
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 1,
+        "dtype": "uint8",
+        "crs": null,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          0.0,
+          2048.0,
+          2048.0,
+          0.0
+        ],
+        "resolution": [
+          1.0,
+          1.0
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": [
+          0
+        ]
+      },
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 1,
+        "dtype": "uint8",
+        "crs": null,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          0.0,
+          2048.0,
+          2048.0,
+          0.0
+        ],
+        "resolution": [
+          1.0,
+          1.0
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": [
+          0
+        ]
+      }
+    ]
+  },
+  "No_Oil": {
+    "images": [
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 2,
+        "dtype": "float32",
+        "crs": "EPSG:4326",
+        "transform": [
+          8.983152841195215e-05,
+          0.0,
+          4.633112201191825,
+          0.0,
+          -8.983152841195215e-05,
+          55.57390509510474,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          4.633112201191825,
+          55.389930124917065,
+          4.8170871713795025,
+          55.57390509510474
+        ],
+        "resolution": [
+          8.983152841195215e-05,
+          8.983152841195215e-05
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": null
+      },
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 2,
+        "dtype": "float32",
+        "crs": "EPSG:4326",
+        "transform": [
+          8.983152841195215e-05,
+          0.0,
+          5.37745624561326,
+          0.0,
+          -8.983152841195215e-05,
+          55.659604373209746,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          5.37745624561326,
+          55.47562940302207,
+          5.561431215800938,
+          55.659604373209746
+        ],
+        "resolution": [
+          8.983152841195215e-05,
+          8.983152841195215e-05
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": null
+      },
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 2,
+        "dtype": "float32",
+        "crs": "EPSG:4326",
+        "transform": [
+          8.983152841195215e-05,
+          0.0,
+          5.696717497589338,
+          0.0,
+          -8.983152841195215e-05,
+          54.90322290398111,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          5.696717497589338,
+          54.71924793379343,
+          5.880692467777016,
+          54.90322290398111
+        ],
+        "resolution": [
+          8.983152841195215e-05,
+          8.983152841195215e-05
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": null
+      }
+    ],
+    "masks": [
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 1,
+        "dtype": "uint8",
+        "crs": null,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          0.0,
+          2048.0,
+          2048.0,
+          0.0
+        ],
+        "resolution": [
+          1.0,
+          1.0
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": [
+          0
+        ]
+      },
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 1,
+        "dtype": "uint8",
+        "crs": null,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          0.0,
+          2048.0,
+          2048.0,
+          0.0
+        ],
+        "resolution": [
+          1.0,
+          1.0
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": [
+          0
+        ]
+      },
+      {
+        "width": 2048,
+        "height": 2048,
+        "bands": 1,
+        "dtype": "uint8",
+        "crs": null,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "bounds": [
+          0.0,
+          2048.0,
+          2048.0,
+          0.0
+        ],
+        "resolution": [
+          1.0,
+          1.0
+        ],
+        "nodata": null,
+        "has_nan": false,
+        "has_inf": false,
+        "unique_values": [
+          0
+        ]
+      }
+    ]
+  }
+}

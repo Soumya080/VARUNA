@@ -1,0 +1,28 @@
+{
+  "generated_at": "2026-08-29T11:16:57.416073+00:00",
+  "engines": {
+    "NETRA": [
+      "zenodo_part1",
+      "zenodo_part2",
+      "essd",
+      "bhoonidhi",
+      "nisar",
+      "risat",
+      "netra_gold_v0_1"
+    ],
+    "PRATIVARTAN": [
+      "era5",
+      "cmems"
+    ],
+    "PRAVAAH": [
+      "cmems"
+    ],
+    "NYAYA": [
+      "ais"
+    ],
+    "CHHAYA": [
+      "xview3",
+      "ossdd"
+    ]
+  }
+}

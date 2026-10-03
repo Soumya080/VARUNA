@@ -1,0 +1,1306 @@
+{
+  "demo": "CANONICAL_POPULATED_REPLAY",
+  "fixture_id": "CASE-VALID",
+  "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+  "run_id": "RUN-REPLAY-b0656f32",
+  "deterministic_run_id": "CRID-43604b6c46a5f911fe7f521d",
+  "engine_mode": "replay",
+  "case_status": "complete",
+  "executed_via": "GoldenCaseWorkflow.run_replay_case() only",
+  "stage_timeline": [
+    {
+      "stage": "forcing",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": null,
+      "detail": {
+        "overlap_hours": 132.0
+      }
+    },
+    {
+      "stage": "ais_ingest",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": null,
+      "detail": {
+        "n_returned": 0,
+        "requested_status": "temporally_matched"
+      }
+    },
+    {
+      "stage": "netra_detection",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": null,
+      "detail": {
+        "model_version": "netra-replay-frozen",
+        "n_detections": 1,
+        "scientific_status": "VALIDATED",
+        "max_probability": 0.91,
+        "decision_threshold": 0.806
+      }
+    },
+    {
+      "stage": "phi_reconstruction",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": null,
+      "detail": {
+        "phi_id": "replay-phi-CASE-VALID-CANONICAL-REPLAY-DEMO",
+        "convergence_flag": "converged"
+      }
+    },
+    {
+      "stage": "attribution",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": null,
+      "detail": {
+        "decision_state": "strong_lead"
+      }
+    },
+    {
+      "stage": "validity",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": null,
+      "detail": {
+        "gate_state": "valid",
+        "allows_operational_action": true
+      }
+    },
+    {
+      "stage": "forecast",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": null,
+      "detail": {
+        "forecast_id": "replay-forecast-CASE-VALID-CANONICAL-REPLAY-DEMO"
+      }
+    },
+    {
+      "stage": "decision",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": null,
+      "detail": {
+        "n_taskings": 1
+      }
+    },
+    {
+      "stage": "mission",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": null,
+      "detail": {
+        "n_missions": 1
+      }
+    },
+    {
+      "stage": "alerts",
+      "status": "produced",
+      "evidence_mode": "real",
+      "reason": null,
+      "runtime_seconds": null,
+      "detail": {
+        "n_results": 1
+      }
+    }
+  ],
+  "operator_case": {
+    "schema_version": "v1",
+    "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+    "generated_at": "2026-09-02T05:26:48.456608Z",
+    "system_status": {
+      "case_status": "complete",
+      "scientific_status": "experimental",
+      "error": null,
+      "engine_mode": "replay"
+    },
+    "observation": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": null,
+      "value": {
+        "n_slick_points": 1,
+        "n_tracks": 0,
+        "obs_time_hours": -25967.965,
+        "bbox": null
+      }
+    },
+    "detection": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": "real",
+      "value": {
+        "slick_id": "replay-slick-valid",
+        "scene_id": "replay-scene-mc20-anchor",
+        "observation_time": "2023-01-15T00:02:06Z",
+        "classification": "oil",
+        "confidence": 0.7,
+        "look_alike_type": null,
+        "mask_path": "",
+        "centroid": {
+          "lon": -88.97,
+          "lat": 28.936
+        },
+        "bbox": {
+          "min_lon": -89.02,
+          "min_lat": 28.9,
+          "max_lon": -88.92,
+          "max_lat": 28.98
+        },
+        "area_km2": 12.0,
+        "perimeter_km": 14.0,
+        "elongation": 2.1,
+        "orientation_deg": 35.0,
+        "age_prior_mean_hours": 24.0,
+        "age_prior_std_hours": 12.0,
+        "mean_wind_speed_ms": null,
+        "netra_model_version": "replay-fixture-valid"
+      }
+    },
+    "origin": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": "real",
+      "value": {
+        "phi_id": "replay-phi-CASE-VALID-CANONICAL-REPLAY-DEMO",
+        "slick_id": "replay-slick-valid",
+        "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+        "data_path": "replay://CASE-VALID-CANONICAL-REPLAY-DEMO/phi.npz",
+        "bbox": {
+          "min_lon": -89.02,
+          "min_lat": 28.9,
+          "max_lon": -88.92,
+          "max_lat": 28.98
+        },
+        "grid_shape": [
+          1,
+          64,
+          64
+        ],
+        "time_distribution": {
+          "time_edges_unix": [
+            1673740926.0,
+            1673827326.0
+          ],
+          "mass": [
+            1.0
+          ],
+          "mode_unix": 1673740926.0,
+          "p05_unix": 1673740926.0,
+          "p95_unix": 1673827326.0
+        },
+        "spatial_modes": [],
+        "diagnostics": {
+          "entropy": 0.3,
+          "concentration": 0.6,
+          "effective_support_km2": 25.0,
+          "convergence": 0.05,
+          "convergence_flag": "converged",
+          "n_modes": 1,
+          "multimodal": false,
+          "boundary_interaction": false,
+          "particles_lost": 10,
+          "particles_seeded": 500,
+          "ensemble_members_completed": 20,
+          "ensemble_members_requested": 20,
+          "runtime_seconds": 12.3
+        },
+        "sensitivity": {
+          "age_sensitivity": 0.2,
+          "forcing_sensitivity": 0.25,
+          "diffusivity_sensitivity": 0.15,
+          "weathering_sensitivity": null
+        },
+        "n_particles": 500,
+        "n_ensemble": 20,
+        "backward_duration_hours": 24.0,
+        "dt_seconds": 300.0,
+        "forcing_current_source": "replay.synthetic.cmems",
+        "forcing_wind_source": "replay.synthetic.era5",
+        "weathering_model": null,
+        "envelope": {
+          "artifact_id": "phi-CASE-VALID-CANONICAL-REPLAY-DEMO",
+          "case_id": null,
+          "parent_artifact_ids": [],
+          "produced_by": "prativartan",
+          "model_version": null,
+          "processing_version": "0.1.0",
+          "created_at": "2026-09-02T05:26:47.539707Z",
+          "crs": "EPSG:4326",
+          "units": {},
+          "provenance": {
+            "source_id": "replay.fixture",
+            "source_version": null,
+            "raw_artifact_refs": [],
+            "retrieved_at": null,
+            "adapter_id": null,
+            "license": null,
+            "citation": null,
+            "notes": "REPLAY fixture -- deterministic, offline, not a live measurement"
+          },
+          "mode": "real",
+          "trust": "trusted",
+          "influence_weight": 1.0,
+          "quality": {
+            "completeness": null,
+            "freshness_seconds": null,
+            "spatial_coverage": null,
+            "resolution_m": null,
+            "ood_score": null,
+            "model_confidence": null,
+            "extra": {}
+          },
+          "uncertainty": {
+            "representation": "none",
+            "mean": null,
+            "std": null,
+            "lower": null,
+            "upper": null,
+            "interval_confidence": null,
+            "entropy": null,
+            "n_samples": null,
+            "sensitivity": {}
+          },
+          "calibration_state": "not_applicable",
+          "validity_state": "valid",
+          "degradation_state": "nominal",
+          "anomaly_flags": [],
+          "content_hash": null
+        },
+        "created_at": null
+      }
+    },
+    "ais": {
+      "status": "not_yet_produced",
+      "reason": "No AIS tracks were ingested for this case.",
+      "evidence_mode": null,
+      "value": null
+    },
+    "attribution": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": "real",
+      "value": {
+        "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+        "slick_id": "replay-slick-valid",
+        "phi_id": "replay-phi-CASE-VALID-CANONICAL-REPLAY-DEMO",
+        "decision_state": "strong_lead",
+        "candidates": [
+          {
+            "mmsi": "368181750",
+            "vessel_name": "HELEN",
+            "vessel_type": "unknown",
+            "path_integral": 1.0,
+            "prior": {
+              "gap_score": 0.0,
+              "speed_anomaly": 0.0,
+              "loiter_score": 0.0,
+              "night_proximity": 0.0,
+              "type_weight": 1.0,
+              "combined": 1.0,
+              "weights_version": "hand_tuned_v1"
+            },
+            "likelihood": 1.0,
+            "posterior": 0.7,
+            "rank": 1,
+            "closest_approach_km": 3.2554,
+            "time_at_closest_hours": 0.28,
+            "phi_mass_explained": 0.6,
+            "ais_reliability": 0.9,
+            "influence_weight": 1.0
+          }
+        ],
+        "latent_probability": 0.3,
+        "latent_finding": "radar_contact_without_ais",
+        "latent_inferred_point": null,
+        "top_posterior": 0.7,
+        "top_gap": 0.7,
+        "distinguishability": 0.8,
+        "posterior_entropy": 0.3,
+        "calibration_state": "uncalibrated",
+        "calibration_version": null,
+        "phi_quality_summary": "",
+        "phi_multimodal": false,
+        "n_candidates_screened": 5,
+        "n_candidates_scored": 1,
+        "envelope": {
+          "artifact_id": "attribution-CASE-VALID-CANONICAL-REPLAY-DEMO",
+          "case_id": null,
+          "parent_artifact_ids": [],
+          "produced_by": "nyaya",
+          "model_version": null,
+          "processing_version": "0.1.0",
+          "created_at": "2026-09-02T05:26:47.539707Z",
+          "crs": "EPSG:4326",
+          "units": {},
+          "provenance": {
+            "source_id": "replay.fixture",
+            "source_version": null,
+            "raw_artifact_refs": [],
+            "retrieved_at": null,
+            "adapter_id": null,
+            "license": null,
+            "citation": null,
+            "notes": "REPLAY fixture -- deterministic, offline, not a live measurement"
+          },
+          "mode": "real",
+          "trust": "trusted",
+          "influence_weight": 1.0,
+          "quality": {
+            "completeness": null,
+            "freshness_seconds": null,
+            "spatial_coverage": null,
+            "resolution_m": null,
+            "ood_score": null,
+            "model_confidence": null,
+            "extra": {}
+          },
+          "uncertainty": {
+            "representation": "none",
+            "mean": null,
+            "std": null,
+            "lower": null,
+            "upper": null,
+            "interval_confidence": null,
+            "entropy": null,
+            "n_samples": null,
+            "sensitivity": {}
+          },
+          "calibration_state": "not_applicable",
+          "validity_state": "valid",
+          "degradation_state": "nominal",
+          "anomaly_flags": [],
+          "content_hash": null
+        },
+        "computed_at": "2026-09-02T05:26:47.539707Z"
+      }
+    },
+    "validity": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": "real",
+      "value": {
+        "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+        "state": "valid",
+        "checks": [
+          {
+            "name": "source_trust",
+            "passed": true,
+            "observed": null,
+            "threshold": null,
+            "detail": "trust=trusted",
+            "reason_code": null
+          },
+          {
+            "name": "phi_convergence",
+            "passed": true,
+            "observed": 0.05,
+            "threshold": 0.15,
+            "detail": "flag=converged",
+            "reason_code": null
+          },
+          {
+            "name": "phi_entropy",
+            "passed": true,
+            "observed": 0.3,
+            "threshold": 0.95,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "ensemble_completeness",
+            "passed": true,
+            "observed": 1.0,
+            "threshold": 0.8,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "particle_loss",
+            "passed": true,
+            "observed": 0.02,
+            "threshold": 0.2,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "age_sensitivity",
+            "passed": true,
+            "observed": 0.2,
+            "threshold": 0.7,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "forcing_sensitivity",
+            "passed": true,
+            "observed": 0.25,
+            "threshold": 0.7,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "diffusivity_sensitivity",
+            "passed": true,
+            "observed": 0.15,
+            "threshold": 0.7,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "posterior_entropy",
+            "passed": true,
+            "observed": 0.3,
+            "threshold": 0.9,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "distinguishability",
+            "passed": true,
+            "observed": 0.8,
+            "threshold": 0.1,
+            "detail": "",
+            "reason_code": null
+          },
+          {
+            "name": "evidence_mode",
+            "passed": true,
+            "observed": null,
+            "threshold": null,
+            "detail": "mode=real",
+            "reason_code": null
+          }
+        ],
+        "blocking_reasons": [],
+        "officer_visible_caveats": [],
+        "source_trust": "trusted",
+        "envelope": {
+          "artifact_id": "gate-CASE-VALID-CANONICAL-REPLAY-DEMO",
+          "case_id": null,
+          "parent_artifact_ids": [
+            "attribution-CASE-VALID-CANONICAL-REPLAY-DEMO"
+          ],
+          "produced_by": "validity_gate",
+          "model_version": null,
+          "processing_version": "0.1.0",
+          "created_at": "2026-09-02T05:26:47.539707Z",
+          "crs": "EPSG:4326",
+          "units": {},
+          "provenance": {
+            "source_id": "validity_gate",
+            "source_version": null,
+            "raw_artifact_refs": [],
+            "retrieved_at": null,
+            "adapter_id": null,
+            "license": null,
+            "citation": null,
+            "notes": null
+          },
+          "mode": "real",
+          "trust": "trusted",
+          "influence_weight": 1.0,
+          "quality": {
+            "completeness": null,
+            "freshness_seconds": null,
+            "spatial_coverage": null,
+            "resolution_m": null,
+            "ood_score": null,
+            "model_confidence": null,
+            "extra": {}
+          },
+          "uncertainty": {
+            "representation": "none",
+            "mean": null,
+            "std": null,
+            "lower": null,
+            "upper": null,
+            "interval_confidence": null,
+            "entropy": null,
+            "n_samples": null,
+            "sensitivity": {}
+          },
+          "calibration_state": "not_applicable",
+          "validity_state": "valid",
+          "degradation_state": "nominal",
+          "anomaly_flags": [],
+          "content_hash": null
+        },
+        "evaluated_at": "2026-09-02T05:26:47.539707Z"
+      }
+    },
+    "forecast": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": "real",
+      "value": {
+        "forecast_id": "replay-forecast-CASE-VALID-CANONICAL-REPLAY-DEMO",
+        "slick_id": "replay-slick-valid",
+        "horizon_hours": 24.0,
+        "landfalls": [
+          {
+            "location_name": "Replay coastal segment",
+            "position": {
+              "lon": -88.97,
+              "lat": 28.936
+            },
+            "eta": "2023-01-15T18:02:06Z",
+            "hours_until": 18.0,
+            "probability": 0.4,
+            "coastline_segment_km": 5.0
+          }
+        ],
+        "affected_fishing_zones": [],
+        "trajectory_path": "replay://CASE-VALID-CANONICAL-REPLAY-DEMO/traj.npz",
+        "computed_at": "2026-09-02T05:26:47.539707Z",
+        "envelope": {
+          "artifact_id": "forecast-CASE-VALID-CANONICAL-REPLAY-DEMO",
+          "case_id": null,
+          "parent_artifact_ids": [],
+          "produced_by": "pravaah",
+          "model_version": null,
+          "processing_version": "0.1.0",
+          "created_at": "2026-09-02T05:26:47.539707Z",
+          "crs": "EPSG:4326",
+          "units": {},
+          "provenance": {
+            "source_id": "replay.fixture",
+            "source_version": null,
+            "raw_artifact_refs": [],
+            "retrieved_at": null,
+            "adapter_id": null,
+            "license": null,
+            "citation": null,
+            "notes": "REPLAY fixture -- deterministic, offline, not a live measurement"
+          },
+          "mode": "real",
+          "trust": "trusted",
+          "influence_weight": 1.0,
+          "quality": {
+            "completeness": null,
+            "freshness_seconds": null,
+            "spatial_coverage": null,
+            "resolution_m": null,
+            "ood_score": null,
+            "model_confidence": null,
+            "extra": {}
+          },
+          "uncertainty": {
+            "representation": "none",
+            "mean": null,
+            "std": null,
+            "lower": null,
+            "upper": null,
+            "interval_confidence": null,
+            "entropy": null,
+            "n_samples": null,
+            "sensitivity": {}
+          },
+          "calibration_state": "not_applicable",
+          "validity_state": "valid",
+          "degradation_state": "nominal",
+          "anomaly_flags": [],
+          "content_hash": null
+        }
+      }
+    },
+    "decision": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": "real",
+      "value": [
+        {
+          "asset_type": "dornier",
+          "base_name": "INS Replay Base",
+          "search_box": {
+            "bbox": {
+              "min_lon": -89.02,
+              "min_lat": 28.9,
+              "max_lon": -88.92,
+              "max_lat": 28.98
+            },
+            "center": {
+              "lon": -88.97,
+              "lat": 28.936
+            },
+            "area_km2": 50.0,
+            "phi_mass_contained": 1.0
+          },
+          "pattern": "expanding_square",
+          "launch_time": "2023-01-15T01:02:06Z",
+          "flight_hours": 3.0,
+          "probability_of_detection": 0.6,
+          "rationale": "replay fixture tasking, not a real mission"
+        }
+      ]
+    },
+    "mission": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": "real",
+      "value": [
+        {
+          "mission_id": "MSN-REPLAY-CASE-VALID-CANONICAL-REPLAY-DEMO",
+          "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+          "asset_id": "INS Replay Base",
+          "state": "available",
+          "assigned_at": null,
+          "acknowledged_at": null,
+          "on_station_at": null,
+          "closed_at": null,
+          "recommended_by_system": true,
+          "human_approved_by": null,
+          "human_override_reason": null,
+          "state_history": []
+        }
+      ]
+    },
+    "alerts": {
+      "status": "produced",
+      "reason": null,
+      "evidence_mode": "real",
+      "value": [
+        {
+          "channel": "console",
+          "recipient": "ops-room",
+          "category": null,
+          "delivery_status": "simulated",
+          "severity": "warning",
+          "reason": "replay fixture -- reached the console channel only",
+          "is_simulated": true,
+          "idempotency_key": "replay:CASE-VALID-CANONICAL-REPLAY-DEMO:validity.evaluated:ops-room",
+          "timestamp": "2026-09-02T05:26:48.457606Z"
+        }
+      ]
+    },
+    "recommendation": "valid",
+    "evidence": {
+      "components": [
+        {
+          "component": "sar",
+          "status": "produced",
+          "score": 0.7,
+          "reason": null,
+          "evidence_mode": "real",
+          "observed_at": null
+        },
+        {
+          "component": "ais",
+          "status": "not_yet_produced",
+          "score": null,
+          "reason": "No AIS tracks were ingested for this case.",
+          "evidence_mode": null,
+          "observed_at": null
+        },
+        {
+          "component": "model_consistency",
+          "status": "not_yet_produced",
+          "score": null,
+          "reason": "No cross-model consistency check is implemented in the current backend.",
+          "evidence_mode": null,
+          "observed_at": null
+        },
+        {
+          "component": "forcing",
+          "status": "produced",
+          "score": 1.0,
+          "reason": null,
+          "evidence_mode": "real",
+          "observed_at": null
+        }
+      ]
+    },
+    "provenance": {
+      "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+      "artifact_ids": [
+        "golden_case_run-d5cc5ebe"
+      ],
+      "source_ids": [
+        "golden_case_engine"
+      ],
+      "model_versions": {
+        "netra_detection": "netra-replay-frozen"
+      },
+      "processing_versions": {},
+      "manifest_artifact_id": null,
+      "generated_at": "2026-09-02T05:26:48.456608Z"
+    }
+  },
+  "intelligence": {
+    "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+    "evidence_mode": "real",
+    "uncertainty": {
+      "dominant_concern": "model_confidence",
+      "ood_risk": "in_domain",
+      "conflicts": 0,
+      "notes": {}
+    },
+    "terminal_action": "proceed_to_decision",
+    "terminal_reason": "All available evidence has been gathered and no unresolved contradiction or unassessed uncertainty remains.",
+    "iterations": 4,
+    "detection_evidence": {
+      "evidence_id": "detev-CASE-VALID-CANONICAL-REPLAY-DEMO",
+      "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+      "run_id": "RUN-REPLAY-b0656f32",
+      "model_id": "netra",
+      "model_version": "netra-replay-frozen",
+      "checkpoint_sha256": null,
+      "preprocessing_version": null,
+      "channel_binding": [],
+      "input_asset_ids": [],
+      "n_tiles": 0,
+      "classification": "oil",
+      "confidence": {
+        "value": 0.7,
+        "status": "measured",
+        "units": null,
+        "note": null
+      },
+      "decision_threshold": {
+        "value": 0.806,
+        "status": "measured",
+        "units": null,
+        "note": null
+      },
+      "segmentation_ref": null,
+      "foreground_fraction": null,
+      "n_connected_components": null,
+      "area_km2": {
+        "value": 12.0,
+        "status": "measured",
+        "units": "km^2",
+        "note": null
+      },
+      "centroid": {
+        "lon": -88.97,
+        "lat": 28.936
+      },
+      "bbox": {
+        "min_lon": -89.02,
+        "min_lat": 28.9,
+        "max_lon": -88.92,
+        "max_lat": 28.98
+      },
+      "score_max": {
+        "value": 0.91,
+        "status": "measured",
+        "units": null,
+        "note": null
+      },
+      "score_mean": null,
+      "score_p99": null,
+      "ood_risk": "in_domain",
+      "ood_rationale": "Peak oil-class probability 0.91 reached the decision threshold 0.806. HEURISTIC: reflects only the oil-class probability, not overall representation familiarity. No energy-score signal was available for this run.",
+      "low_wind_context": {
+        "value": null,
+        "status": "unavailable",
+        "units": "m/s",
+        "note": null
+      },
+      "limitations": [
+        "Model scientific status: VALIDATED"
+      ],
+      "observed_at": "2023-01-15T00:02:06Z",
+      "created_at": "2026-09-02T05:26:48.471731Z",
+      "envelope": {
+        "artifact_id": "detev-CASE-VALID-CANONICAL-REPLAY-DEMO",
+        "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+        "parent_artifact_ids": [
+          "intel-parent-CASE-VALID-CANONICAL-REPLAY-DEMO"
+        ],
+        "produced_by": "netra.detection_evidence",
+        "model_version": "netra-replay-frozen",
+        "processing_version": "0.1.0",
+        "created_at": "2026-09-02T05:26:48.471731Z",
+        "crs": "EPSG:4326",
+        "units": {},
+        "provenance": {
+          "source_id": "netra.detection_evidence",
+          "source_version": null,
+          "raw_artifact_refs": [],
+          "retrieved_at": null,
+          "adapter_id": null,
+          "license": null,
+          "citation": null,
+          "notes": null
+        },
+        "mode": "real",
+        "trust": "trusted",
+        "influence_weight": 1.0,
+        "quality": {
+          "completeness": null,
+          "freshness_seconds": null,
+          "spatial_coverage": null,
+          "resolution_m": null,
+          "ood_score": null,
+          "model_confidence": null,
+          "extra": {}
+        },
+        "uncertainty": {
+          "representation": "none",
+          "mean": null,
+          "std": null,
+          "lower": null,
+          "upper": null,
+          "interval_confidence": null,
+          "entropy": null,
+          "n_samples": null,
+          "sensitivity": {}
+        },
+        "calibration_state": "not_applicable",
+        "validity_state": "valid",
+        "degradation_state": "nominal",
+        "anomaly_flags": [],
+        "content_hash": null
+      }
+    },
+    "hypotheses": {
+      "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+      "hypotheses": [
+        {
+          "source_class": "natural_seep",
+          "posterior": 0.7381635581061693,
+          "prior": 0.35,
+          "supporting": [
+            {
+              "factor": "compact_morphology",
+              "detail": "Elongation 2.1 < 3.0 is more consistent with a fixed point source.",
+              "log_likelihood_ratio": 0.3364722366212129,
+              "evidence_ids": [
+                "ev-forcing-53ed47ed",
+                "ev-detection-e2252775",
+                "ev-ais-011396e7",
+                "ev-origin-4376383a",
+                "ev-attribution-7ed75dca",
+                "ev-validity-728277d8",
+                "ev-forecast-fb881e4e",
+                "ev-decision-de7e9ce7",
+                "ev-data_quality-65e59e30",
+                "ev-data_quality-f0c97bba"
+              ],
+              "measured": true
+            },
+            {
+              "factor": "known_seep_basin",
+              "detail": "Location falls in a basin with documented natural hydrocarbon seepage.",
+              "log_likelihood_ratio": 1.0986122886681098,
+              "evidence_ids": [
+                "ev-forcing-53ed47ed",
+                "ev-detection-e2252775",
+                "ev-ais-011396e7",
+                "ev-origin-4376383a",
+                "ev-attribution-7ed75dca",
+                "ev-validity-728277d8",
+                "ev-forecast-fb881e4e",
+                "ev-decision-de7e9ce7",
+                "ev-data_quality-65e59e30",
+                "ev-data_quality-f0c97bba"
+              ],
+              "measured": true
+            }
+          ],
+          "contradicting": [],
+          "rationale": "Prior 0.35 raised 0.74 by: compact_morphology(+0.34), known_seep_basin(+1.10)."
+        },
+        {
+          "source_class": "vessel_associated",
+          "posterior": 0.10760401721664276,
+          "prior": 0.3,
+          "supporting": [],
+          "contradicting": [
+            {
+              "factor": "no_ais_coverage",
+              "detail": "No AIS tracks were available. This is weak evidence at best: a dark vessel would also produce no AIS.",
+              "log_likelihood_ratio": -0.3364722366212129,
+              "evidence_ids": [
+                "ev-forcing-53ed47ed",
+                "ev-detection-e2252775",
+                "ev-ais-011396e7",
+                "ev-origin-4376383a",
+                "ev-attribution-7ed75dca",
+                "ev-validity-728277d8",
+                "ev-forecast-fb881e4e",
+                "ev-decision-de7e9ce7",
+                "ev-data_quality-65e59e30",
+                "ev-data_quality-f0c97bba"
+              ],
+              "measured": false
+            }
+          ],
+          "rationale": "Prior 0.30 lowered 0.11 by: no_ais_coverage(-0.34)."
+        },
+        {
+          "source_class": "other_anthropogenic",
+          "posterior": 0.05380200860832138,
+          "prior": 0.15,
+          "supporting": [],
+          "contradicting": [
+            {
+              "factor": "known_seep_basin",
+              "detail": "A documented natural source is a competing explanation.",
+              "log_likelihood_ratio": -0.3364722366212129,
+              "evidence_ids": [
+                "ev-forcing-53ed47ed",
+                "ev-detection-e2252775",
+                "ev-ais-011396e7",
+                "ev-origin-4376383a",
+                "ev-attribution-7ed75dca",
+                "ev-validity-728277d8",
+                "ev-forecast-fb881e4e",
+                "ev-decision-de7e9ce7",
+                "ev-data_quality-65e59e30",
+                "ev-data_quality-f0c97bba"
+              ],
+              "measured": true
+            }
+          ],
+          "rationale": "Prior 0.15 lowered 0.05 by: known_seep_basin(-0.34)."
+        },
+        {
+          "source_class": "coastal",
+          "posterior": 0.050215208034433294,
+          "prior": 0.1,
+          "supporting": [],
+          "contradicting": [],
+          "rationale": "No evidence bore on coastal; posterior 0.05 reflects the declared prior 0.10 only."
+        },
+        {
+          "source_class": "unknown",
+          "posterior": 0.050215208034433294,
+          "prior": 0.1,
+          "supporting": [],
+          "contradicting": [],
+          "rationale": "No evidence bore on unknown; posterior 0.05 reflects the declared prior 0.10 only."
+        }
+      ],
+      "method": "declared_likelihood_ratio",
+      "methodology_note": "CHHAYA chhaya-v0.1-declared-lr: deterministic Bayesian update over 3 declared likelihood ratio(s). NOT a trained or learned model \u2014 every weight is an expert-declared constant in packages/varuna_chhaya/hypothesis_engine.py with a written justification. UNCALIBRATED: posteriors are internally consistent but have never been validated against outcome data, so they express relative plausibility under the stated assumptions, not empirical frequencies. Regional prior note: Gulf of Mexico: documented persistent seepage",
+      "engine_version": "chhaya-v0.1-declared-lr",
+      "uncertainty_note": null,
+      "insufficient_evidence": false,
+      "contradictions": [],
+      "evidence_ids_considered": [
+        "ev-forcing-53ed47ed",
+        "ev-detection-e2252775",
+        "ev-ais-011396e7",
+        "ev-origin-4376383a",
+        "ev-attribution-7ed75dca",
+        "ev-validity-728277d8",
+        "ev-forecast-fb881e4e",
+        "ev-decision-de7e9ce7",
+        "ev-data_quality-65e59e30",
+        "ev-data_quality-f0c97bba"
+      ],
+      "created_at": "2026-09-02T05:26:48.471731Z",
+      "envelope": {
+        "artifact_id": "chhaya-CASE-VALID-CANONICAL-REPLAY-DEMO",
+        "case_id": "CASE-VALID-CANONICAL-REPLAY-DEMO",
+        "parent_artifact_ids": [
+          "intel-parent-CASE-VALID-CANONICAL-REPLAY-DEMO"
+        ],
+        "produced_by": "chhaya.hypothesis_engine",
+        "model_version": "chhaya-v0.1-declared-lr",
+        "processing_version": "0.1.0",
+        "created_at": "2026-09-02T05:26:48.471731Z",
+        "crs": "EPSG:4326",
+        "units": {},
+        "provenance": {
+          "source_id": "chhaya.hypothesis_engine",
+          "source_version": null,
+          "raw_artifact_refs": [],
+          "retrieved_at": null,
+          "adapter_id": null,
+          "license": null,
+          "citation": null,
+          "notes": null
+        },
+        "mode": "real",
+        "trust": "trusted",
+        "influence_weight": 1.0,
+        "quality": {
+          "completeness": null,
+          "freshness_seconds": null,
+          "spatial_coverage": null,
+          "resolution_m": null,
+          "ood_score": null,
+          "model_confidence": null,
+          "extra": {}
+        },
+        "uncertainty": {
+          "representation": "none",
+          "mean": null,
+          "std": null,
+          "lower": null,
+          "upper": null,
+          "interval_confidence": null,
+          "entropy": null,
+          "n_samples": null,
+          "sensitivity": {}
+        },
+        "calibration_state": "not_applicable",
+        "validity_state": "valid",
+        "degradation_state": "nominal",
+        "anomaly_flags": [],
+        "content_hash": null
+      }
+    },
+    "memory_hits": [
+      {
+        "case_id": "SYNTHETIC-HIST-2",
+        "score": 0.844,
+        "coverage": 0.5,
+        "outcome": "confirmed",
+        "provenance_source": "SYNTHETIC-DEMO-SEED (not a real historical case)"
+      },
+      {
+        "case_id": "SYNTHETIC-HIST-1",
+        "score": 0.837,
+        "coverage": 0.5,
+        "outcome": "unresolved",
+        "provenance_source": "SYNTHETIC-DEMO-SEED (not a real historical case)"
+      },
+      {
+        "case_id": "SYNTHETIC-HIST-3",
+        "score": 0.527,
+        "coverage": 0.5,
+        "outcome": "not_found",
+        "provenance_source": "SYNTHETIC-DEMO-SEED (not a real historical case)"
+      }
+    ],
+    "audit_trail": [
+      {
+        "evidence_id": "ev-forcing-53ed47ed",
+        "kind": "forcing",
+        "produced_by": "pipeline.forcing",
+        "summary": "forcing produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.469728+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-detection-e2252775",
+        "kind": "detection",
+        "produced_by": "pipeline.netra_detection",
+        "summary": "netra_detection produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": 0.7,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.470734+00:00",
+        "depends_on": [
+          "ev-forcing-53ed47ed"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-ais-011396e7",
+        "kind": "ais",
+        "produced_by": "pipeline.ais_ingest",
+        "summary": "ais_ingest produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.470734+00:00",
+        "depends_on": [
+          "ev-forcing-53ed47ed"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-origin-4376383a",
+        "kind": "origin",
+        "produced_by": "pipeline.phi_reconstruction",
+        "summary": "phi_reconstruction produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.470734+00:00",
+        "depends_on": [
+          "ev-forcing-53ed47ed"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-attribution-7ed75dca",
+        "kind": "attribution",
+        "produced_by": "pipeline.attribution",
+        "summary": "attribution produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.470734+00:00",
+        "depends_on": [
+          "ev-forcing-53ed47ed"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-validity-728277d8",
+        "kind": "validity",
+        "produced_by": "pipeline.validity",
+        "summary": "validity produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.470734+00:00",
+        "depends_on": [
+          "ev-forcing-53ed47ed"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-forecast-fb881e4e",
+        "kind": "forecast",
+        "produced_by": "pipeline.forecast",
+        "summary": "forecast produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.471731+00:00",
+        "depends_on": [
+          "ev-forcing-53ed47ed"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-decision-de7e9ce7",
+        "kind": "decision",
+        "produced_by": "pipeline.decision",
+        "summary": "decision produced",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.471731+00:00",
+        "depends_on": [
+          "ev-forcing-53ed47ed"
+        ],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-data_quality-65e59e30",
+        "kind": "data_quality",
+        "produced_by": "ood_assessor",
+        "summary": "OOD risk: in_domain",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.471731+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-data_quality-f0c97bba",
+        "kind": "data_quality",
+        "produced_by": "data_guard",
+        "summary": "Inputs accepted: real forcing loaded",
+        "mode": "real",
+        "status": "active",
+        "confidence": 0.9,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.471731+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-source_hypothesis-be9fa314",
+        "kind": "source_hypothesis",
+        "produced_by": "chhaya",
+        "summary": "top hypothesis: natural_seep (0.74)",
+        "mode": "real",
+        "status": "active",
+        "confidence": 0.7381635581061693,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.471731+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      },
+      {
+        "evidence_id": "ev-memory-7ebe9086",
+        "kind": "memory",
+        "produced_by": "smriti",
+        "summary": "3 similar prior case(s) retrieved (advisory only)",
+        "mode": "real",
+        "status": "active",
+        "confidence": null,
+        "revision": 0,
+        "recorded_at": "2026-09-02T05:26:48.471731+00:00",
+        "depends_on": [],
+        "contradicts": [],
+        "superseded_by": null
+      }
+    ],
+    "decision_trace": "Decision trace for case CASE-VALID-CANONICAL-REPLAY-DEMO (4 iteration(s)):\n  [0] observe: 9 active evidence item(s) in the ledger.\n  [0] identify_uncertainty: dominant concern: model_confidence; conflicts: 0; ood: in_domain\n  [0] select_action: selected inspect_detection_quality (priority 1)\n        action=inspect_detection_quality because=No data-quality assessment exists, so the trustworthiness of the perception input is unknown.\n  [0] execute: inspect_detection_quality -> executed\n        action=inspect_detection_quality because=No data-quality assessment exists, so the trustworthiness of the perception input is unknown.\n        outcome=executed changed=True :: Inputs accepted: real forcing loaded\n  [0] update_evidence: evidence 9 -> 10\n  [1] observe: 10 active evidence item(s) in the ledger.\n  [1] identify_uncertainty: dominant concern: model_confidence; conflicts: 0; ood: in_domain\n  [1] select_action: selected run_source_hypothesis (priority 3)\n        action=run_source_hypothesis because=No source-class hypothesis exists; attributing to a vessel before establishing that a vessel is even the likely source class would beg the question.\n  [1] execute: run_source_hypothesis -> executed\n        action=run_source_hypothesis because=No source-class hypothesis exists; attributing to a vessel before establishing that a vessel is even the likely source class would beg the question.\n        outcome=executed changed=True :: CHHAYA: natural_seep at 0.74\n  [1] update_evidence: evidence 10 -> 11\n  [2] observe: 11 active evidence item(s) in the ledger.\n  [2] identify_uncertainty: dominant concern: model_confidence; conflicts: 0; ood: in_domain\n  [2] select_action: selected consult_memory (priority 4)\n        action=consult_memory because=Prior similar cases have not been consulted; recurrence and past failure patterns are unknown.\n  [2] execute: consult_memory -> executed\n        action=consult_memory because=Prior similar cases have not been consulted; recurrence and past failure patterns are unknown.\n        outcome=executed changed=True :: 3 prior case(s), advisory only\n  [2] update_evidence: evidence 11 -> 12\n  [3] observe: 12 active evidence item(s) in the ledger.\n  [3] identify_uncertainty: dominant concern: model_confidence; conflicts: 0; ood: in_domain\n  [3] select_action: selected proceed_to_decision (priority 0)\n        action=proceed_to_decision because=All available evidence has been gathered and no unresolved contradiction or unassessed uncertainty remains.\n  [3] terminate: terminal action proceed_to_decision: All available evidence has been gathered and no unresolved contradiction or unassessed uncertainty remains.\n        action=proceed_to_decision because=All available evidence has been gathered and no unresolved contradiction or unassessed uncertainty remains.\n  TERMINAL: proceed_to_decision \u2014 All available evidence has been gathered and no unresolved contradiction or unassessed uncertainty remains.",
+    "runtime_seconds": 0.0022148999851197004
+  },
+  "praman": {
+    "artifact_id": "golden_case_run-d5cc5ebe",
+    "content_hash": "8acb9aef7b2ecca044cc1615751611379be7ee74427ed3f2d6d444f6fef6dfe8",
+    "verified": true
+  },
+  "smriti": {
+    "store_case_count": 3,
+    "memory_hits_for_this_case": [
+      {
+        "case_id": "SYNTHETIC-HIST-2",
+        "score": 0.844,
+        "coverage": 0.5,
+        "outcome": "confirmed",
+        "provenance_source": "SYNTHETIC-DEMO-SEED (not a real historical case)"
+      },
+      {
+        "case_id": "SYNTHETIC-HIST-1",
+        "score": 0.837,
+        "coverage": 0.5,
+        "outcome": "unresolved",
+        "provenance_source": "SYNTHETIC-DEMO-SEED (not a real historical case)"
+      },
+      {
+        "case_id": "SYNTHETIC-HIST-3",
+        "score": 0.527,
+        "coverage": 0.5,
+        "outcome": "not_found",
+        "provenance_source": "SYNTHETIC-DEMO-SEED (not a real historical case)"
+      }
+    ]
+  },
+  "limitations": [
+    "CASE-VALID is a hand-built replay fixture (see packages/varuna_domain/replay_fixtures.py::_build_valid); every value is SYNTHETIC, not measured. engine_mode='replay' records this; evidence_mode='real' on each section records what the fixture MODELS (a successful real run), not that this execution was live. Both facts are surfaced, never collapsed into one.",
+    "ais section is legitimately NOT_YET_PRODUCED: the ais_ingest STAGE executed successfully (n_returned=0), but zero tracks means zero AIS evidence, not a failure.",
+    "provenance.manifest_artifact_id is None: GoldenCaseWorkflow registers one summary PRAMAN artifact per run (artifact_type='golden_case_run'), not a full EvidenceManifest. See docs/product/CANONICAL_REPLAY_GAPS.md.",
+    "CHHAYA/SMRITI/uncertainty content here comes from a SEPARATE read-only pass (CaseIntelligenceService.run(result.run)) over the same PipelineRun GoldenCaseWorkflow produced -- GoldenCaseWorkflow does not invoke this layer internally, and OperatorCase (the canonical contract) has no fields for its output. See docs/product/CANONICAL_REPLAY_GAPS.md."
+  ]
+}

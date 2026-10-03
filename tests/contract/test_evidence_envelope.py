@@ -13,6 +13,7 @@ from varuna_contracts import (
     CaseLifecycle,
     CaseStateVector,
     EvidenceEnvelope,
+    EvidenceMode,
     EvidenceState,
     InvestigationState,
     MissionRecord,
@@ -33,6 +34,7 @@ def _env(**kw) -> EvidenceEnvelope:
     kw.setdefault("artifact_id", "a")
     kw.setdefault("produced_by", "test")
     kw.setdefault("provenance", Provenance(source_id="test"))
+    kw.setdefault("mode", EvidenceMode.SIMULATED)
     return EvidenceEnvelope(**kw)
 
 

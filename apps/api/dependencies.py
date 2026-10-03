@@ -1,0 +1,322 @@
+"""
+VARUNA GRID — API Dependencies (DI).
+"""
+from fastapi import Depends
+from sqlalchemy.orm import sessionmaker
+
+from apps.api.config import settings
+from varuna_infra.database import create_session_factory
+from varuna_domain.case_workflow import CaseWorkflow
+
+# Keep singleton repositories/stores to avoid recreating them on every request
+_session_factory = None
+if settings.use_postgres:
+    _session_factory = create_session_factory(settings.database_url)
+
+_in_memory_case_repo = None
+_in_memory_artifact_repo = None
+_in_memory_event_store = None
+_in_memory_object_store = None
+
+def get_case_repo():
+    global _in_memory_case_repo
+    if settings.use_postgres:
+        from varuna_infra.postgres_repos import PostgresCaseRepository
+        return PostgresCaseRepository(_session_factory)
+    else:
+        if _in_memory_case_repo is None:
+            from varuna_domain.repositories import InMemoryCaseRepository
+            _in_memory_case_repo = InMemoryCaseRepository()
+        return _in_memory_case_repo
+
+def get_artifact_repo():
+    global _in_memory_artifact_repo
+    if settings.use_postgres:
+        from varuna_infra.postgres_repos import PostgresArtifactRepository
+        return PostgresArtifactRepository(_session_factory)
+    else:
+        if _in_memory_artifact_repo is None:
+            from varuna_domain.repositories import InMemoryArtifactRepository
+            _in_memory_artifact_repo = InMemoryArtifactRepository()
+        return _in_memory_artifact_repo
+
+def get_event_repo():
+    global _in_memory_event_store
+    if settings.use_postgres:
+        from varuna_infra.postgres_repos import PostgresEventStore
+        return PostgresEventStore(_session_factory)
+    else:
+        if _in_memory_event_store is None:
+            from varuna_domain.repositories import InMemoryEventStore
+            _in_memory_event_store = InMemoryEventStore()
+        return _in_memory_event_store
+
+def get_object_store():
+    global _in_memory_object_store
+    if settings.use_minio:
+        from varuna_infra.minio_store import MinioObjectStore
+        return MinioObjectStore(
+            endpoint=settings.minio_endpoint,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket_name=settings.minio_bucket,
+            secure=settings.minio_secure
+        )
+    else:
+        if _in_memory_object_store is None:
+            from varuna_infra.inmemory_store import InMemoryObjectStore
+            _in_memory_object_store = InMemoryObjectStore()
+        return _in_memory_object_store
+
+
+def get_workflow(
+    case_repo = Depends(get_case_repo),
+    artifact_repo = Depends(get_artifact_repo),
+    event_repo = Depends(get_event_repo),
+    object_store = Depends(get_object_store)
+) -> CaseWorkflow:
+    return CaseWorkflow(
+        case_repo=case_repo,
+        artifact_repo=artifact_repo,
+        event_repo=event_repo,
+        object_store=object_store
+    )
+
+def get_adapter_registry():
+    from varuna_source_adapters.service import AdapterRegistry
+    return AdapterRegistry.create_mock()
+
+def get_model_registry():
+    from varuna_domain.model_registry import InMemoryModelRegistry
+    return InMemoryModelRegistry()
+
+_in_memory_mission_repo = None
+_mission_audit_log = None
+_mission_service_singleton = None
+
+def get_mission_service():
+    """STEP 6 fix (docs/product/ALERT_OPERATIONAL_DIAGNOSTIC.md, item 12):
+    this previously constructed a *new* `MissionService` per call, and
+    `MissionService.__init__` defaults to a fresh, empty `AuditLog()` when
+    none is passed — so every authorization decision `approve_and_assign()`
+    recorded was discarded before any caller could ever read it back. Now a
+    single `AuditLog` (and the same `MissionService` instance) is reused
+    for the process lifetime, matching the singleton pattern
+    `get_golden_case_workflow()` already uses for its repos."""
+    global _in_memory_mission_repo, _mission_audit_log, _mission_service_singleton
+    from varuna_missions.service import MissionService
+    if _mission_service_singleton is None:
+        from varuna_infra.authorization import AuditLog
+        from varuna_infra.jsonl_store import state_dir
+        from varuna_missions.repository import InMemoryMissionRepository
+        _in_memory_mission_repo = InMemoryMissionRepository(state_dir() / "missions.jsonl")
+        _mission_audit_log = AuditLog(state_dir() / "mission_audit.jsonl")
+        _mission_service_singleton = MissionService(
+            repo=_in_memory_mission_repo, audit=_mission_audit_log,
+            alert_service=get_alert_service(),
+            alert_lifecycle=get_alert_lifecycle_service(),
+            alert_orchestrator=get_alert_orchestrator())
+    return _mission_service_singleton
+
+_asset_service_singleton = None
+_personnel_service_singleton = None
+
+def get_asset_service():
+    """Phase 4. Same singleton/persistence pattern as `get_mission_service()`
+    above — seeded once from `varuna_assets.seed` if the persisted store is
+    genuinely empty, never re-seeded over a real status change."""
+    global _asset_service_singleton
+    if _asset_service_singleton is None:
+        from varuna_assets.repository import InMemoryAssetRepository
+        from varuna_assets.seed import SEED_ASSETS
+        from varuna_assets.service import AssetService
+        from varuna_infra.jsonl_store import state_dir
+        repo = InMemoryAssetRepository(state_dir() / "assets.jsonl", seed=SEED_ASSETS)
+        _asset_service_singleton = AssetService(repo)
+    return _asset_service_singleton
+
+def get_personnel_service():
+    global _personnel_service_singleton
+    if _personnel_service_singleton is None:
+        from varuna_assets.repository import InMemoryPersonnelRepository
+        from varuna_assets.seed import SEED_PERSONNEL
+        from varuna_assets.service import PersonnelService
+        from varuna_infra.jsonl_store import state_dir
+        repo = InMemoryPersonnelRepository(state_dir() / "personnel.jsonl", seed=SEED_PERSONNEL)
+        _personnel_service_singleton = PersonnelService(repo)
+    return _personnel_service_singleton
+
+# Phase 4 mock-provider audit (docs/product/HONESTY_LEDGER.md #35): removed
+# `get_prahari_service`, `get_abhiyan_service`, `get_smriti_service`, which
+# built `PrahariService`/`AbhiyanService`/`SmritiService` around
+# `Mock*Provider`s. All three were dead code — zero callers anywhere in the
+# app:
+#   - `apps/api/routers/prahari.py` defines its OWN `get_prahari_service()`
+#     (never imports this one) — the "two live implementations of the same
+#     subsystem" the audit flagged was actually one live + one orphaned copy.
+#   - `AbhiyanService` had no route; the real decision-state logic
+#     (`operator_case_view.py`) calls `varuna_abhiyan.decision_state
+#     .derive_operational_decision_state()` directly, a pure function.
+#   - `SmritiService` had no route; the real, live SMRITI implementation is
+#     `varuna_smriti.memory.SmritiStore`, wired via `get_replay_smriti_store()`
+#     below and `apps/api/routers/smriti.py`.
+# Deleting changes no runtime behavior (nothing called these) and removes
+# exactly the confusion the audit was for. `prahari.py`'s own
+# `MockPrahariProvider` wiring is left as-is: there genuinely is no real
+# satellite-scene-watch implementation to point it at, and its
+# `is_running` always honestly reports `False` (nothing ever starts it).
+
+def get_alert_service():
+    from varuna_alerts.service import AlertService
+    from varuna_alerts.channels.mock_sms import MockSmsChannel
+    return AlertService(channels=[MockSmsChannel()])
+
+_alert_lifecycle_singleton = None
+_alert_orchestrator_singleton = None
+_snapshot_store_singleton = None
+_alert_store_singleton = None
+
+
+def get_alert_store():
+    """The ONE alert store (Workstream A: no second store).
+
+    Disk-backed since Phase 1: acknowledgements, escalations and resolutions
+    are human decisions and must survive an API restart.
+    """
+    global _alert_store_singleton
+    if _alert_store_singleton is None:
+        from varuna_alerts.lifecycle_store import InMemoryAlertStore
+        from varuna_infra.jsonl_store import state_dir
+        _alert_store_singleton = InMemoryAlertStore(state_dir() / "alerts.jsonl")
+    return _alert_store_singleton
+
+
+def get_alert_orchestrator():
+    """Material change -> dedupe -> enrich -> prioritise -> route -> deliver."""
+    global _alert_orchestrator_singleton
+    if _alert_orchestrator_singleton is None:
+        from varuna_alerts.channel_orchestrator import ChannelOrchestrator
+        from varuna_alerts.orchestrator import AlertOrchestrator
+        from varuna_infra.authorization import AuditLog
+        from varuna_infra.jsonl_store import state_dir
+        from varuna_praman.praman import PramanService
+        # PRAMAN and the audit log were both supported by AlertOrchestrator
+        # and neither was ever passed, so alert transitions never reached the
+        # audit trail despite the code being there to write them.
+        _alert_orchestrator_singleton = AlertOrchestrator(
+            get_alert_store(),
+            channels=ChannelOrchestrator(),
+            audit=AuditLog(state_dir() / "alert_audit.jsonl"),
+            praman=PramanService(get_artifact_repo(), get_object_store()),
+        )
+    return _alert_orchestrator_singleton
+
+
+def get_case_snapshot_store():
+    """Material-change baseline. Persisted so a restart does not make every
+    case look new and re-fire alerts an operator already handled."""
+    global _snapshot_store_singleton
+    if _snapshot_store_singleton is None:
+        from varuna_infra.jsonl_store import state_dir
+        from varuna_integration.operational_loop import CaseSnapshotStore
+        _snapshot_store_singleton = CaseSnapshotStore(state_dir() / "case_snapshots.jsonl")
+    return _snapshot_store_singleton
+
+def get_alert_lifecycle_service():
+    """STEP 6: singleton, same reasoning as `get_mission_service()` above —
+    an alert acknowledged in one request must still show acknowledged in
+    the next, so this cannot be constructed fresh per call."""
+    global _alert_lifecycle_singleton
+    if _alert_lifecycle_singleton is None:
+        from varuna_alerts.lifecycle_service import AlertLifecycleService
+        from varuna_infra.authorization import AuditLog
+        from varuna_infra.jsonl_store import state_dir
+        # Pass an AuditLog explicitly. AlertLifecycleService defaults one away
+        # internally, which made the alert authorization trail unreadable even
+        # at runtime, let alone after a restart.
+        _alert_lifecycle_singleton = AlertLifecycleService(
+            get_alert_store(), audit=AuditLog(state_dir() / "alert_audit.jsonl"))
+    return _alert_lifecycle_singleton
+
+# --------------------------------------------------------------------------
+# STEP 4 (frontend integration track): the ONLY place `GoldenCaseWorkflow`
+# is constructed for API serving. Distinct from `get_workflow()` above
+# (legacy `CaseWorkflow`, unchanged, still backs every existing case route
+# per docs/product/CANONICAL_WORKFLOW_POLICY.md). This exists to serve
+# `apps/api/routers/replay.py`'s read-only replay-case endpoint, added in
+# this task because no existing route could produce a GoldenCaseWorkflow-
+# sourced (and therefore intelligence-composable) OperatorCase — see
+# docs/architecture/ADR-0014-frontend-replay-endpoint.md.
+# --------------------------------------------------------------------------
+_golden_case_repo = None
+_golden_artifact_repo = None
+_golden_event_store = None
+_golden_smriti_store = None
+
+def get_golden_case_workflow():
+    global _golden_case_repo, _golden_artifact_repo
+    from varuna_domain.golden_case_engine import GoldenCaseWorkflow
+    from varuna_domain.repositories import (
+        InMemoryArtifactRepository, InMemoryCaseRepository,
+    )
+    if _golden_case_repo is None:
+        _golden_case_repo = InMemoryCaseRepository()
+        _golden_artifact_repo = InMemoryArtifactRepository()
+    # Deliberately the SAME event store `GET /v1/events` reads. This used to
+    # be a separate `_golden_event_store`, so every event the engine and the
+    # Material Change Engine emitted — case.stage.*, detection.created,
+    # validity.changed, landfall.predicted — was written somewhere no API
+    # route could see. The event spine existed and was invisible.
+    return GoldenCaseWorkflow(
+        _golden_case_repo, _golden_artifact_repo, get_event_repo(),
+        object_store=get_object_store(),
+        mission_service=get_mission_service(),
+        # Workstream A: the legacy delivery-receipt correlation
+        # (_sync_alerts_to_lifecycle) is deliberately NOT wired here any
+        # more. The Alert Orchestrator is now the single alert producer —
+        # wiring both would give one case two parallel alert systems.
+        alert_service=get_alert_service(),
+    )
+
+def get_replay_smriti_store():
+    global _golden_smriti_store
+    if _golden_smriti_store is None:
+        from pathlib import Path
+        from varuna_smriti.memory import SmritiStore
+        path = Path(__file__).resolve().parents[2] / "reports" / "demo" / "api_replay_smriti_memory.jsonl"
+        _golden_smriti_store = SmritiStore(path)
+    return _golden_smriti_store
+
+_smriti_feedback_store_singleton = None
+
+def get_smriti_feedback_store():
+    """Phase 7. Separate JSONL file from SmritiStore's own — see
+    varuna_smriti.feedback module docstring for why."""
+    global _smriti_feedback_store_singleton
+    if _smriti_feedback_store_singleton is None:
+        from varuna_infra.jsonl_store import state_dir
+        from varuna_smriti.feedback import SmritiFeedbackStore
+        _smriti_feedback_store_singleton = SmritiFeedbackStore(state_dir() / "smriti_feedback.jsonl")
+    return _smriti_feedback_store_singleton
+
+def get_case_resolver(
+    workflow: CaseWorkflow = Depends(get_workflow),
+    golden = Depends(get_golden_case_workflow),
+):
+    """Correctness-audit Phase 1 (B1 fix).
+
+    Built from `Depends(get_workflow)` / `Depends(get_golden_case_workflow)`
+    — the SAME two dependencies every case route already declared — rather
+    than having `CaseResolver` re-derive them itself. That matters for test
+    isolation: `tests/integration/test_api.py` overrides `get_case_repo`
+    (etc.) via `app.dependency_overrides` to get a private in-memory store
+    per test. A resolver that reconstructed its own workflow by calling
+    `dependencies.get_case_repo()` directly would silently ignore that
+    override and read the process-wide singleton instead — a case created
+    through the test's isolated repo would then 404 when read back through
+    the resolver. Depending on `get_workflow` here means `CaseResolver`
+    inherits whatever override chain FastAPI is already running for the
+    current request, exactly like every other route dependency does.
+    """
+    from apps.api.case_resolver import CaseResolver
+    return CaseResolver(workflow=workflow, golden=golden)

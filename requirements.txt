@@ -1,55 +1,25 @@
-# VARUNA GRID — Python 3.10+
-# Install OpenDrift via conda if pip resolution fails:
-#   conda install -c opendrift -c conda-forge opendrift
+# VARUNA GRID — dependency manifest
+#
+# This file deliberately contains no pinned packages. `pyproject.toml` is the
+# single source of truth for dependencies.
+#
+# It used to carry its own hand-maintained list, which silently drifted out of
+# sync: it was missing reportlab, pyjwt, argon2-cffi, xgboost, prometheus-client
+# and the opentelemetry packages. Anyone who installed with
+# `pip install -r requirements.txt` got an environment where login returned 500
+# and the PDF report route crashed — while the same code worked fine for anyone
+# who used `pip install -e .`. That failure mode cost a teammate real debugging
+# time, so the list is gone rather than re-synced.
+#
+# Installing via this file still works and now resolves through pyproject:
+#
+#     pip install -r requirements.txt      # equivalent to: pip install -e .
+#
+# Optional extras (not installed by the line below):
+#     pip install -e ".[ml]"     torch / torchvision / smp / mlflow / onnxruntime
+#     pip install -e ".[dev]"    playwright, for scripts/judge_test.py
+#
+# OpenDrift resolves poorly on pip. Prefer:
+#     conda install -c opendrift -c conda-forge opendrift
 
-# ── ML ──
-torch>=2.0,<3.0
-torchvision>=0.15,<1.0
-segmentation-models-pytorch>=0.3,<1.0
-onnxruntime>=1.17,<2.0
-scikit-learn>=1.4,<2.0
-
-# ── Drift physics ──
-opendrift>=1.11
-
-# ── Geospatial / scientific ──
-numpy>=1.26,<3.0
-scipy>=1.12,<2.0
-pandas>=2.1,<3.0
-xarray>=2024.1
-netCDF4>=1.6,<2.0
-rasterio>=1.3,<2.0
-geopandas>=0.14,<2.0
-shapely>=2.0,<3.0
-pyproj>=3.6,<4.0
-matplotlib>=3.8,<4.0
-
-# ── Backend ──
-fastapi>=0.110,<1.0
-uvicorn[standard]>=0.29,<1.0
-celery>=5.3,<6.0
-redis>=5.0,<6.0
-sqlalchemy>=2.0,<3.0
-geoalchemy2>=0.15,<1.0
-psycopg2-binary>=2.9,<3.0
-alembic>=1.13,<2.0
-minio>=7.2,<8.0
-python-multipart>=0.0.9
-
-# ── Config / logging ──
-pydantic>=2.6,<3.0
-pydantic-settings>=2.2,<3.0
-structlog>=24.1
-python-dotenv>=1.0
-
-# ── Data access ──
-copernicusmarine>=1.3
-cdsapi>=0.6
-
-# ── Utilities ──
-tqdm>=4.66
-joblib>=1.3
-
-# ── Test ──
-pytest>=8.0
-httpx>=0.27
+-e .

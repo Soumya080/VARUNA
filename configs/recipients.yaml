@@ -1,0 +1,57 @@
+# VARUNA — operational role -> contact registry
+#
+# `varuna_alerts.routing_policy` decides WHICH ROLES an alert reaches. This
+# file is the only place that says how to actually reach them.
+#
+# A role with no contact detail is NOT an error and is never a silent drop:
+# the channel reports NOT_CONFIGURED for that recipient, naming the role, so
+# an operator can see exactly who was and was not notified.
+#
+# Nothing here is a secret — these are destinations, not credentials.
+# Credentials live in .env (VARUNA_SMTP_*, VARUNA_SMS_*) and are gitignored.
+#
+# Phone numbers must be in E.164 (+91XXXXXXXXXX). MSG91/Fast2SMS reject
+# unprefixed numbers, and a rejected send is reported as FAILED, never as sent.
+
+recipients:
+  duty_officer:
+    name: "Duty Officer, Coastal Watch"
+    # M9 fix (docs/product/HONESTY_LEDGER.md #11): a personal address was
+    # committed here as the tracked default, which is a real-person email
+    # baked into the repo for every deployment. `email: null` is not a
+    # broken config — it's the honest state (see this file's own header:
+    # "a role with no contact detail is NOT an error"). channel_orchestrator's
+    # `send_email()` already falls back to `VARUNA_ALERT_TO` from `.env`
+    # (gitignored) for local testing, so a real destination can still be
+    # configured per-deployment without ever being committed.
+    email: null
+    phone: null          # e.g. "+919876543210"
+
+  supervisor:
+    name: "Watch Supervisor"
+    email: null
+    phone: null
+
+  field_operator:
+    name: "Field Operator / Asset Crew"
+    email: null
+    phone: null
+
+  # ---- External stakeholders -------------------------------------------
+  # These roles map to NO RBAC role (see routing_policy.ROLE_RBAC_BRIDGE):
+  # they can be notified, but they can never act on an alert or authorise a
+  # mission. Keep it that way — a notification list must not grant authority.
+  enforcement:
+    name: "Enforcement / Coast Guard liaison"
+    email: null
+    phone: null
+
+  dg_shipping:
+    name: "Directorate General of Shipping"
+    email: null
+    phone: null
+
+  state_pcb:
+    name: "State Pollution Control Board"
+    email: null
+    phone: null

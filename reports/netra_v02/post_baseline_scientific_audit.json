@@ -1,0 +1,268 @@
+{
+  "audit_id": "netra_v02_post_baseline_scientific_audit",
+  "date": "2026-08-30",
+  "checkpoint_untouched": true,
+  "test_set_untouched_before_this_audit": true,
+  "phases": {
+    "1_checkpoint_integrity": {
+      "classification": "MEASURED",
+      "checkpoint_path": "artifacts/checkpoints/netra_v0_2/netra_baseline_v02_dac482fcd84a_best.pt",
+      "checkpoint_sha256": "9f38c690d0ef1629bdc7a59b76dbe054d45245cfccb4ba5b26f242f1d2e2cd66",
+      "sha256_matches_frozen_sidecar": true,
+      "frozen_sidecar_exists": true,
+      "epoch": 32,
+      "best_metric_iou_oil": 0.614925,
+      "architecture": "smp.Unet",
+      "encoder_name": "resnet34",
+      "encoder_weights": null,
+      "in_channels": 2,
+      "classes": 2,
+      "oil_class_index": 1,
+      "dataset_version": "NETRA-GOLD-v0.2",
+      "manifest_hash": "89d3cf69d7131964f30879506a6ec0cd07cf01a5900deef89a9c6c24697f",
+      "normalization_version": "netra-norm-v0.2-nodata-excluded",
+      "calibrated_threshold": 0.806,
+      "status": "PASS",
+      "notes": "Checkpoint read-only via torch.load; never re-saved. Byte-identical to the frozen sidecar's recorded hash."
+    },
+    "2_official_test_evaluation": {
+      "classification": "MEASURED",
+      "threshold_used": 0.806,
+      "threshold_source": "pre-registered val-set sweep at epoch 32; NOT selected on test data",
+      "n_scenes": 152,
+      "n_tiles": 2432,
+      "n_pixels": 637534208,
+      "overall": {
+        "iou_oil": 0.6458148100720343,
+        "dice_oil": 0.7847964499040668,
+        "precision_oil": 0.8192397135601566,
+        "recall_oil": 0.7531325280948801,
+        "f1_oil": 0.7847964499040669,
+        "pixel_accuracy": 0.9954143056744024,
+        "fp_pixel_rate": 0.001865620662946705,
+        "pr_auc": 0.8513183228999901
+      },
+      "confusion_matrix": {"tn": 629279947, "fp": 1176192, "fn": 1747345, "tp": 5330724},
+      "by_population": {
+        "positive_tiles": {"n_tiles": 437, "iou_oil": 0.7022757758829885, "precision_oil": 0.9122801733336505, "recall_oil": 0.7531325280948801, "fp_pixel_rate": 0.004769058815557393},
+        "empty_tiles": {"n_tiles": 1995, "iou_oil": 0.0, "fp_pixel_rate": 0.0012689251051212014, "note": "IoU undefined/0 by convention: no positive pixels exist to have IoU over. fp_pixel_rate is the metric that matters here."}
+      },
+      "by_source": {
+        "zenodo_part1": {"n_tiles": 1232, "iou_oil": 0.7014281268688777, "precision_oil": 0.9108502905610794, "recall_oil": 0.7531325280948801, "fp_pixel_rate": 0.0016517047136822877},
+        "zenodo_part2_lookalike": {"n_tiles": 480, "iou_oil": 0.0, "fp_pixel_rate": 0.005093812942504883, "note": "hard negative, no positive pixels; fp_pixel_rate is the relevant metric"},
+        "zenodo_part2_no_oil": {"n_tiles": 720, "iou_oil": 0.0, "fp_pixel_rate": 7.150438096788194e-05, "note": "hard negative, no positive pixels; fp_pixel_rate is the relevant metric"}
+      },
+      "info_only_not_used_for_selection": {
+        "best_f1_on_test": 0.7867316239011747,
+        "best_f1_threshold_on_test": 0.7282502443792767,
+        "note": "Reported as evidence about the test distribution only. The primary result above uses the pre-registered 0.806 threshold. This value was NOT fed back into any decision."
+      },
+      "interpretation": "Test IoU (0.6458) exceeds val IoU (0.6149) and test precision (0.8192) exceeds val precision (0.6834) at the same threshold -- no sign of overfitting to validation-specific quirks; if anything the test split is slightly easier under this metric. FP-pixel-rate on both hard-negative sources remains low (0.0051 lookalike, 0.00007 no_oil), consistent with the val-time finding that the model discriminates rather than blanket-flags.",
+      "raw_report": "reports/netra_v02/07_official_test_eval.json"
+    },
+    "3_test_set_freeze": {
+      "classification": "DERIVED",
+      "status": "LOCKED_FOR_FINAL_EVALUATION",
+      "locked_at": "2026-08-30 (this audit, Phase 2 read)",
+      "prohibited_uses_going_forward": [
+        "model selection", "hyperparameter tuning", "threshold tuning",
+        "normalization fitting", "augmentation selection", "preprocessing selection"
+      ],
+      "note": "The 152-scene / 2432-tile test split has now been read exactly once for an official result. Any future read for a comparable purpose (e.g. comparing a v0.3 candidate) must be treated as a second official evaluation, disclosed as such, and not used to iterate."
+    },
+    "4_mc20_domain_diagnostic": {
+      "classification": "MEASURED",
+      "mc20_max_oil_probability": 3.0535006771970075e-06,
+      "mc20_mean_oil_probability": 5.564579019790017e-09,
+      "mc20_frac_above_calibrated_threshold": 0.0,
+      "test_split_max_probability_sample": 0.9790558218955994,
+      "test_split_p99_probability_sample": 0.06273176521062851,
+      "status_label": "OOD / DETECTION_UNAVAILABLE",
+      "explicitly_not_concluded": "MC20 has no oil. The frozen model's near-zero output on MC20 is not evidence about MC20's true oil state; it reflects the input falling far outside the range the model was trained to discriminate within (see Phase 6).",
+      "note": "Corroborates prior cross-session finding (independent re-measurement on the same 9 tiles, this session's own inference run)."
+    },
+    "5_preprocessing_consistency_audit": {
+      "classification_mixed": true,
+      "items": {
+        "source_product_type": {"classification": "MEASURED", "train": "Zenodo Part I/II curated GeoTIFF pairs (2 bands, no embedded band metadata)", "mc20": "Sentinel-1 IW GRDH 1SDV .SAFE product (official ESA distribution)", "match": "DIFFERENT product provenance -- Zenodo's own pre-repo processing is undocumented and unverifiable from the files themselves (see below)."},
+        "raw_signal_representation": {"classification": "BLOCKED", "reason": "Zenodo Part I/II GeoTIFFs carry no band descriptions, no tags, and no accompanying processing documentation in this repository. Whether the source pixels are raw DN, calibrated sigma0, or an already dB-converted and contrast-stretched product cannot be determined from the files on disk."},
+        "calibration": {"classification": "MEASURED", "mc20": "explicit LUT-based DN -> sigma0 via sentinel1_grd_calibration.py, parse_calibration_lut + _interpolate_lut_to_grid, unmodified", "train": "unknown (Phase 5a blocked)"},
+        "sigma0_conversion": {"classification": "MEASURED (MC20 only)", "mc20": "calibrate_to_db() performs DN->sigma0->dB explicitly", "train": "unknown, values on disk are already dB-range floats consistent with a sigma0-dB product, but the conversion method is not documented"},
+        "db_conversion": {"classification": "MEASURED", "both": "both pipelines land on a dB-scale float representation prior to normalization (train raw scenes measured at Phase 1 source-audit time in the -80..+40 dB clip range; MC20 measured VV [-36.14,14.05] dB, VH [-49.15,4.25] dB per docs/datasets/MC20_EVENT_GOLD_V0_1.md)"},
+        "clipping": {"classification": "MEASURED", "both": "same frozen bounds applied: netra-norm-v0.2-nodata-excluded, min/max clip prior to [0,1] rescale"},
+        "normalization": {"classification": "MEASURED", "both": "MC20 explicitly calls apply_netra_normalization() reading data/manifests/netra_gold_v0_2.json's frozen percentile bounds directly -- the SAME function and SAME frozen stats used for training, per docs/datasets/MC20_EVENT_GOLD_V0_1.md. This rules out 'different normalization function' as an explanation for the domain gap."},
+        "nodata_masking": {"classification": "MEASURED", "train": "VV==0 AND VH==0 fill convention, 2.585% nodata_frac dataset-wide (03_normalization.py)", "mc20": "0% zero_frac in VV, 4.708% zero_frac in VH (this audit's own tile sample) -- different nodata incidence, plausible scene-specific rather than pipeline-different"},
+        "pixel_resolution": {"classification": "BLOCKED", "reason": "Zenodo Part I/II source pixel spacing (GSD) is not documented in-repo; cannot compare against Sentinel-1 IW GRD's native ~10m GSD without the original Zenodo dataset card, which is not present locally."},
+        "spatial_resampling": {"classification": "BLOCKED", "reason": "same as above -- whether Zenodo scenes were resampled from native GRD resolution before publication is unknown from the files alone."},
+        "channel_order": {"classification": "MEASURED", "see": "Phase 8"},
+        "tile_extraction": {"classification": "MEASURED", "both": "512x512, stride 512, non-overlapping -- same TILE_SIZE constant used by both 04_build_gold.py and the MC20 event-gold builder"},
+        "valid_pixel_handling": {"classification": "MEASURED", "train": "excludes VV==0 AND VH==0 fill pixels from normalization statistics (train-only, frozen)", "mc20": "documented as zero NaN/Inf, normalized range exactly [0,1], but MC20's own zero/nodata incidence (this audit) differs by channel (0% VV, 4.7% VH) from the training-set convention of a joint VV==0 AND VH==0 fill rule -- suggesting MC20 may have single-channel nodata not covered by the training-time nodata definition."}
+      },
+      "summary": "The normalization FUNCTION and frozen STATISTICS are confirmed identical between train and MC20 -- this is not a 'different normalizer' bug. The largest unresolved gap is upstream: Zenodo Part I/II's own pre-publication processing (calibration method, resolution, resampling, possible enhancement/despeckling) is completely undocumented in this repository and cannot be verified from the raw files, which themselves carry zero embedded metadata."
+    },
+    "6_distribution_audit": {
+      "classification": "MEASURED",
+      "method": "Deterministic sample: 40 real-oil-source (zenodo_part1) test-split tiles (every 60th file, sorted) vs all 9 MC20 event tiles. Same [2,512,512] normalized-to-[0,1] representation for both.",
+      "VV": {
+        "train_mean": 0.3431, "train_std": 0.1327,
+        "mc20_mean": 0.7223, "mc20_std": 0.0762,
+        "variance_ratio_mc20_over_train": 0.330,
+        "percentiles_train": {"1":null,"2":null,"5":null,"25":null,"50":null,"75":null,"95":null,"98":null,"99":null},
+        "mean_abs_percentile_distance_0_1_scale": 0.3923
+      },
+      "VH": {
+        "train_mean": 0.5428, "train_std": 0.1285,
+        "mc20_mean": 0.1597, "mc20_std": 0.0814,
+        "variance_ratio_mc20_over_train": 0.401,
+        "mean_abs_percentile_distance_0_1_scale": 0.3782
+      },
+      "zero_nodata_ratio": {"train_VV": 0.01341, "train_VH": 0.0, "mc20_VV": 0.0, "mc20_VH": 0.04708},
+      "texture_gradient_proxy": {
+        "train_VV_grad_mag_mean": 0.05146, "train_VH_grad_mag_mean": 0.03151,
+        "mc20_VV_grad_mag_mean": 0.06137, "mc20_VH_grad_mag_mean": 0.06743,
+        "note": "MC20's pixel-to-pixel gradient magnitude is actually HIGHER than train's despite lower global variance -- consistent with unfiltered speckle noise (fine-grained, high-frequency) riding on top of a compressed overall dynamic range, rather than a uniformly smooth/blurred scene."
+      },
+      "channel_mean_reversal": {
+        "finding": "In normalized [0,1] space, train has VH brighter than VV (0.543 vs 0.343) while MC20 has VV brighter than VH (0.722 vs 0.160) -- the two datasets are on OPPOSITE sides of the brightness ordering.",
+        "physical_expectation": "Over ocean, co-pol (VV) is normally brighter than cross-pol (VH) by ~5-10 dB. MC20's ordering (VV>VH) matches this. The training set's ordering (VH>VV) does not.",
+        "relation_to_phase_8": "This is the same anomaly flagged in the cross-session channel-inversion hypothesis. It is independently reconfirmed here with this session's own tiles. It does NOT explain the MC20 null-detection result (Phase 8's swap test showed no sensitivity), but it is a real, measured, unresolved asymmetry in how the two datasets' channels relate to physical convention, and is not fully explained by 'MC20 is simply lower-contrast.'"
+      },
+      "not_measured_this_pass": [
+        "formal histogram distance (e.g. Wasserstein/KL over full pixel histograms, not just percentile-grid proxy)",
+        "land fraction", "incidence-angle proxy", "coastal vs open-ocean scene classification"
+      ]
+    },
+    "7_model_output_audit": {
+      "classification": "MEASURED",
+      "samples": {
+        "train_sample_n20": {"max": 0.99989, "mean": 0.03316, "p99": 0.99797, "frac_above_0.806": 0.02255},
+        "val_sample_n20": {"max": 0.99991, "mean": 0.01329, "p99": 0.89612, "frac_above_0.806": 0.01090},
+        "test_sample_n20": {"max": 0.97906, "mean": 0.00470, "p99": 0.06273, "frac_above_0.806": 0.00184},
+        "mc20_all9": {"max": 3.054e-06, "mean": 5.565e-09, "p99": 2.233e-08, "frac_above_0.806": 0.0},
+        "random_noise_normal_0.5_0.15_n20": {"max": 1.578e-06, "mean": 4.322e-10}
+      },
+      "additional_noise_conditions_tested": {
+        "uniform_0_1": {"max": 1.795e-06, "mean": 1.428e-09},
+        "normal_0.5_0.30_clipped": {"max": 1.933e-06, "mean": 1.262e-09},
+        "salt_pepper_extreme_0_or_1": {"max": 2.983e-06, "mean": 2.027e-09}
+      },
+      "verdict_per_input_type": {
+        "train": "normal", "val": "normal", "test": "normal (slightly lower max/p99 than train/val, expected -- test is unseen)",
+        "mc20": "saturated / OOD -- outputs pinned near the numerical floor of the softmax, indistinguishable in magnitude from pure synthetic noise",
+        "random_noise_all_variants": "saturated -- max probability consistently in the 1e-6 to 3e-6 range across four different noise distributions (uniform, two Gaussian variances, salt-and-pepper)"
+      },
+      "discrepancy_flagged": {
+        "description": "A prior cross-session measurement reported random-noise max probability as ~6.3e-2, roughly four orders of magnitude higher than this audit's own measurement (~1.4e-6 to 3.0e-6) across four different noise distributions tried here.",
+        "classification": "DERIVED -- explained (2026-08-30, root cause confirmed directly by the reporting session, router-datasets-ca)",
+        "resolution": "The earlier ~6.3e-2 measurement used torch.randn (N(0,1), range ~[-4,+4]) fed directly to a model expecting [0,1]-normalized input -- an input-scale bug in that test. Re-measured with correctly in-range inputs on the same checkpoint: U[0,1]=1.39e-6, N(train mean/std)=8.75e-7, N(MC20 mean/std)=2.53e-6 -- all consistent with this audit's own figures.",
+        "impact_on_this_audit_conclusion": "None on the qualitative conclusion; if anything strengthens it. Real MC20 (3.07e-6) sits alongside correctly-scaled noise (0.9e-6-2.5e-6) -- the model's output magnitude does not distinguish real SAR from noise. The retracted claim ('model responds more to noise than real SAR') is not carried into this audit."
+      },
+      "conclusion": "MC20 output classified as SATURATED / OOD, not WEAK and not evidence of a preprocessing-invalid pipeline (the pipeline is confirmed to share the same normalization function and frozen statistics as training, per Phase 5)."
+    },
+    "7b_narrow_high_activation_probe": {
+      "classification": "MEASURED (numbers, independently replicated this session) / HYPOTHESIS (operational implication)",
+      "source": "Cross-session probe by router-datasets-ca, independently replicated by this session before inclusion",
+      "measured": {
+        "unsmoothed_uniform_noise_seed0_max_prob": 1.06e-06,
+        "smoothed_k9_uniform_noise_max_prob_by_seed": {"seed0": 0.9770, "seed1": 0.9864, "seed2": 0.9714},
+        "constant_VV0.5_VH0.5_max_prob": 0.0,
+        "constant_VV0.717_VH0.157_MC20_means_max_prob": 0.0,
+        "constant_VV0.362_VH0.506_train_means_max_prob": 0.0,
+        "constant_VV0.7_VH0.7_max_prob": 0.0
+      },
+      "refined_characterization_joint_finding": "Combining this session's constant-fill test (0.0 at (0.5,0.5) flat) with the peer's k=1 unsmoothed-noise result (0.0) and their k=9 textured channel-separation grid (std~0.042, confirming the zero-scoring rows were genuinely textured, not flat): the trigger is BAND-LIMITED TEXTURE, not smoothness -- dies at both too-high-frequency (unsmoothed noise) and zero-structure (constant fill) extremes.",
+        "channel_mean_specificity_confirmed": "Constant-value probes at MC20's and training's actual channel means both score 0.0, and the peer's textured channel-separation grid at those same means also scores 0.0 -- specificity holds at both ends of the frequency band, consistent with only the (0.5,0.5)-mean region being live.",
+        "cross_session_agreement": "Two independent replications converge on the core numbers: this session 0.977/0.986/0.971 (3 seeds), peer 0.947-0.994 (5 seeds).",
+      "explicitly_not_concluded": [
+        "This does not explain MC20's null result -- MC20's own channel means (0.717, 0.157) score 0.0 in this exact test.",
+        "This is not a measured false-positive rate on real data -- it is a synthetic-input behavioral probe.",
+        "Whether any real SAR scene's channel means land near (0.5, 0.5) has not been checked."
+      ],
+      "context": "Test-set FP-pixel-rate (Phase 2) is 0.00187 overall and 0.00509 on the lookalike hard negative -- low. This blind spot may be unreachable by real SAR content, but that is unconfirmed, not established.",
+      "scope_caveats": "Single kernel family (box blur/avg_pool), one architecture (Unet/resnet34), one checkpoint (epoch 32 baseline). Not generalized beyond this."
+    },
+    "8_channel_order_check": {
+      "classification": "MEASURED (this audit) + reported (cross-session)",
+      "swap_test_result": {"original_max_prob": 3.07e-06, "swapped_max_prob": 3.03e-06, "ratio": 1.01},
+      "verdict": "NOT SUPPORTED as an explanation for the MC20 null result. Channel inversion, if real, does not explain the observed saturation.",
+      "separate_open_item": "The channel brightness-ordering anomaly documented in Phase 6 (train: VH>VV: MC20 and physical convention: VV>VH) remains unresolved as a data-quality question independent of the MC20 detection failure. See docs/datasets/NETRA_GOLD_V0_2.md Known Limitations #9.",
+      "effort_directive_followed": "Per instruction, this was not re-investigated beyond re-confirming the existing swap-test numbers; no significant new effort was spent here."
+    },
+    "9_training_domain_bias_audit": {
+      "classification": "MIXED",
+      "measured": {
+        "class_imbalance": "Part I scenes average 2.98% oil pixels; 1,366 of 2,565 scenes (53%) are hard negatives with zero oil pixels (from docs/datasets/NETRA_GOLD_V0_2.md, Known Limitations #5).",
+        "test_split_empty_tile_fraction": "1995 / 2432 = 82.0% of test tiles are empty (this audit, Phase 2).",
+        "dynamic_range_train_vs_mc20": "see Phase 6 -- MC20 has 0.33x-0.40x the variance of the training distribution."
+      },
+      "blocked": {
+        "coastal_vs_open_ocean_classification": "No per-scene land-fraction or coastline-distance field exists in the manifest or source metadata. Would require a separate GIS join against a coastline dataset, out of scope for this pass.",
+        "incidence_angle_proxy": "Not present in Zenodo Part I/II metadata (no per-scene product XML/annotation is bundled with the curated GeoTIFFs, unlike MC20's full .SAFE product which does carry this).",
+        "land_fraction": "Same blocker as coastal classification.",
+        "sensor_product_differences": "Zenodo's source sensor/product-type per scene is not verifiable from the files (Phase 5)."
+      },
+      "hypothesis": "The measured contrast/variance gap (Phase 6) is consistent with NETRA-GOLD-v0.2 being a narrower, likely curator-processed distribution (possibly contrast-enhanced or resampled by Zenodo's original authors, unverifiable -- Phase 5) relative to raw-calibrated operational GRD scenes like MC20. This would mean the training domain is narrower than the deployment domain, which is the textbook precondition for the OOD behavior observed in Phase 7. This is a hypothesis, not a proven mechanism -- Phase 5's blocked items (resolution, resampling, raw signal representation) are exactly the missing evidence that would confirm or refute it."
+    },
+    "10_no_retrain_performed": {
+      "classification": "DERIVED",
+      "confirmed": true,
+      "netra_v0_2_dataset_modified": false,
+      "frozen_checkpoint_modified": false,
+      "official_test_split_modified": false,
+      "mc20_event_gold_modified": false
+    },
+    "11_recommendation": {
+      "classification": "DERIVED from measured evidence above",
+      "selected": "B_and_A_combined",
+      "primary": "B: TRAINING_DOMAIN_EXPANSION",
+      "secondary": "A: PREPROCESSING_CORRECTION (specifically: resolving the Phase-5 blocked items before or alongside B)",
+      "reasoning": [
+        "The measured 0.33x-0.40x variance ratio (Phase 6) and higher gradient/texture on MC20 despite lower global contrast (Phase 6) point to a genuine distributional narrowness in NETRA-GOLD-v0.2 relative to at least one real operational GRD scene -- this is the textbook signature of needing more diverse training scenes (B), not a broken normalizer (Phase 5 already confirms train and MC20 share the identical normalization function and frozen stats).",
+        "However, B cannot be responsibly executed while Phase 5's blocked items remain unknown: if Zenodo's source scenes were resampled or contrast-processed before publication in a way that differs from MC20's raw-calibrated pipeline, adding more MC20-like scenes to a differently-preprocessed training set would create a NEW inconsistency rather than closing the existing one. So A (specifically: determining Zenodo's actual raw signal representation and native resolution) is a prerequisite investigation, not a competing option.",
+        "D (architecture investigation) is not supported: the frozen model performs well in-distribution (test IoU 0.6458, PR-AUC 0.8513) with clean saturation behavior on genuinely OOD input rather than erratic/undefined behavior -- there is no evidence of an architectural defect.",
+        "C (domain adaptation) is premature until B/A determine whether the gap is a preprocessing artifact (fixable without new data) or a genuine content/domain difference (needs new data) -- doing adaptation before that risks adapting to a preprocessing bug rather than a real domain shift.",
+        "E (no change) is not supported given the measured, reproducible OOD failure on a real operational scene that the model is explicitly meant to eventually serve (MC20 is a named E2E validation event)."
+      ]
+    },
+    "12_future_experiment_design": {
+      "classification": "DERIVED -- design only, NOT executed",
+      "experiment_0_prerequisite_investigation": {
+        "hypothesis": "Zenodo Part I/II's pre-publication processing (resolution, resampling, calibration method) differs materially from MC20's raw .SAFE calibration pipeline, and this -- not scene content -- explains most of the measured variance gap.",
+        "method": "Obtain the original Zenodo dataset card/paper (external to this repo) and compare stated GSD, product level, and any stated enhancement steps against Sentinel-1 IW GRD's native ~10m GSD and MC20's documented calibration chain. No model training involved -- pure documentation/metadata reconciliation.",
+        "success_criterion": "Either confirms a specific, nameable preprocessing difference (which becomes Experiment 1's independent variable) or rules it out, sharpening Experiment 2's rationale.",
+        "must_precede": "Experiment 1 and 2 below -- running either without this is guessing at the mechanism."
+      },
+      "experiment_1_preprocessing_correction": {
+        "hypothesis": "If Experiment 0 identifies a specific preprocessing mismatch (e.g. a resampling step), correcting the training pipeline to match MC20's raw-calibrated representation will narrow the measured variance gap and improve MC20 output confidence without needing new labeled scenes.",
+        "independent_variable": "The corrected preprocessing step identified by Experiment 0.",
+        "fixed_variables": "Model architecture (Unet/resnet34), loss (dice_ce, weights [1,10]), optimizer/schedule, split assignment, batch size, epoch budget (mirror the v0.2 baseline exactly).",
+        "training_data": "NETRA-GOLD-v0.2 scenes, re-processed with the corrected step -- a new Gold build (v0.3), not new source scenes.",
+        "validation_data": "Same val split as v0.2 (region-stratified, already leakage-guarded).",
+        "held_out_test_data": "Same 152-scene test split, still never used for tuning -- a SECOND official evaluation, explicitly disclosed as such.",
+        "metric": "val IoU(oil) during training; MC20 max/mean oil-probability and variance-ratio-to-train as the domain-gap diagnostic (not a labeled metric, since MC20 has no ground truth).",
+        "success_criterion": "MC20 variance ratio moves materially toward 1.0 (from the current 0.33-0.40) AND val IoU on the corrected pipeline is within noise of v0.2's 0.6149 (i.e. the correction does not regress in-distribution performance)."
+      },
+      "experiment_2_training_domain_expansion": {
+        "hypothesis": "Adding a modest number of real, raw-calibrated Sentinel-1 GRD scenes (non-MC20, to keep MC20 as a clean held-out validation case) with pixel-level oil/no-oil labels will widen the training distribution enough to close the MC20 gap.",
+        "independent_variable": "Presence/absence of the added raw-GRD scenes in the training pool.",
+        "fixed_variables": "Same as Experiment 1's fixed list, plus: do NOT change normalization statistics mid-experiment (refitting normalization is itself a confound -- if done, it must be its own separate, disclosed experiment).",
+        "training_data": "NETRA-GOLD-v0.2 (unchanged) + new labeled raw-GRD scenes, scene-level split exactly as v0.2's leakage-guarded methodology (Union-Find footprint overlap, 5-degree region binning).",
+        "validation_data": "Same v0.2 val split, plus a held-out slice of the new raw-GRD scenes so the val metric reflects both domains.",
+        "held_out_test_data": "Same 152-scene test split (v0.2) AND MC20 remain untouched by this experiment's training/tuning loop -- MC20 continues to serve only as a qualitative E2E check, never a training/tuning signal.",
+        "metric": "val IoU(oil) on both the original v0.2-domain slice and the new raw-GRD slice, reported separately.",
+        "success_criterion": "Raw-GRD-domain val IoU improves substantially from a near-zero/near-random baseline without the original v0.2-domain val IoU dropping outside noise of 0.6149."
+      },
+      "prohibited_in_all_future_experiments": [
+        "Using MC20 as a training, validation, threshold-tuning, or early-stopping signal (MC20 has no ground truth oil labels -- it cannot be, by construction).",
+        "Using the 152-scene NETRA-GOLD-v0.2 test split for anything but a final, disclosed, non-iterative check.",
+        "Re-fitting normalization statistics without treating it as its own named, disclosed experiment."
+      ]
+    }
+  },
+  "safety_confirmation": {
+    "deleted": 0, "moved": 0, "renamed": 0, "overwritten": 0,
+    "frozen_checkpoint_byte_identical": true,
+    "mc20_event_gold_untouched": true,
+    "netra_gold_v0_2_untouched": true
+  }
+}

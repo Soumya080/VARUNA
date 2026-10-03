@@ -1,0 +1,159 @@
+{
+  "dataset_version": "NETRA-GOLD-v0.3-CANDIDATE",
+  "date": "2026-08-31",
+  "final_decision": "GOLD_V03_READY_FOR_WEAK_LABEL_PILOT",
+  "source": {
+    "pangaea_doi": "10.1594/PANGAEA.980773",
+    "essd_doi": "10.5194/essd-17-6807-2025",
+    "code_doi": "10.5281/ZENODO.17789853",
+    "license": "CC-BY-4.0",
+    "scenes": 25,
+    "downloaded_gb": 43.8
+  },
+  "label_recovery": {
+    "searched": [
+      "PANGAEA data table",
+      "per-patch PASCAL-VOC XML",
+      "README.pdf",
+      "Metadata.txt",
+      "authors DARTIS code repo"
+    ],
+    "finding": "XML declares <segmented>0</segmented> (PASCAL-VOC field asserting NO segmentation masks exist); authors own calculate_perform.py evaluates detections by box-IoU against manual inspections",
+    "conclusion": "bounding boxes are the TERMINAL label in the source chain; no polygon or pixel mask exists anywhere",
+    "label_quality": "WEAK_BOX (not upgraded)"
+  },
+  "label_noise_measured": {
+    "n_oil_tiles": 544,
+    "box_area_over_tile_area": {
+      "mean": 0.060419433257159066,
+      "median": 0.0099029541015625,
+      "p90": 0.12411193847656243,
+      "max": 1.0
+    },
+    "in_box_dark_fraction": {
+      "mean": 0.3929859898156156,
+      "median": 0.37733446519524616,
+      "p10": 0.20683143907390558,
+      "p90": 0.5952525252525253
+    },
+    "estimated_non_oil_fraction_inside_box_median": 0.6226655348047538,
+    "pixel_level_foreground_fraction": 0.04784304467524677,
+    "tile_level_positive_fraction": 0.7918486171761281,
+    "method_note": "darkness statistic used ONLY to quantify box label noise; never used to generate or reshape any mask"
+  },
+  "alignment_verification": {
+    "n_oil_tiles": 445,
+    "mean_delta_db": -1.6582671403884888,
+    "median_delta_db": -1.5296764373779297,
+    "frac_box_darker": 0.9820224719101124,
+    "t_stat": -35.86393737792969,
+    "p_value": 0.0,
+    "interpretation": "box regions are systematically darker than their surroundings, confirming image/mask geometric alignment; the effect is diluted because ~62% of box pixels are non-oil ocean"
+  },
+  "leakage": {
+    "exhaustive": true,
+    "n_zenodo_tiles_checked": 3020,
+    "scenes_within_15km": 15,
+    "holdout_scenes_flagged": 0,
+    "val_scenes_flagged": 3,
+    "train_scenes_flagged": 6,
+    "cross_split_duplicate_pairs": 0,
+    "internal_duplicates_excluded": 8,
+    "note": "sampled check earlier found 8/25; exhaustive full-corpus check found 15/25 -- 6 previously-clean holdout scenes were reclassified"
+  },
+  "splits": {
+    "train": {
+      "tiles": 217,
+      "scenes": 8,
+      "class": {
+        "NEGATIVE_OR_LOOKALIKE": 38,
+        "OIL": 179
+      },
+      "wind": {
+        "medium-wind": 106,
+        "low-wind": 111
+      }
+    },
+    "val": {
+      "tiles": 81,
+      "scenes": 3,
+      "class": {
+        "NEGATIVE_OR_LOOKALIKE": 23,
+        "OIL": 58
+      },
+      "wind": {
+        "low-wind": 81
+      }
+    },
+    "holdout": {
+      "tiles": 217,
+      "scenes": 8,
+      "class": {
+        "NEGATIVE_OR_LOOKALIKE": 30,
+        "OIL": 187
+      },
+      "wind": {
+        "low-wind": 217
+      }
+    }
+  },
+  "excluded": {
+    "EXCLUDED_PROXIMITY_TO_ZENODO": 77,
+    "EXCLUDED_DUPLICATE": 8
+  },
+  "normalization": {
+    "method": "percentile clip from FINAL TRAIN SPLIT ONLY (8 scenes, 219 tiles); excludes val, calm-holdout, Part III, MC20",
+    "normalization_version": "netra-norm-v0.3-essd-trainonly",
+    "nodata_policy": "DN==0 nodata excluded (same convention as v0.2)",
+    "n_train_tiles": 219,
+    "VH": {
+      "p1": -33.45981979370117,
+      "p99": -20.054515838623047,
+      "mean": -26.346405029296875,
+      "std": 2.8122713565826416
+    },
+    "VV": {
+      "p1": -30.238752365112305,
+      "p99": -11.851170539855957,
+      "mean": -19.351972579956055,
+      "std": 3.672746419906616
+    },
+    "clip_low": {
+      "VH": -33.45981979370117,
+      "VV": -30.238752365112305
+    },
+    "clip_high": {
+      "VH": -20.054515838623047,
+      "VV": -11.851170539855957
+    }
+  },
+  "training_formulation": {
+    "selected": "OPTION B -- segmentation with ignore regions",
+    "rationale": "62.3% of box-interior pixels measured NOT plausibly oil, so box-as-positive would inject majority false-positive supervision; box interior is therefore IGNORE (identity unknown), while all pixels outside boxes are reliable annotator-verified negatives",
+    "requires_pairing": "v0.2 Gold (STRONG_PIXEL Zenodo masks, read-only) must supply positive pixel supervision; v0.3 alone provides negatives + domain exposure only"
+  },
+  "cost": {
+    "downloaded_gb": {
+      "essd_grd": 43.8,
+      "zenodo_part3": 26.86,
+      "era5": 0.027
+    },
+    "processed_gb": 43.78,
+    "final_gold_gb": 1.8,
+    "scenes": 25,
+    "tiles_built": 687,
+    "tiles_active": 515,
+    "disk_free_gb_after": 953
+  },
+  "safety": {
+    "deleted": 0,
+    "moved": 0,
+    "renamed": 0,
+    "overwritten": 0,
+    "v0_2_modified": 0,
+    "checkpoint_modified": 0,
+    "part3_modified": 0,
+    "mc20_modified": 0,
+    "official_test_modified": 0
+  }
+}
