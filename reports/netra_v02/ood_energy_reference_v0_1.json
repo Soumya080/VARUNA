@@ -1,0 +1,44 @@
+{
+  "reference_version": "netra-v0.2-energy-ref-v0.1",
+  "method": "energy_score = -logsumexp(logits); per-tile statistic = min over pixels",
+  "computed_from": {
+    "manifest": "data\\manifests\\netra_gold_v0_2.json",
+    "manifest_sha256": "89d3cf69d7131964f30879506a6ec0cd07cf01a5900deef89a9c6c24697ff8c4",
+    "split": "val",
+    "sample_n": 200,
+    "sample_seed": 42,
+    "checkpoint_sha256": "9f38c690d0ef1629bdc7a59b76dbe054d45245cfccb4ba5b26f242f1d2e2cd66"
+  },
+  "no_training_performed": true,
+  "calibrated": false,
+  "limitations": [
+    "No labeled out-of-domain corpus was used; this is a reference distribution over in-domain data, not a tuned decision boundary.",
+    "No false-positive/false-negative rate has been measured against held-out true-OOD scenes.",
+    "Sampled from 200 of 3616 val tiles for tractability; not the full split.",
+    "Energy score is architecture- and checkpoint-specific; invalid for any other model version."
+  ],
+  "percentiles": {
+    "1": -19.380993785858156,
+    "2": -18.846475715637208,
+    "5": -18.179809951782225,
+    "10": -17.861354637145997,
+    "25": -17.115806579589844,
+    "50": -16.471466064453125,
+    "75": -15.277328252792358,
+    "90": -13.847580051422119,
+    "95": -12.888042736053468,
+    "98": -11.643156051635742,
+    "99": -11.643156051635742
+  },
+  "min": -20.41189193725586,
+  "max": -11.451923370361328,
+  "mean": -16.12815716266632,
+  "std": 1.6186517556303093,
+  "reference_max_prob_percentiles": {
+    "1": 4.840232392666621e-07,
+    "5": 5.358184949955103e-07,
+    "50": 1.3295026519699604e-06,
+    "95": 0.9998365819454194,
+    "99": 0.9999741983413696
+  }
+}

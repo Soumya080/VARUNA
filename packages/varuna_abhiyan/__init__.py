@@ -1,1 +1,3 @@
-"""VARUNA GRID v2 — abhiyan. See LLM_IMPLEMENTATION_GUIDE.md for the module contract."""
+"""VARUNA GRID v2 - ABHIYAN (Mission Planning)"""
+from varuna_abhiyan.protocol import AbhiyanProvider
+from varuna_abhiyan.service import AbhiyanService

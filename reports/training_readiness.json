@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-08-29T11:08:16.390116+00:00",
+  "reports": [
+    {
+      "engine": "netra",
+      "checks": {
+        "MANIFEST_VALID": true,
+        "DATASET_VALID": true,
+        "SPLIT_VALID": true,
+        "LEAKAGE_VALID": true,
+        "NORMALIZATION_VALID": true,
+        "GOLD_VALID": true,
+        "DATALOADER_VALID": true
+      },
+      "details": {
+        "source_datasets": {
+          "zenodo_part1": 1199,
+          "zenodo_part2_lookalike": 681,
+          "zenodo_part2_no_oil": 685
+        },
+        "split_strategy": "geographic_region_stratified",
+        "n_scenes_in_multiple_splits": 0,
+        "leakage_temporal_status": "UNAVAILABLE",
+        "leakage_failures": [],
+        "normalization_version": "netra-norm-v0.2-nodata-excluded",
+        "gold_sample_size": 100,
+        "gold_total_tiles": 41040,
+        "dataloader_module": "packages\\varuna_netra\\dataset\\gold.py",
+        "dataloader_has_dataset_class": true,
+        "dataloader_uses_glob": false,
+        "dataloader_references_manifest": true
+      },
+      "training_ready": true
+    },
+    {
+      "engine": "chhaya",
+      "checks": {
+        "DATASET_VALID": null,
+        "MANIFEST_VALID": null,
+        "SPLIT_VALID": null,
+        "LEAKAGE_VALID": null,
+        "NORMALIZATION_VALID": null,
+        "GOLD_VALID": null,
+        "DATALOADER_VALID": null
+      },
+      "details": {
+        "reason": "CHHAYA's current architecture (docs/adr/CHHAYA-ARCHITECTURE-DECISION.md, option C) is the AIS-coverage-gap heuristic, which requires no trained model and no Gold dataset. Not applicable, not blocked."
+      },
+      "training_ready": false
+    }
+  ]
+}

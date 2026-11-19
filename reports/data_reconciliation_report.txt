@@ -1,0 +1,27 @@
+VARUNA GRID v2 — Data Reconciliation Report
+Generated: 2026-08-29T11:17:22.646021+00:00
+============================================================
+Zenodo Part I        PRESENT BUT INCOMPLETE
+  Verified by direct rasterio read: 2-band float32, EPSG:4326, real bounds. Prior dedup pass discarded ~69% via a bbox-overlap bug (not true duplicates) — see docs/datasets/NETRA_GOLD_V0_1.md. NETRA Gold rebuild is a separate, already-owned workstream; not touched by this reconciliation pass.
+Zenodo Part II       PRESENT BUT INCOMPLETE
+  Verified: masks are all-zero (no lookalike class labels present, only folder-level lookalike/no_oil split). Not usable for a 3-class scheme without a real lookalike mask source.
+Zenodo Part III      MISSING
+  Never downloaded; no local path exists.
+ESSD                 MISSING
+  Absent. Needed for cross-dataset generalization claims, not for a first baseline.
+xView3               MISSING
+  Absent. Only relevant if docs/adr/CHHAYA-ARCHITECTURE-DECISION.md selects option A (xView3 SAR detector) — currently recommends option C (keep the existing AIS-coverage-gap heuristic).
+AIS                  READY
+  Acquired 2026-08-29. One national daily file, Gulf-of-Mexico region extracted at the bronze stage (see data/bronze/ais/). Anchored to zenodo_p1_00073 spatially only — the anchor case has no real timestamp, so temporal_join_status is 'unavailable' for any real join against it. See docs/datasets/AIS_ACQUISITION_RECORD.md.
+ERA5                 PRESENT BUT INCOMPLETE
+  Verified via cfgrib: u10/v10 present, hourly, continuous 2010-2026. Spans 3 files with 3 different bboxes ((5-20N,70-85E), (6-20N,70-85E), (8-20N,70-88E)) — treat as spatial_coverage_status=partial until reconciled to their intersection (see ForcingCube.spatial_coverage_status).
+CMEMS                INSUFFICIENT
+  Verified via xarray: both files have time=1 (single snapshot). time_series_status=INSUFFICIENT — cannot drive advection. Snapshots retained; a real time-series request is required before either engine can use CMEMS operationally.
+Bhoonidhi            MISSING
+  Absent. Relevant to an Indian-waters deployment claim; not on the NETRA baseline critical path.
+NISAR                MISSING
+  Absent. Mission not yet producing public data at volume relevant here.
+RISAT                MISSING
+  Absent.
+Sentinel-1 GRD       MISSING
+  Only Level-0 RAW is present (dataset_id=asf_sentinel1_raw, 251 files, 387.9GB) — GRD (the product every downstream consumer assumes) has not been acquired.

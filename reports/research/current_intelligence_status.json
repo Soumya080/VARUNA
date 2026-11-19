@@ -1,0 +1,183 @@
+{
+  "report_id": "varuna_intelligence_status",
+  "date": "2026-09-02",
+  "session_scope": "intelligence/research design only; no training, no model or checkpoint modification performed",
+  "companion_docs": {
+    "research_map": "docs/research/VARUNA_INTELLIGENCE_RESEARCH_MAP.md",
+    "spec": "docs/research/VARUNA_INTELLIGENCE_SPEC.md",
+    "roadmap": "docs/research/VARUNA_RESEARCH_ROADMAP.md"
+  },
+  "components": {
+    "evidence_envelope_contract": {
+      "status": "IMPLEMENTED",
+      "evidence_tag": "PROVEN",
+      "path": "packages/varuna_contracts/evidence.py",
+      "finding": "Real, already-implemented: trust/confidence separation, bounded evidence influence, monotonic degradation via derive(), EvidenceMode real/simulated/unavailable with a hard cached-replay guard, expressive UncertaintyBlock. This is the foundation, not a gap."
+    },
+    "validity_gate": {
+      "status": "IMPLEMENTED",
+      "evidence_tag": "PROVEN",
+      "path": "packages/varuna_nyaya/validity_gate.py",
+      "finding": "10-11 deterministic, fail-closed checks. Missing SensitivityBlock is treated as blocking rather than fabricated. Template for all future abstention logic."
+    },
+    "abhiyan_decision_state": {
+      "status": "IMPLEMENTED",
+      "evidence_tag": "PROVEN",
+      "path": "packages/varuna_abhiyan/decision_state.py",
+      "finding": "Correctly layered read-only translation of ValidityGateResult; does not re-evaluate evidence."
+    },
+    "praman": {
+      "status": "IMPLEMENTED",
+      "evidence_tag": "PROVEN",
+      "path": "packages/varuna_praman/praman.py",
+      "finding": "Artifact/provenance registry, NOT an evidence-fusion or ledger-reasoning engine. Prior framing of PRAMAN as 'the evidence ledger' is REJECTED as a description of current code."
+    },
+    "netra_v0_2": {
+      "status": "IMPLEMENTED",
+      "evidence_tag": "PROVEN",
+      "finding": "Real, deployed, hash-verified detector. Official IoU 0.6458, PR-AUC 0.8513. Real MC20 external case: null detection (max_prob~3e-6). Cross-domain generalization not established."
+    },
+    "netra_v0_3_b1": {
+      "status": "FROZEN_NOT_DEPLOYED",
+      "evidence_tag": "PROVEN",
+      "finding": "Regressed on target domain. This session's score-distribution diagnostic classifies the failure MIXED, leaning strongly REPRESENTATION_DOMINANT (see reports/netra_v03/b1_score_diagnostic.json)."
+    },
+    "netra_ood_detector": {
+      "status": "FAKE_STUB",
+      "evidence_tag": "MEASURED",
+      "path": "packages/varuna_netra/ood.py",
+      "finding": "compute_score() returns np.random.uniform(0.1, 0.9) - uniform noise, not a real OOD computation. Highest-leverage cheap fix identified this session."
+    },
+    "chhaya": {
+      "status": "MOCK_ONLY_NARROW_SCOPE",
+      "evidence_tag": "MEASURED",
+      "path": "packages/varuna_chhaya/",
+      "finding": "Real job is SAR-vs-AIS dark-vessel matching, not multi-hypothesis source attribution. NYAYA already implements most of the multi-hypothesis attribution the governing brief asked CHHAYA to do. Recommended: extend NYAYA's hypothesis space rather than build a second Bayesian engine in CHHAYA."
+    },
+    "nyaya": {
+      "status": "IMPLEMENTED",
+      "evidence_tag": "PROVEN",
+      "path": "packages/varuna_nyaya/",
+      "finding": "Real Bayesian attribution: density-based likelihoods (Phi mass density vessel-corridor vs background), real behavioral priors (speed anomaly/loiter/night proximity) with documented threshold provenance, posterior entropy + distinguishability outputs."
+    },
+    "smriti": {
+      "status": "MOCK_ONLY",
+      "evidence_tag": "MEASURED",
+      "path": "packages/varuna_smriti/",
+      "finding": "In-memory list only, non-persistent. detect_corridors() always returns []. propose_training_batch() never auto-approved (Threat G-07, a genuinely good guardrail) but nothing consumes an approved proposal - trigger_learning_loop()'s approved branch is 'pass'. No vector store / embeddings present - a clean slate, not a legacy mistake to undo."
+    },
+    "whatif_simulator": {
+      "status": "BROKEN_STUB",
+      "evidence_tag": "MEASURED",
+      "path": "packages/varuna_domain/whatif/simulator.py",
+      "finding": "simulate_wind_change() calls self.chhaya_service.forecast(...) but ChhayaProvider protocol has no forecast() method - dead code or latent AttributeError."
+    },
+    "agentic_orchestration": {
+      "status": "ABSENT",
+      "evidence_tag": "MEASURED",
+      "finding": "Repo-wide search for agent/orchestration/next-best-action code returned zero matches. GoldenCaseWorkflow is a fixed deterministic pipeline, not evidence-driven decisioning. Entirely greenfield."
+    },
+    "legacy_src_tree": {
+      "status": "DEAD_CODE",
+      "evidence_tag": "MEASURED",
+      "path": "src/",
+      "finding": "Mirrors packages/ component names but is not imported anywhere under packages/ or apps/; last touched 2026-08-24, predates current architecture. Risk of confusing future sessions; flagged for Integration to archive/delete."
+    },
+    "prativartan_phi": {
+      "status": "IMPLEMENTED",
+      "evidence_tag": "PROVEN",
+      "finding": "Real uncertainty via SensitivityBlock (age/forcing/diffusivity sensitivity from actual parameter perturbation sweeps), consumed by the Validity Gate."
+    },
+    "go_nogo_harness": {
+      "status": "SELF_DOCUMENTED_INVALID",
+      "evidence_tag": "INFERRED",
+      "finding": "VARUNA_MASTER_CONTEXT.md self-documents an EvidenceEnvelope construction error making it scientifically invalid. Not independently re-run this session. Closest existing thing to a system benchmark; repair is a NOW/cheap-experiment candidate, not a from-scratch build."
+    }
+  },
+  "roadmap_summary": {
+    "now_no_compute_or_cheap": [
+      "real NETRA OOD score (energy/max-softmax, calibrated on CALM-GRD-HOLDOUT vs MC20)",
+      "EvidenceLedger read-side class over PRAMAN",
+      "fix CHHAYA mock confidence to use already-computed coverage/proximity numbers",
+      "diagnose go/no-go harness construction error",
+      "verify whether NETRA envelope currently populates QualityMetrics/UncertaintyBlock",
+      "add depends_on_raw_source_ids overlap guard to evidence fusion"
+    ],
+    "next": [
+      "SMRITI v2 schema + write path (Postgres, structured, no vector store)",
+      "NYAYA SourceHypothesis widening (DARK_CONTACT, COASTAL, NATURAL_SEEP flat-prior, OTHER_ANTHROPOGENIC, UNKNOWN)",
+      "Validity Gate extension: chhaya_coverage, source_hypothesis_distinguishability, netra_ood checks",
+      "NextBestAction v1 deterministic action_value() scoring",
+      "written (not executed) justification for a topk_frac/MIL-weight ablation on NETRA v0.3"
+    ],
+    "later": [
+      "Agent orchestration loop wrapping GoldenCaseWorkflow",
+      "SMRITI retrieval-quality tuning once real case volume exists",
+      "VARUNA benchmark v1 (9 scenario categories, CaseScenario/EvaluationResult contract)",
+      "learned DARK_CONTACT likelihood term, gated on real outcome data"
+    ],
+    "future_research_ranked": [
+      {"rank": 1, "direction": "topk_frac / MIL-weight ablation", "cost": "moderate-compute (needs written justification + approval)"},
+      {"rank": 2, "direction": "stronger labels (STRONG_PIXEL vs WEAK_BOX)", "cost": "data-cost, not compute"},
+      {"rank": 3, "direction": "better low-wind data acquisition", "cost": "data/acquisition"},
+      {"rank": 4, "direction": "domain adaptation / feature alignment", "cost": "expensive-research"},
+      {"rank": 5, "direction": "representation learning / self-supervised pretraining", "cost": "expensive-research"},
+      {"rank": 6, "direction": "learned OOD head for NETRA", "cost": "moderate-compute, sequenced after the NOW closed-form OOD fix"},
+      {"rank": 7, "direction": "post-hoc calibration study (temperature scaling)", "cost": "cheap-experiment, no retraining"},
+      {"rank": 8, "direction": "architecture changes (deeper encoder/decoder)", "cost": "expensive-research, weakest evidentiary support"},
+      {"rank": 9, "direction": "second real external-domain validation case beyond MC20", "cost": "no-compute/cheap-experiment if data acquirable"}
+    ]
+  },
+  "final_status": {
+    "what_we_know": [
+      "EvidenceEnvelope/ValidityState/derive() form a genuinely solid, already-implemented evidence backbone (trust vs confidence, monotonic degradation, bounded influence)",
+      "NYAYA is a real, working Bayesian attribution engine (density likelihoods + behavioral priors)",
+      "PRATIVARTAN populates real sensitivity-based uncertainty, consumed by a real fail-closed Validity Gate",
+      "NETRA v0.2 is a real detector with a known, measured cross-domain failure mode (MC20 null detection)",
+      "B1's regression is MIXED/representation-dominant, not simple miscalibration (this session's diagnostic)",
+      "NETRA's OOD detector is fake (uniform random noise), CHHAYA is mock/narrow, SMRITI is mock/non-persistent, agentic orchestration does not exist, src/ is dead code"
+    ],
+    "what_we_believe": [
+      "CHHAYA v2 should extend NYAYA's hypothesis space rather than duplicate it with a second Bayesian engine",
+      "SMRITI should be structured (Postgres, predicate retrieval) not semantic/vector-based, given current evidence is entirely structured",
+      "The agent orchestration loop should wrap GoldenCaseWorkflow's fixed stages with one bounded decision point, not replace the workflow"
+    ],
+    "what_we_do_not_know": [
+      "The root cause of B1's representation collapse (MIL weight vs topk_frac vs domain gap) - requires an approved ablation to resolve",
+      "Whether NETRA's production envelope already populates QualityMetrics/UncertaintyBlock at all",
+      "Whether the go/no-go harness's construction error is a one-line fix or structural",
+      "How SMRITI retrieval should actually be tuned - insufficient real case volume exists yet to know"
+    ],
+    "what_we_should_build": [
+      "Real NETRA OOD score (closed-form, no training)",
+      "EvidenceLedger read-side aggregation",
+      "SMRITI v2 structured schema + write path",
+      "NYAYA hypothesis-space widening",
+      "NextBestAction v1 deterministic scorer",
+      "VARUNA benchmark v1 as a standing regression suite"
+    ],
+    "what_we_should_measure": [
+      "Correct-abstention rate, not just accuracy",
+      "Evidence efficiency (information gathered vs information needed)",
+      "Whether the netra_ood gate check actually fires on MC20-like scenes and stays quiet on in-domain ones",
+      "Whether fusion double-counts correlated evidence sources"
+    ],
+    "what_we_should_not_train_yet": [
+      "No B2 or any NETRA v0.3 continuation",
+      "No topk_frac/MIL-weight ablation without the separate written justification the governing brief requires",
+      "No learned CHHAYA/SMRITI components before deterministic v1s exist and real outcome data accumulates"
+    ],
+    "what_future_research_matters_most": "Whether VARUNA can turn NETRA's known, measured imperfection into reliable evidence-aware decisions - concretely, whether a real OOD signal plus the widened Validity Gate actually causes the system to behave differently (degrade/restrict appropriately) on an MC20-like scene versus an in-domain one. This is the one measurement that would validate or falsify this entire document's central thesis, and it requires no training to check."
+  },
+  "safety": {
+    "training_performed": false,
+    "models_modified": false,
+    "protected_assets_touched": false,
+    "files_created_only": [
+      "docs/research/VARUNA_INTELLIGENCE_RESEARCH_MAP.md",
+      "docs/research/VARUNA_INTELLIGENCE_SPEC.md",
+      "docs/research/VARUNA_RESEARCH_ROADMAP.md",
+      "reports/research/current_intelligence_status.json"
+    ]
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "task": "Integration Track STEP 7 - Real Authentication + Complete Operational Action Path",
+  "date": "2026-09-02",
+  "status": "AUTH_OPERATIONAL_VERIFIED",
+  "diagnosis_summary": {
+    "jwt_mechanism": "already existed and was fully functional (varuna_infra.auth.create_access_token/verify_token) but had zero production callers before this task",
+    "get_principal_boundary": "already correct - real signed JWT or demo-mode-only unsigned headers; used by every state-changing route already",
+    "login_endpoint": "did not exist anywhere - confirmed by exhaustive search",
+    "user_registry": "did not exist anywhere",
+    "rbac_and_authorization": "unchanged, already correct (STEP 6) - reused as-is",
+    "frontend_auth_code": "did not exist anywhere - zero login UI, zero token storage, zero Authorization headers sent"
+  },
+  "files_changed": [
+    "packages/varuna_infra/demo_users.py (new)",
+    "apps/api/routers/auth.py (new - POST /v1/auth/login, GET /v1/auth/me)",
+    "apps/api/config.py (access_token_expire_minutes)",
+    "apps/api/main.py (registered auth router)",
+    "packages/varuna_missions/service.py (mission.assigned alert wiring)",
+    "packages/varuna_integration/pipeline.py (attribution.generated alert wiring, events grouping)",
+    "packages/varuna_domain/golden_case_engine.py (per-event-group alert correlation)",
+    "apps/api/dependencies.py (wired alert_service/alert_lifecycle into get_mission_service)",
+    "frontend/VARUNA-frontend_yash/lib/auth-context.tsx (new)",
+    "frontend/VARUNA-frontend_yash/lib/api.ts (login(), setAuthToken(), Authorization headers on POSTs)",
+    "frontend/VARUNA-frontend_yash/components/header.tsx (real login/logout widget, replacing hardcoded identity)",
+    "frontend/VARUNA-frontend_yash/app/layout.tsx (wrapped in AuthProvider)",
+    "frontend/VARUNA-frontend_yash/app/alerts/page.tsx (401 vs 403 distinction, success confirmation)",
+    "frontend/VARUNA-frontend_yash/components/mission-status.tsx (real session username, 401 vs 403)",
+    "frontend/VARUNA-frontend_yash/app/missions/page.tsx (real session username, 401 vs 403)",
+    "tests/api/test_auth_login.py (new, 7 tests)",
+    "tests/api/test_auth_operational_matrix.py (new, 12 tests)",
+    "tests/api/conftest.py (new - alert/mission singleton test isolation)",
+    "frontend/VARUNA-frontend_yash/lib/__tests__/auth-error-classification.test.ts (new, 4 tests)"
+  ],
+  "login_flow": {
+    "endpoint": "POST /v1/auth/login",
+    "registry": "varuna_infra.demo_users - 5 hardcoded demo accounts, one per RBAC Role, sha256+salt (not bcrypt/passlib - neither was an existing dependency)",
+    "role_source": "server-side registry only - client request body has no role field, verified by test_client_cannot_supply_its_own_role",
+    "failure_shape": "same 401 for unknown username and wrong password - cannot enumerate accounts",
+    "token_lifetime_minutes": 30
+  },
+  "jwt_flow": {
+    "signing": "varuna_infra.auth.create_access_token (pre-existing, now actually called in production)",
+    "verification": "apps.api.security.get_principal -> varuna_infra.auth.verify_token (pre-existing, unchanged)",
+    "expired_token": "401, verified live and in tests",
+    "malformed_token": "401, verified live and in tests",
+    "tampered_token": "401, verified live and in tests"
+  },
+  "operational_actions_verified_end_to_end": [
+    "acknowledge alert",
+    "escalate alert",
+    "resolve alert (verified via automated test, same chain)",
+    "approve mission"
+  ],
+  "authorization_matrix": {
+    "unauthenticated": "401 - verified live (curl, no token) and in tests",
+    "authenticated_but_unauthorized": "403 - verified live and in tests; state confirmed unchanged after denial",
+    "authorized_role": "success - verified live and in tests; state mutation confirmed by re-fetching",
+    "system_principal_style_token": "403 on mission approval - re-verified through the full JWT/login path, not just dependency_overrides",
+    "denied_action_leaves_state_unchanged": true,
+    "successful_action_is_audited": true
+  },
+  "alert_event_wiring_phase5": {
+    "newly_wired_events": ["attribution.generated", "mission.assigned"],
+    "attribution_generated": "wired into RealE2EPipeline._alerts() at the same call site as validity.evaluated, gated by the same ValidityState",
+    "mission_assigned": "wired into MissionService.approve_and_assign(), the only place a mission genuinely becomes ASSIGNED; live-verified an alert appears immediately after a real approval",
+    "landfall_predicted_still_unwired": "deliberate - would require fabricating a proximity/urgency policy that does not exist in this repository",
+    "no_second_alert_store_created": true,
+    "no_duplicate_alert_logic_created": true
+  },
+  "praman_audit": {
+    "alert_correlation_registered_as_praman_artifact": true,
+    "mission_audit_answerable_via": "GET /v1/missions/{id}/audit",
+    "audit_fields": ["principal_id", "role", "permission", "operation", "allowed", "subject_id", "at"],
+    "no_secrets_in_audit_log": true
+  },
+  "live_verification": {
+    "login_returns_real_jwt": true,
+    "case_valid_alert_acknowledged_with_real_token": true,
+    "alert_state_change_confirmed_by_refetch": true,
+    "escalate_after_acknowledge_succeeded": true,
+    "malformed_token_401": true,
+    "tampered_token_401": true,
+    "stale_server_process_found_and_replaced": "a uvicorn process from a different Python environment was serving pre-STEP-7 code on port 8000; verified via its real command line before stopping it, then restarted from this repo's own venv",
+    "frontend_dev_server_responding": true,
+    "mission_approval_verified_via": "automated integration test (real HTTP, real JWT, same singleton) rather than live curl, because no API route exists to create a live mission - pre-existing gap, disclosed not hidden",
+    "interactive_browser_click_through": "not performed - no browser automation tool available in this environment"
+  },
+  "tests": {
+    "new_backend_files": ["tests/api/test_auth_login.py", "tests/api/test_auth_operational_matrix.py"],
+    "new_backend_tests": 19,
+    "new_frontend_file": "lib/__tests__/auth-error-classification.test.ts",
+    "new_frontend_tests": 4,
+    "frontend_total_tests": 15,
+    "frontend_typecheck": "0 errors",
+    "frontend_build": "success, 14/14 routes"
+  },
+  "backend_full_regression": {
+    "command": "pytest tests/ -q --ignore=tests/scientific",
+    "note": "re-run after all Phase 5 pipeline/mission wiring changes; all 19 new STEP 7 tests pass in the full-suite context",
+    "passed": 799,
+    "skipped": 10,
+    "failed": 1,
+    "failure": "test_netra_training_loop (pre-existing, unrelated)",
+    "baseline_before_this_task": "780 passed / 10 skipped / 1 pre-existing failure (STEP 6 final)",
+    "regressions": 0
+  },
+  "not_built_per_instruction": [
+    "Large identity platform",
+    "Production-grade password hashing library (bcrypt/passlib) - sha256+salt used instead for a disclosed demo-only registry",
+    "External auth providers (OAuth/SSO)",
+    "Weakening or bypassing JWT validation"
+  ],
+  "remaining_gaps": [
+    "Demo user registry is not a production credential store",
+    "No API route creates a live mission (pre-existing, not introduced by this task)",
+    "landfall.predicted alert event remains unwired (would require a fabricated urgency policy)",
+    "Interactive browser click-through not performed",
+    "OperatorCase.mission (replay) and MissionService's live store remain two distinct records (pre-existing STEP 6 gap)"
+  ]
+}

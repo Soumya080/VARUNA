@@ -1,0 +1,219 @@
+{
+  "experiment_id": "experiment0_nesz",
+  "date": "2026-08-30",
+  "git_commit": "28b76e5926c25ab2500bbabe62b5b776afd07e00",
+  "source_safe_dir": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+  "checksums": {
+    "vv_measurement_sha256": "ea0c4f9b7bb9798fedcc97d6d1a95d4f0eb965d45cdaf5841ea346817cac4b94",
+    "vh_measurement_sha256": "83b34de0a90020ec7d213dd7b7bb0b745bf1b5e7d75a75a017cbd1c8dda94a91",
+    "vv_calibration_xml_sha256": "9490d6dfefbf158c34eb2a3becee5ea1f2c177c2bec2fbefcbe09f7c2fe3ce3b",
+    "vh_calibration_xml_sha256": "2445fbd77105bbcbff618efb3535b2536dc9924d7de12ac5bcb5f5807c290373",
+    "vv_noise_xml_sha256": "b6b3bfde5321edaf2a86f34e07b3f201b3573d181512e7e46d96d1875dc0851b",
+    "vh_noise_xml_sha256": "98da78c41e294d8e9c93988b9e1a5362ae6810e432f155a914c9d4050fcd4299",
+    "checkpoint_sha256": "9f38c690d0ef1629bdc7a59b76dbe054d45245cfccb4ba5b26f242f1d2e2cd66",
+    "manifest_sha256": "89d3cf69d7131964f30879506a6ec0cd07cf01a5900deef89a9c6c24697ff8c4"
+  },
+  "crop_window": {
+    "top": 7268,
+    "left": 18657,
+    "size": 1536
+  },
+  "reproduction_check_vs_real_mc20_gold": {
+    "n_real_tiles": 9,
+    "n_computed_tiles": 9,
+    "max_abs_diff_after_sort_by_sum": 0.0,
+    "note": "Sorted by sum (not scene-matched by row/col label) as a coarse sanity check that this script's independently-reconstructed crop/calibration lands in the same numeric regime as the real production Gold tiles. Not a guaranteed exact tile-for-tile correspondence."
+  },
+  "pre_normalization_comparison_db_scale": {
+    "original": {
+      "VV": {
+        "mean": -21.774776458740234,
+        "std": 2.215341329574585,
+        "min": -36.138397216796875,
+        "max": 14.051604270935059,
+        "percentiles": {
+          "1": -27.573902130126953,
+          "2": -26.594919204711914,
+          "5": -25.629230499267578,
+          "25": -23.14512825012207,
+          "50": -21.594528198242188,
+          "75": -20.24614715576172,
+          "95": -18.43990135192871,
+          "98": -17.715612411499023,
+          "99": -17.245635986328125
+        },
+        "valid_pixel_fraction": 1.0,
+        "grad_mag_mean": 1.759165058500094,
+        "grad_mag_std": 0.9576132783936819
+      },
+      "VH": {
+        "mean": -29.33785629272461,
+        "std": 2.2363898754119873,
+        "min": -49.148712158203125,
+        "max": 4.251455783843994,
+        "percentiles": {
+          "1": -35.18248748779297,
+          "2": -34.35432434082031,
+          "5": -32.93381881713867,
+          "25": -30.593852996826172,
+          "50": -29.171998977661133,
+          "75": -27.931583404541016,
+          "95": -25.96673011779785,
+          "98": -25.36191177368164,
+          "99": -24.836267471313477
+        },
+        "valid_pixel_fraction": 1.0,
+        "grad_mag_mean": 1.8292607106295629,
+        "grad_mag_std": 0.9941971388662346
+      }
+    },
+    "denoised": {
+      "VV_including_floored": {
+        "mean": -22.896982192993164,
+        "std": 4.797334671020508,
+        "min": -115.22384643554688,
+        "max": 14.05143928527832,
+        "percentiles": {
+          "1": -31.915159225463867,
+          "2": -29.951337814331055,
+          "5": -27.819198608398438,
+          "25": -24.276264190673828,
+          "50": -22.418609619140625,
+          "75": -20.830781936645508,
+          "95": -18.823711395263672,
+          "98": -18.03839874267578,
+          "99": -17.516456604003906
+        },
+        "valid_pixel_fraction": 1.0,
+        "grad_mag_mean": 2.5390001216347096,
+        "grad_mag_std": 3.8653765369689586
+      },
+      "VH_including_floored": {
+        "mean": -69.77156829833984,
+        "std": 40.297794342041016,
+        "min": -115.22384643554688,
+        "max": 4.249690532684326,
+        "percentiles": {
+          "1": -115.22237396240234,
+          "2": -115.22081756591797,
+          "5": -115.21619415283203,
+          "25": -115.18494415283203,
+          "50": -40.5406494140625,
+          "75": -32.8205680847168,
+          "95": -28.718017578125,
+          "98": -27.52947998046875,
+          "99": -26.77199363708496
+        },
+        "valid_pixel_fraction": 1.0,
+        "grad_mag_mean": 33.232249739009845,
+        "grad_mag_std": 21.038056780346288
+      },
+      "VV_excluding_floored": {
+        "mean": -22.737838745117188,
+        "std": 2.887883186340332,
+        "min": -72.34542083740234,
+        "max": 14.05143928527832,
+        "percentiles": {
+          "1": -31.41724967956543,
+          "2": -29.758825302124023,
+          "5": -27.736221313476562,
+          "25": -24.26224708557129,
+          "50": -22.41415786743164,
+          "75": -20.828079223632812,
+          "95": -18.8226318359375,
+          "98": -18.037490844726562,
+          "99": -17.51448631286621
+        },
+        "valid_pixel_fraction": 0.9982787238226997,
+        "grad_mag_mean": 2.2422183960433095,
+        "grad_mag_std": 1.4057246477387497
+      },
+      "VH_excluding_floored": {
+        "mean": -34.35472106933594,
+        "std": 5.225886821746826,
+        "min": -94.52401733398438,
+        "max": 4.249690532684326,
+        "percentiles": {
+          "1": -51.31132125854492,
+          "2": -48.296329498291016,
+          "5": -44.22661209106445,
+          "25": -36.83781433105469,
+          "50": -33.38886260986328,
+          "75": -30.78998565673828,
+          "95": -27.943958282470703,
+          "98": -26.892467498779297,
+          "99": -26.207284927368164
+        },
+        "valid_pixel_fraction": 0.5618625217013888,
+        "grad_mag_mean": 2.920577779531556,
+        "grad_mag_std": 2.50359968754698
+      },
+      "VV_floored_pixel_count": 4061,
+      "VH_floored_pixel_count": 1033696,
+      "VV_floored_pixel_fraction": 0.0017212761773003472,
+      "VH_floored_pixel_fraction": 0.4381374782986111,
+      "VV_non_floored_fraction_crosscheck": 0.9982787238226997,
+      "VH_non_floored_fraction_crosscheck": 0.5618625217013888
+    },
+    "zenodo_reference_10_scenes": {
+      "VV": {
+        "mean": -34.78,
+        "std": 4.45
+      },
+      "VH": {
+        "mean": -20.14,
+        "std": 2.68
+      }
+    },
+    "variance_ratio_mc20_over_zenodo": {
+      "original": {
+        "VV": 0.247834223280964,
+        "VH": 0.6963465798124923
+      },
+      "denoised_excluding_floored_FAIR_COMPARISON": {
+        "VV": 0.42115234429729514,
+        "VH": 3.802335302086648
+      },
+      "denoised_including_floored_CONTAMINATED_DO_NOT_USE_FOR_DECISION": {
+        "VV": 1.162197699572046,
+        "VH": 226.0960443352407
+      }
+    }
+  },
+  "frozen_model_probe": {
+    "threshold": 0.806,
+    "original": {
+      "max": 3.0535006771970075e-06,
+      "mean": 5.564579019790017e-09,
+      "p50": 4.829912469972442e-09,
+      "p90": 8.74584138443879e-09,
+      "p95": 1.0715629272795013e-08,
+      "p99": 2.2333287219566955e-08,
+      "frac_above_threshold": 0.0
+    },
+    "denoised": {
+      "max": 5.113640781928552e-06,
+      "mean": 1.3798752362959021e-08,
+      "p50": 1.2527839210463299e-08,
+      "p90": 1.866016141605087e-08,
+      "p95": 2.1646163972377508e-08,
+      "p99": 4.271353759577323e-08,
+      "frac_above_threshold": 0.0
+    }
+  },
+  "decision_criterion": {
+    "criterion_i": "either channel's variance ratio increases by >= 0.15 absolute",
+    "criterion_ii": "max oil probability increases by >= 1000x",
+    "criterion_i_result": {
+      "VV_delta": 0.17331812101633115,
+      "VH_delta": 3.1059887222741556,
+      "met": true
+    },
+    "criterion_ii_result": {
+      "ratio": 1.6746813976876769,
+      "met": false
+    },
+    "material_effect": true,
+    "experiment_status": "MATERIAL_EFFECT -- proceed to EXPERIMENT A"
+  }
+}

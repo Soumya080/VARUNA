@@ -1,0 +1,307 @@
+{
+  "phi_id": "phi-CASE-VALID-899da625",
+  "slick_id": "replay-slick-CASE-VALID",
+  "case_id": "CASE-VALID",
+  "data_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\events\\mc20_v0_1\\prativartan\\phi-CASE-VALID-899da625.npz",
+  "bbox": {
+    "min_lon": -89.0203410809633,
+    "min_lat": 28.915421491799066,
+    "max_lon": -88.90060920097723,
+    "max_lat": 29.207377076132882
+  },
+  "grid_shape": [
+    26,
+    17,
+    8
+  ],
+  "time_distribution": {
+    "time_edges_unix": [
+      1673650926.0,
+      1673654526.0,
+      1673658126.0,
+      1673661726.0,
+      1673665326.0,
+      1673668926.0,
+      1673672526.0,
+      1673676126.0,
+      1673679726.0,
+      1673683326.0,
+      1673686926.0,
+      1673690526.0,
+      1673694126.0,
+      1673697726.0,
+      1673701326.0,
+      1673704926.0,
+      1673708526.0,
+      1673712126.0,
+      1673715726.0,
+      1673719326.0,
+      1673722926.0,
+      1673726526.0,
+      1673730126.0,
+      1673733726.0,
+      1673737326.0,
+      1673740926.0,
+      1673744526.0
+    ],
+    "mass": [
+      9.999999717180685e-10,
+      0.06944448500871658,
+      0.0689639002084732,
+      0.06801269203424454,
+      0.0666104108095169,
+      0.06478558480739594,
+      0.06257469207048416,
+      0.06002098694443703,
+      0.05717308074235916,
+      0.05408341437578201,
+      0.050806667655706406,
+      0.047398149967193604,
+      0.043912291526794434,
+      0.04040125757455826,
+      0.03691371530294418,
+      0.03349382057785988,
+      0.03018045239150524,
+      0.02700665220618248,
+      0.023999372497200966,
+      0.02117937244474888,
+      0.018561383709311485,
+      0.01615443266928196,
+      0.01396230235695839,
+      0.011984129436314106,
+      0.010215039364993572,
+      0.002161711687222123
+    ],
+    "mode_unix": 1673656326.0,
+    "p05_unix": 1673656326.0,
+    "p95_unix": 1673728326.0
+  },
+  "spatial_modes": [],
+  "diagnostics": {
+    "entropy": 0.6820618112934442,
+    "concentration": 0.8055028915405273,
+    "effective_support_km2": 1011.1603169268597,
+    "convergence": 0.197160734881641,
+    "convergence_flag": "marginal",
+    "n_modes": 1,
+    "multimodal": false,
+    "boundary_interaction": false,
+    "particles_lost": 8,
+    "particles_seeded": 40,
+    "ensemble_members_completed": 40,
+    "ensemble_members_requested": 40,
+    "runtime_seconds": 0.3218791999388486
+  },
+  "sensitivity": null,
+  "backdrift_path": [
+    {
+      "time_hours": 23.5,
+      "lon": -88.96250142126367,
+      "lat": 29.14606575162845,
+      "mass_fraction": 0.06944448500871658
+    },
+    {
+      "time_hours": 22.5,
+      "lon": -88.9554835196196,
+      "lat": 29.131878824060166,
+      "mass_fraction": 0.0689639002084732
+    },
+    {
+      "time_hours": 21.5,
+      "lon": -88.95236093969062,
+      "lat": 29.1173853564726,
+      "mass_fraction": 0.06801269203424454
+    },
+    {
+      "time_hours": 20.5,
+      "lon": -88.94800393815133,
+      "lat": 29.102896300472292,
+      "mass_fraction": 0.0666104108095169
+    },
+    {
+      "time_hours": 19.5,
+      "lon": -88.94457146061694,
+      "lat": 29.090081596437265,
+      "mass_fraction": 0.06478558480739594
+    },
+    {
+      "time_hours": 18.5,
+      "lon": -88.93957603623208,
+      "lat": 29.076655677529338,
+      "mass_fraction": 0.06257469207048416
+    },
+    {
+      "time_hours": 17.5,
+      "lon": -88.9366107629615,
+      "lat": 29.06399327882966,
+      "mass_fraction": 0.06002098694443703
+    },
+    {
+      "time_hours": 16.5,
+      "lon": -88.93473890498228,
+      "lat": 29.051636476072993,
+      "mass_fraction": 0.05717308074235916
+    },
+    {
+      "time_hours": 15.5,
+      "lon": -88.93318247657835,
+      "lat": 29.039433353985356,
+      "mass_fraction": 0.05408341437578201
+    },
+    {
+      "time_hours": 14.5,
+      "lon": -88.93474009967014,
+      "lat": 29.028753897699463,
+      "mass_fraction": 0.050806667655706406
+    },
+    {
+      "time_hours": 13.5,
+      "lon": -88.94066464413606,
+      "lat": 29.016701220450443,
+      "mass_fraction": 0.047398149967193604
+    },
+    {
+      "time_hours": 12.5,
+      "lon": -88.94596824171373,
+      "lat": 29.008158245853604,
+      "mass_fraction": 0.043912291526794434
+    },
+    {
+      "time_hours": 11.5,
+      "lon": -88.95330583721055,
+      "lat": 28.99656621421032,
+      "mass_fraction": 0.04040125757455826
+    },
+    {
+      "time_hours": 10.5,
+      "lon": -88.96297095168951,
+      "lat": 28.98634315006973,
+      "mass_fraction": 0.03691371530294418
+    },
+    {
+      "time_hours": 9.5,
+      "lon": -88.9720177239627,
+      "lat": 28.979630636482586,
+      "mass_fraction": 0.03349382057785988
+    },
+    {
+      "time_hours": 8.5,
+      "lon": -88.9801227850142,
+      "lat": 28.97215347503456,
+      "mass_fraction": 0.030180450528860092
+    },
+    {
+      "time_hours": 7.5,
+      "lon": -88.98418841051952,
+      "lat": 28.966054584080585,
+      "mass_fraction": 0.02700665034353733
+    },
+    {
+      "time_hours": 6.5,
+      "lon": -88.98637133446398,
+      "lat": 28.961935353547528,
+      "mass_fraction": 0.023999370634555817
+    },
+    {
+      "time_hours": 5.5,
+      "lon": -88.98636917620237,
+      "lat": 28.95674784520852,
+      "mass_fraction": 0.02117937058210373
+    },
+    {
+      "time_hours": 4.5,
+      "lon": -88.98605887416895,
+      "lat": 28.954460093086702,
+      "mass_fraction": 0.018561381846666336
+    },
+    {
+      "time_hours": 3.5,
+      "lon": -88.98495774794547,
+      "lat": 28.949575397301047,
+      "mass_fraction": 0.01615443080663681
+    },
+    {
+      "time_hours": 2.5,
+      "lon": -88.9812246734856,
+      "lat": 28.946070137477204,
+      "mass_fraction": 0.013962301425635815
+    },
+    {
+      "time_hours": 1.5,
+      "lon": -88.97716846767337,
+      "lat": 28.943476567362637,
+      "mass_fraction": 0.011984128504991531
+    },
+    {
+      "time_hours": 0.5,
+      "lon": -88.9717067957561,
+      "lat": 28.942408017012603,
+      "mass_fraction": 0.010215038433670998
+    },
+    {
+      "time_hours": 0.0,
+      "lon": -88.97045838346939,
+      "lat": 28.944238489495213,
+      "mass_fraction": 0.0021617107558995485
+    }
+  ],
+  "n_particles": 1,
+  "n_ensemble": 40,
+  "backward_duration_hours": 24.0,
+  "dt_seconds": 900.0,
+  "forcing_current_source": "cmems.real (cmems-mc20-cmems_mc20_2023-01-11_to_2023-01-17, cached replay)",
+  "forcing_wind_source": "era5.real (era5-mc20-era5_mc20_2023-01-11_to_2023-01-17, cached replay)",
+  "weathering_model": null,
+  "envelope": {
+    "artifact_id": "phi-CASE-VALID-899da625",
+    "case_id": null,
+    "parent_artifact_ids": [
+      "mc20-backdrift-forcing"
+    ],
+    "produced_by": "prativartan",
+    "model_version": "prativartan_pure_numpy_v1",
+    "processing_version": "2.0.0",
+    "created_at": "2026-09-04T11:26:30.610681Z",
+    "crs": "EPSG:4326",
+    "units": {},
+    "provenance": {
+      "source_id": "prativartan",
+      "source_version": null,
+      "raw_artifact_refs": [],
+      "retrieved_at": null,
+      "adapter_id": null,
+      "license": null,
+      "citation": null,
+      "notes": null
+    },
+    "mode": "simulated",
+    "trust": "trusted",
+    "influence_weight": 1.0,
+    "quality": {
+      "completeness": null,
+      "freshness_seconds": null,
+      "spatial_coverage": null,
+      "resolution_m": null,
+      "ood_score": null,
+      "model_confidence": null,
+      "extra": {}
+    },
+    "uncertainty": {
+      "representation": "none",
+      "mean": null,
+      "std": null,
+      "lower": null,
+      "upper": null,
+      "interval_confidence": null,
+      "entropy": null,
+      "n_samples": null,
+      "sensitivity": {}
+    },
+    "calibration_state": "not_applicable",
+    "validity_state": "valid",
+    "degradation_state": "nominal",
+    "anomaly_flags": [],
+    "content_hash": null
+  },
+  "created_at": "2026-09-04T11:26:30.614150Z"
+}

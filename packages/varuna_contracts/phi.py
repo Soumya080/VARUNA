@@ -20,6 +20,7 @@ from varuna_contracts.evidence import EvidenceEnvelope
 from varuna_contracts.schemas import BBox, GeoPoint
 
 __all__ = [
+    "BackdriftPathPoint",
     "ConvergenceFlag",
     "PhiDiagnostics",
     "PhiField",
@@ -53,6 +54,24 @@ class SpatialMode(_Base):
     separation_km: float | None = Field(None, ge=0)  # distance to nearest other mode
 
 
+class BackdriftPathPoint(_Base):
+    """One point on the derived backward-drift path — ADR-0017.
+
+    This is the probability-mass-weighted centroid of the Phi field's
+    spatial slice at ONE time bin. It is NOT a single true particle's
+    trajectory — Phi is a distribution over an ensemble of particles, and a
+    centroid is only a faithful one-line summary of it. It is most
+    misleading exactly when `PhiDiagnostics.multimodal` is True (the field
+    genuinely disagrees with itself about where the mass is); a consumer
+    MUST check `multimodal` before presenting this path as "the" answer
+    rather than "the mean of a set of competing answers".
+    """
+    time_hours: float          # hours before observation (backward) — age, always >= 0
+    lon: float = Field(..., ge=-180, le=180)
+    lat: float = Field(..., ge=-90, le=90)
+    mass_fraction: float = Field(..., ge=0, le=1)  # this time slice's share of total Phi mass
+
+
 class TimeDistribution(_Base):
     """Marginal posterior over RELEASE TIME. The 'when', separate from the 'where'."""
     time_edges_unix: list[float] = Field(..., min_length=2)
@@ -76,22 +95,35 @@ class SensitivityBlock(_Base):
     make the honesty claim defensible: if age_sensitivity is high, the origin
     field is an artefact of the age prior, not of the data.
 
-    Each value is a normalised displacement in [0, 1]: 0 = insensitive,
-    1 = the field moves by its own effective radius under a 1-sigma perturbation.
+    Each value is a normalised displacement, `0 = insensitive`, `1 = the
+    field moves by its own effective radius under a 1-sigma perturbation`
+    (see packages/varuna_prativartan/sensitivity.py::build_sensitivity_block
+    for the ratified ADR-0007 computation — displacement is not capped at
+    1; a shift larger than the field's own radius is a real, reportable
+    value above 1, not an error).
+
+    `weathering_sensitivity` is `float | None` (ADR-0007 amendment) because
+    no weathering model exists in PRATIVARTAN at all — `PhiField.
+    weathering_model` is always `None` in this codebase. There is nothing
+    to perturb, so this is honestly `None` rather than a number standing
+    in for physics that isn't implemented. The other three axes ARE real
+    perturbable parameters (age prior, forcing noise, diffusivity) and
+    remain required.
     """
     age_sensitivity: float = Field(..., ge=0)
     forcing_sensitivity: float = Field(..., ge=0)
     diffusivity_sensitivity: float = Field(..., ge=0)
-    weathering_sensitivity: float = Field(..., ge=0)
+    weathering_sensitivity: float | None = Field(None, ge=0)
 
     @property
     def dominant_assumption(self) -> str:
-        return max(
-            [("age", self.age_sensitivity), ("forcing", self.forcing_sensitivity),
-             ("diffusivity", self.diffusivity_sensitivity),
-             ("weathering", self.weathering_sensitivity)],
-            key=lambda kv: kv[1],
-        )[0]
+        candidates = [
+            ("age", self.age_sensitivity), ("forcing", self.forcing_sensitivity),
+            ("diffusivity", self.diffusivity_sensitivity),
+        ]
+        if self.weathering_sensitivity is not None:
+            candidates.append(("weathering", self.weathering_sensitivity))
+        return max(candidates, key=lambda kv: kv[1])[0]
 
 
 class PhiDiagnostics(_Base):
@@ -146,7 +178,21 @@ class PhiField(_Base):
     time_distribution: TimeDistribution
     spatial_modes: list[SpatialMode] = Field(default_factory=list)
     diagnostics: PhiDiagnostics
-    sensitivity: SensitivityBlock
+    # None means "not computed", not "computed and found to be zero".
+    # `phi_builder.build_phi_field()`'s default path always leaves this
+    # None (a real sweep costs 7x the ensemble runtime); a real,
+    # non-fabricated sweep exists at
+    # varuna_prativartan.sensitivity.run_sensitivity_sweep() +
+    # build_sensitivity_block() (ADR-0007, ratified) for callers that
+    # explicitly request it. The validity gate treats None as
+    # PHI_DIAGNOSTICS_UNAVAILABLE (blocking).
+    sensitivity: SensitivityBlock | None = None
+
+    # ADR-0017. None means "not computed" (same convention as `sensitivity`
+    # above), never "computed and found empty". Unlike `sensitivity`, this
+    # is cheap (a byproduct of the histogram already built) and is expected
+    # to be populated whenever `phi_builder.build_phi_field()` runs.
+    backdrift_path: list[BackdriftPathPoint] | None = None
 
     n_particles: int = Field(..., gt=0)
     n_ensemble: int = Field(..., gt=0)

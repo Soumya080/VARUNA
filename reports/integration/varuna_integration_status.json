@@ -1,0 +1,195 @@
+{
+  "generated_at": "2026-09-01T00:00:00Z",
+  "session_type": "product_build_integration",
+  "branch": "feat/netra-real-training",
+  "overall_status": "VARUNA_HACKATHON_READY",
+  "overall_note": "The full chain is executable end to end and demonstrated on both real MC20 data and a populated replay case. 'READY' refers to the PRODUCT/integration layer, not to NETRA's scientific performance: NETRA v0.2 does not detect on MC20, and the demonstrated value there is correct OOD-safe handling of that real null.",
+  "frozen_assets": {
+    "netra_v0_2_checkpoint": "untouched (read-only inference)",
+    "netra_v0_3_b1": "training already COMPLETE before this session; untouched; FROZEN, NOT DEPLOYED",
+    "netra_gold": "untouched",
+    "mc20_gold": "untouched",
+    "calm_grd_holdout": "untouched",
+    "official_test": "untouched",
+    "training_started_this_session": false
+  },
+  "components": {
+    "case_engine": {
+      "status": "COMPLETE",
+      "evidence": "GoldenCaseWorkflow reused unchanged; no second pipeline created"
+    },
+    "detection_evidence": {
+      "status": "COMPLETE",
+      "evidence": "varuna_contracts/detection_evidence.py; DetectionEvidenceEnvelope + Measured"
+    },
+    "evidence_ledger": {
+      "status": "COMPLETE",
+      "evidence": "varuna_evidence/ledger.py; 13 tests"
+    },
+    "data_guard": {
+      "status": "PARTIAL",
+      "evidence": "varuna_data_guard/guard.py reused; ingestion-boundary verdict recorded as evidence",
+      "notes": "Schema/channel-order/dimension validation still narrow; not extended this session"
+    },
+    "chhaya": {
+      "status": "COMPLETE_V0_1",
+      "evidence": "varuna_chhaya/hypothesis_engine.py; 15 tests",
+      "notes": "Declared-likelihood-ratio Bayesian engine. NOT a learned model. UNCALIBRATED."
+    },
+    "smriti": {
+      "status": "COMPLETE_V0_1",
+      "evidence": "varuna_smriti/memory.py; 18 tests; persistent JSON-lines store",
+      "notes": "Memory only. Does NOT learn. Every retrieval advisory_only=True."
+    },
+    "uncertainty_ood": {
+      "status": "COMPLETE",
+      "evidence": "UncertaintyAssessment component-level; OOD assessor fires on real MC20 (3.07e-06)",
+      "notes": "OOD classifier is a HEURISTIC over reported activations, not a calibrated detector."
+    },
+    "agentic_loop": {
+      "status": "COMPLETE",
+      "evidence": "varuna_agentic/loop.py; 15 tests; deterministic, no LLM"
+    },
+    "prativartan": {
+      "status": "COMPLETE",
+      "evidence": "reused unchanged; integrated via ledger"
+    },
+    "nyaya": {
+      "status": "COMPLETE",
+      "evidence": "reused unchanged; integrated via ledger"
+    },
+    "validity_gate": {
+      "status": "COMPLETE",
+      "evidence": "reused unchanged; 6 states preserved, not collapsed"
+    },
+    "pravaah": {
+      "status": "COMPLETE",
+      "evidence": "integrated in a prior session; preserved, not reopened"
+    },
+    "abhiyan": {
+      "status": "COMPLETE",
+      "evidence": "reused unchanged; 5-state gate matrix"
+    },
+    "rbac": {
+      "status": "COMPLETE",
+      "evidence": "varuna_infra/authorization.py; enforced at SERVICE layer; 13 tests",
+      "notes": "Approve endpoint auth via X-User-Id/X-User-Role headers is INTERIM; JWTs exist and should replace it."
+    },
+    "mission": {
+      "status": "COMPLETE",
+      "evidence": "two-step approval enforced; SYSTEM principal correctly denied APPROVE_MISSION"
+    },
+    "alerts": {
+      "status": "COMPLETE",
+      "evidence": "reused unchanged; severity/dedupe/materiality/routing"
+    },
+    "praman": {
+      "status": "COMPLETE",
+      "evidence": "dict artifacts now content-hashed (never were before); verify() added"
+    },
+    "operator_contract": {
+      "status": "COMPLETE",
+      "evidence": "operator-view 8 sections + CaseIntelligence.to_dict()"
+    },
+    "frontend": {
+      "status": "NOT_STARTED",
+      "evidence": "externally owned; not modified per instruction"
+    },
+    "live_api_fetch_path": {
+      "status": "NOT_STARTED",
+      "evidence": "adapters exist and run on real data; no scheduler/retry/caching layer built"
+    },
+    "observability": {
+      "status": "STUB",
+      "evidence": "varuna_infra/observability.py is 13 lines; DecisionTrace partly compensates"
+    }
+  },
+  "tests": {
+    "full_regression": {
+      "passed": 674,
+      "skipped": 10,
+      "failed": 1,
+      "failing": [
+        "tests/unit/test_netra_training.py::test_netra_training_loop"
+      ],
+      "failure_classification": "NETRA_OWNED_PRE_EXISTING (TypeError: 'NetraSample' object is not subscriptable); untouched",
+      "runtime_seconds": 283.5
+    },
+    "new_suites": {
+      "test_evidence_ledger.py": 13,
+      "test_chhaya_hypothesis_engine.py": 15,
+      "test_smriti_memory.py": 18,
+      "test_agentic_loop.py": 15,
+      "test_authorization_enforcement.py": 13,
+      "test_case_intelligence.py": 17
+    },
+    "tests_weakened_or_deleted": 0,
+    "new_suites_total": 91
+  },
+  "real_demo_status": {
+    "name": "DEMO A - real MC20",
+    "status": "PASS",
+    "evidence_mode": "REAL",
+    "detector": "netra-v0.2-baseline (frozen, hash-verified)",
+    "n_tiles": 9,
+    "detection": "NO_SLICK_DETECTED (real, unmodified)",
+    "peak_activation": 3.07e-06,
+    "decision_threshold": 0.806,
+    "ood_risk": "out_of_domain",
+    "dominant_concern": "ood_risk",
+    "terminal_action": "stop_insufficient_evidence",
+    "fabricated_detection": false,
+    "note": "The value of this demo is correct, traceable handling of a hard real case."
+  },
+  "replay_demo_status": {
+    "name": "DEMO B - populated replay",
+    "status": "PASS",
+    "evidence_mode": "REAL/REPLAY (fixture-labelled)",
+    "ood_risk": "in_domain",
+    "terminal_action": "proceed_to_decision",
+    "chhaya_ran": true,
+    "smriti_ran": true,
+    "rbac": {
+      "analyst": "DENIED",
+      "system": "DENIED",
+      "duty_officer": "ALLOWED"
+    },
+    "praman_hash_verified": true
+  },
+  "simulated_demo_status": {
+    "name": "CASE-SIMULATED fixture",
+    "status": "PASS",
+    "note": "Covered by tests/integration/test_case_intelligence.py; asserts a SIMULATED case never reports REAL anywhere."
+  },
+  "bugs_found_and_fixed": [
+    "Agentic loop fail-open: reached PROCEED_TO_DECISION when all actions were attempted but none succeeded",
+    "CHHAYA parameter default acting as evidence (n_ais_tracks=0 vs None)",
+    "CHHAYA counted factor contributions rather than distinct signals",
+    "varuna_contracts/hypothesis.py shadowed the installed 'hypothesis' test library, breaking whole-suite collection",
+    "EvidenceLedger.latest() tie-break returned the EARLIER item on equal timestamps",
+    "OOD reported inconsistently between DetectionEvidenceEnvelope and UncertaintyAssessment",
+    "PRAMAN never content-hashed dict artifacts, and CaseWorkflow registers only dicts",
+    "NETRA discarded peak activation on the no-detection path"
+  ],
+  "known_limitations": [
+    "NETRA v0.2 does not detect on MC20; cause unresolved (MIXED_CAUSE, representation-dominant)",
+    "OOD classifier is a heuristic, not calibrated",
+    "CHHAYA posteriors uncalibrated; distance_to_shore_km and wind_speed_ms not yet wired from real data",
+    "SMRITI similarity weights declared, not fitted",
+    "Frontend not wired to the new contracts",
+    "Live API fetch path (scheduler/retry/caching) not built",
+    "Observability still a stub",
+    "RBAC enforced only at mission approval; header-based auth is interim",
+    "Preprocessing compatibility between checkpoint and input pipeline still unverified (pre-existing)",
+    "CaseWorkflow (older synthetic-forcing path) still coexists with GoldenCaseWorkflow"
+  ],
+  "blocked_items": [],
+  "next_research_backlog": [
+    "B1 MIL/top-k ablation",
+    "stronger-label acquisition",
+    "domain adaptation",
+    "low-wind dataset expansion",
+    "calibrated uncertainty/OOD detector",
+    "CHHAYA calibration against outcome data"
+  ]
+}

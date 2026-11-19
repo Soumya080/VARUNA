@@ -1,0 +1,86 @@
+{
+  "task": "Frontend / Operator Product Integration Track (STEP 5)",
+  "date": "2026-09-02",
+  "status": "VARUNA_FRONTEND_PRODUCT_READY",
+  "status_scope_note": "P0 scope (primary cockpit, CASE-VALID, intelligence, mission display, provenance) is ready. P1/P2 items are explicit named gaps, not silently claimed done.",
+  "diagnostic": {
+    "user_reported_symptom": "{\"error\":\"http_error\",\"message\":\"Not Found\"} from a backend request; some buttons/actions do not work",
+    "error_shape_reproduced": true,
+    "error_shape_source": "apps/api/errors.py::http_exception_handler wrapping Starlette's default unmatched-route 404 (default detail text is literally 'Not Found')",
+    "exact_reported_404_independently_reproduced_via_wired_ui": false,
+    "most_likely_explanation": "predates the GET /v1/replay/{fixture_name} route added in STEP 4, or a manually-tested URL/case_id outside the wired UI; not asserted as certain",
+    "two_frontends_found": ["apps/web (functionally inert, no case-creation UI)", "frontend/VARUNA-frontend_yash (canonical, actively integrated)"],
+    "real_bugs_found_and_fixed": [
+      {
+        "bug": "GoldenCaseWorkflow idempotency cache silently discarded intelligence after the first request",
+        "file": "apps/api/routers/replay.py",
+        "fix": "run_replay_case(..., force=True)",
+        "verified": "3 consecutive live requests all show intelligence.status=produced (previously not_yet_produced from the 2nd call onward)"
+      },
+      {
+        "bug": "SourceHypothesisEnvelope.top is a Python @property, never serialized, but was typed as a required TS field",
+        "file": "lib/operator-case-types.ts",
+        "fix": "removed the field, documented why; confirmed no frontend code depended on it",
+        "verified": "grep across components/ and lib/ found zero usages"
+      }
+    ],
+    "broken_interactions_found_and_fixed": [
+      {"element": "View Full Intelligence button", "file": "components/case-intelligence.tsx", "before": "no onClick, silently did nothing", "after": "scrolls to real CHHAYA panel"},
+      {"element": "Review Evidence button", "file": "components/mission-status.tsx", "before": "no onClick, silently did nothing", "after": "scrolls to real Evidence Health panel"}
+    ],
+    "intentionally_disabled_interactions_reconfirmed": [
+      {"element": "Request Authorization button", "file": "components/mission-status.tsx", "reason": "no authenticated POST /v1/missions/{id}/approve mutation is wired from this view"}
+    ]
+  },
+  "build": {
+    "typecheck": "npx tsc --noEmit - 0 errors",
+    "production_build": "npm run build - success, 14/14 routes prerendered",
+    "frontend_tests": "npm run test - 6 passed",
+    "backend_tests_new_file": "tests/api/test_replay_endpoint.py - 7 passed"
+  },
+  "backend_full_regression": {
+    "command": "pytest tests/ -q --ignore=tests/scientific",
+    "passed": 757,
+    "skipped": 10,
+    "failed": 1,
+    "failure": "test_netra_training_loop (pre-existing, unrelated)",
+    "baseline_before_this_task": "756 passed / 10 skipped / 1 pre-existing failure",
+    "regressions": 0
+  },
+  "preview": {
+    "backend_server": "http://127.0.0.1:8000 (uvicorn, restarted this session to pick up the fix, left running)",
+    "frontend_server": "http://localhost:3000 (next dev / Turbopack, hot-reloaded through all fixes, left running)",
+    "dev_server_errors_after_all_fixes": 0,
+    "all_routes_return_200_after_fixes": true,
+    "human_browser_walkthrough_performed": false,
+    "human_browser_walkthrough_reason": "no browser automation tool available in this environment"
+  },
+  "sections": {
+    "case_overview": "working",
+    "detection": "working_via_pipeline_timeline",
+    "evidence": "working",
+    "chhaya": "working_now_stable_across_repeated_loads",
+    "nyaya_attribution": "working",
+    "uncertainty": "working_now_stable_across_repeated_loads",
+    "smriti": "working_now_stable_across_repeated_loads",
+    "decision_trace_next_best_action": "working_now_stable_across_repeated_loads",
+    "forecast": "working_via_pipeline_timeline",
+    "validity": "working",
+    "recommendation": "working",
+    "mission": "partially_working_display_only_no_real_authorization_mutation",
+    "alerts": "not_wired",
+    "praman_provenance": "working",
+    "map_geospatial": "unchanged_mock_no_explicit_unavailable_state_for_empty_ais"
+  },
+  "design_preserved": true,
+  "no_fabricated_scientific_values": true,
+  "no_faked_authorization": true,
+  "known_gaps": [
+    "apps/web remains functionally inert (no case-creation UI) - named, not fixed, since it is not the canonical frontend",
+    "13 of 14 pages remain on mock data",
+    "Alerts not rendered anywhere in the wired UI despite being available from the API",
+    "Map does not show an explicit Unavailable state for empty AIS; continues showing mock vessel tracks",
+    "No human browser walkthrough performed",
+    "The user's exact reported 404 was not independently reproduced through any currently-wired frontend control"
+  ]
+}

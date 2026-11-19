@@ -1,9 +1,17 @@
 # SETUP_STATUS.md
 ## VARUNA GRID v2 — what actually exists, verified against the repository
 
-**Generated:** 24 Aug 2026 · **Method:** direct file inspection + executed tests.
+**Generated:** 25 Aug 2026 · **Method:** direct file inspection + executed tests.
 **This file is the authority on implementation status.** README and design documents
 describe intent. When they disagree with this file, this file wins.
+
+### M3.5 Milestone Status (August 25)
+- **Database Scope:** Scoped strictly to cases, events, artifacts, vessels, tracks, recommendations, and decisions.
+- **Persistence:** Postgres Repositories and Minio Object Store implemented. Tested via `test_e2e_persistence.py`.
+- **Configuration:** Strict configuration with fallback to in-memory/demo mode if `use_postgres` or `use_minio` is False.
+- **API:** Upgraded to use DI via `dependencies.py` and strictly mock scientific outputs, adhering to `EXPERIMENTAL / UNVALIDATED`.
+- **Frontend:** Implemented React + Vite application with `ScientificBanner`, `EventTimeline`, and `ArtifactList`.
+- **Tests:** Golden case regression tests implemented and passing. E2E pipeline tests passing.
 
 ### Status labels
 
@@ -65,18 +73,17 @@ All of these are empty packages awaiting their owner:
 
 ```
 packages/varuna_domain          varuna_data_guard      varuna_source_adapters
-packages/varuna_netra           varuna_prativartan     varuna_nyaya
-packages/varuna_chhaya          varuna_pravaah         varuna_abhiyan
-packages/varuna_missions        varuna_alerts          varuna_praman
-packages/varuna_smriti
-apps/api                        apps/worker            apps/web
+packages/varuna_netra           varuna_chhaya          varuna_pravaah
+packages/varuna_abhiyan         varuna_missions        varuna_alerts
+packages/varuna_praman          varuna_smriti
+apps/worker
 db/migrations                   infra/{nginx,monitoring,scripts}
-tests/{unit,integration,scientific,robustness,e2e}
+tests/{unit,scientific,robustness,e2e}
 experiments/{convergence,weathering,forcing_bias,ais_robustness,multimodality,data_guard,baselines}
 ```
 
-**Nothing in the scientific pipeline is implemented.** NETRA, PRATIVARTAN, NYAYA,
-CHHAYA, PRAVAAH, ABHIYAN, PRAMAN, SMRITI are all directories.
+**Partial scientific pipeline implementation complete.** PRATIVARTAN and NYAYA are implemented (M2). NETRA, 
+CHHAYA, PRAVAAH, ABHIYAN, PRAMAN, SMRITI are all directories. `apps/api` and `apps/web` are implemented for M3.5 offline mode.
 
 ---
 

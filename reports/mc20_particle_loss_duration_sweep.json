@@ -1,0 +1,96 @@
+{
+  "generated_at": "2026-08-30T11:06:28.087770+00:00",
+  "hypothesis": "particle loss climbs with backward_duration_hours (horizon effect), not solely a fixed property of the coastal CMEMS land mask",
+  "seed_geometry": "550 points, SAR footprint centroid (not coastline) -- location held fixed",
+  "obs_time_hours": -25967.0,
+  "results": [
+    {
+      "backward_duration_hours": 12.0,
+      "n_particles": 500,
+      "n_ensemble": 5,
+      "particles_seeded": 2500,
+      "particles_lost": 198,
+      "particle_loss_fraction": 0.0792,
+      "convergence": 0.14872907870089094,
+      "convergence_flag": "converged",
+      "runtime_seconds": 4.831897400086746
+    },
+    {
+      "backward_duration_hours": 24.0,
+      "n_particles": 500,
+      "n_ensemble": 5,
+      "particles_seeded": 2500,
+      "particles_lost": 1068,
+      "particle_loss_fraction": 0.4272,
+      "convergence": 0.12873070337194098,
+      "convergence_flag": "converged",
+      "runtime_seconds": 9.340257399948314
+    },
+    {
+      "backward_duration_hours": 36.0,
+      "n_particles": 500,
+      "n_ensemble": 5,
+      "particles_seeded": 2500,
+      "particles_lost": 1533,
+      "particle_loss_fraction": 0.6132,
+      "convergence": 0.11606430339505566,
+      "convergence_flag": "converged",
+      "runtime_seconds": 13.926343200029805
+    },
+    {
+      "backward_duration_hours": 48.0,
+      "n_particles": 500,
+      "n_ensemble": 5,
+      "particles_seeded": 2500,
+      "particles_lost": 2001,
+      "particle_loss_fraction": 0.8004,
+      "convergence": 0.09657678237397901,
+      "convergence_flag": "converged",
+      "runtime_seconds": 18.44364269997459
+    },
+    {
+      "backward_duration_hours": 60.0,
+      "n_particles": 500,
+      "n_ensemble": 5,
+      "particles_seeded": 2500,
+      "particles_lost": 2418,
+      "particle_loss_fraction": 0.9672,
+      "convergence": 0.09583640536321741,
+      "convergence_flag": "converged",
+      "runtime_seconds": 22.85679250000976
+    },
+    {
+      "backward_duration_hours": 72.0,
+      "n_particles": 500,
+      "n_ensemble": 5,
+      "particles_seeded": 2500,
+      "particles_lost": 2131,
+      "particle_loss_fraction": 0.8524,
+      "convergence": 0.09367003983098507,
+      "convergence_flag": "converged",
+      "runtime_seconds": 27.635810400010087
+    },
+    {
+      "backward_duration_hours": 84.0,
+      "n_particles": 500,
+      "n_ensemble": 5,
+      "particles_seeded": 2500,
+      "particles_lost": 2375,
+      "particle_loss_fraction": 0.95,
+      "convergence": 0.12371134932129851,
+      "convergence_flag": "converged",
+      "runtime_seconds": 32.62741949991323
+    }
+  ],
+  "loss_fraction_sequence": [
+    0.0792,
+    0.4272,
+    0.6132,
+    0.8004,
+    0.9672,
+    0.8524,
+    0.95
+  ],
+  "is_monotonic_nondecreasing": false,
+  "conclusion": "NOT STRICTLY MONOTONIC -- duration alone does not cleanly explain the loss pattern; see per-duration figures."
+}

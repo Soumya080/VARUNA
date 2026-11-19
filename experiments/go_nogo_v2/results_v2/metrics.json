@@ -1,0 +1,16 @@
+{
+  "total_cases": 50,
+  "overall_accuracy": 0.2,
+  "latent_accuracy": 1.0,
+  "known_accuracy": 0.0,
+  "decisions": {
+    "latent_source": 50
+  },
+  "gate_states": {
+    "valid": 42,
+    "degraded": 8
+  },
+  "avg_entropy": 0.004839272187597495,
+  "avg_distinguishability": 0.7320434973587227,
+  "baseline_accuracy": 0.16
+}

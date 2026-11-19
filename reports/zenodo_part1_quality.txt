@@ -1,0 +1,5 @@
+total_pairs: 1200
+accepted: 374
+quarantined: 826
+quality_rejected: 0
+duplicates: 826

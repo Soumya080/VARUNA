@@ -1,0 +1,157 @@
+{
+  "session": "VARUNA_PRODUCT_READY hardening",
+  "date": "2026-09-02",
+  "branch": "feat/netra-real-training",
+  "commit_at_session_start": "650b0b8",
+  "final_status": "VARUNA_PRODUCT_REQUIRES_FIX",
+  "phases": {
+    "0_reconnaissance": {
+      "status": "BUILT",
+      "artifact": "docs/product/VARUNA_PRODUCT_CURRENT_STATE.md",
+      "headline_finding": "Live HTTP API does not use GoldenCaseWorkflow; every case route runs on varuna_domain.CaseWorkflow, whose reconstruct() uses synthetic forcing under a SIMULATED envelope."
+    },
+    "1a_netra_evidence_verification": {
+      "status": "VERIFIED_THEN_BUILT",
+      "notes": "decision_threshold/max_probability/provenance already populated; added min_energy field additively to StageResult.detail."
+    },
+    "1b_real_ood_signal": {
+      "status": "BUILT",
+      "artifacts": [
+        "packages/varuna_integration/ood_energy.py",
+        "scripts/build_ood_energy_reference.py",
+        "reports/netra_v02/ood_energy_reference_v0_1.json",
+        "packages/varuna_integration/data/ood_energy_reference_v0_1.json"
+      ],
+      "method": "energy_score = -logsumexp(logits); reference = 200 deterministically sampled NETRA-GOLD-v0.2 val tiles (seed=42), no training",
+      "calibrated": false,
+      "finding": "Class-probability heuristic and energy-score signal disagree on MC20: probability says out_of_domain, energy says in-domain-typical (p50-p75 of reference). Reported as borderline with both readings stated, not resolved by preferring one.",
+      "demo_a_ood_verdict_before": "out_of_domain",
+      "demo_a_ood_verdict_after": "borderline"
+    },
+    "1c_preprocessing_compatibility": {
+      "status": "VERIFIED",
+      "artifact": "docs/adr/ADR-0011-preprocessing-compatibility-verified.md",
+      "normalization_stats_correct": true,
+      "channel_binding_fix_wired": false,
+      "channel_binding_fix_changes_mc20_outcome": false,
+      "diagnostic_evidence": {
+        "max_energy_no_swap": -15.5538,
+        "max_energy_with_documented_swap": -15.4198,
+        "note": "both ~5 orders of magnitude below decision_threshold=0.806 on probability scale; swap does not explain MC20 null result"
+      },
+      "not_fixed_reason": "Rebuilding MC20 Gold tiles is a stop condition (protected asset, scientific-semantics-changing); flagged for Track2/NETRA-Gold-owning session instead."
+    },
+    "2_chhaya_input_wiring": {
+      "status": "PARTIALLY_BUILT",
+      "fixed": [
+        "prior_cases_same_corridor (was computed every case, silently discarded, default 0)",
+        "wind_speed_ms (from DetectionEvidenceEnvelope.low_wind_context, already measured, previously uncollected)",
+        "area_km2 (from DetectionEvidenceEnvelope.area_km2, already measured, previously uncollected)",
+        "elongation (read from raw SlickDetection, not carried by the envelope)",
+        "phi_available / phi_converged (from phi_reconstruction stage's convergence_flag)"
+      ],
+      "not_wired": {
+        "distance_to_shore_km": "static_gis.py adapter returns a hardcoded 10.0 for every query; wiring it would fabricate identical coastal-proximity evidence for every case (10.0km is inside COASTAL_PROXIMITY_KM=15.0)"
+      },
+      "verification": "Demo B top hypothesis posterior moved 0.668 -> 0.738 purely from these previously-discarded real inputs reaching the engine."
+    },
+    "3_smriti_hardening": { "status": "FUTURE", "notes": "Not attempted this session; existing API exercised unchanged via Phase 2 fix." },
+    "4_agentic_loop_observability": { "status": "REUSED", "notes": "Existing fail-closed guard exercised unchanged by both demo re-runs; no new loop-level work this session." },
+    "5_authorization_security": {
+      "status": "BUILT",
+      "artifacts": ["apps/api/security.py", "packages/varuna_infra/rbac.py (Permission.RUN_CASE_STAGE added)", "apps/api/errors.py (global AuthorizationError handler)"],
+      "endpoints_secured": [
+        "POST /v1/cases",
+        "POST /v1/cases/{id}/ingest",
+        "POST /v1/cases/{id}/reconstruct",
+        "POST /v1/cases/{id}/attribute",
+        "POST /v1/missions/{id}/approve (migrated from local header-only resolver)"
+      ],
+      "jwt_wired": true,
+      "header_auth_scope": "demo_mode only; rejected outside demo_mode",
+      "vulnerability_fixed": "apps/api/routers/cases.py performed importlib.import_module() on unvalidated request-body input; replaced with explicit allowlist",
+      "new_tests": 15,
+      "existing_tests_modified": 2,
+      "existing_tests_weakened": 0
+    },
+    "6_canonical_workflow_enforcement": {
+      "status": "VERIFIED_AND_FLAGGED_NOT_MIGRATED",
+      "finding": "GoldenCaseWorkflow has zero callers outside its own module and 2 test files; every live route uses CaseWorkflow.",
+      "action_taken": "Added explicit non-canonical warning docstring to case_workflow.py naming the gap and the migration path.",
+      "action_not_taken": "Did not migrate apps/api to GoldenCaseWorkflow: would require rewriting apps/api/operator_case_view.py (459 lines, actively owned by another session), risking a peer collision and violating do-not-rewrite-unnecessarily."
+    },
+    "7_observability": {
+      "status": "BUILT",
+      "prior_state": "13 lines, zero callers anywhere in the repository, two pass-stub methods",
+      "artifacts": ["packages/varuna_infra/observability.py (rewritten)", "tests/unit/test_observability.py (6 tests)"],
+      "capabilities": ["structured JSON logging", "thread-safe MetricsTracker with real accumulation", "build_case_timeline()", "summarize_case_state()"],
+      "wired_to_api": false
+    },
+    "8_live_data_fetch_path": { "status": "FUTURE", "notes": "ERA5/CMEMS/AIS adapters verified real; no orchestration layer built above them; sentinel1.py and static_gis.py remain 5-line stubs." },
+    "9_api_contract": { "status": "PARTIALLY_BUILT", "notes": "5 endpoints gained authorization; no new read endpoints added; observability layer ready but not wired to a route." },
+    "10_frontend_productization": { "status": "FUTURE", "notes": "apps/web/src/App.tsx remains 241 lines single-file; none of the 6 named operator views exist." },
+    "11_demonstrations": {
+      "status": "VERIFIED_RERUN",
+      "demo_a": { "re_run": true, "ood_risk_before": "out_of_domain", "ood_risk_after": "borderline", "frozen_assets_touched": false },
+      "demo_b": { "re_run": true, "chhaya_top_posterior_before": 0.668, "chhaya_top_posterior_after": 0.738 }
+    },
+    "12_evaluation_benchmark": { "status": "FUTURE", "notes": "No benchmark scaffold built; 9 named scenario families do not exist as a standing suite." },
+    "13_e2e_test_matrix": {
+      "status": "PARTIALLY_BUILT",
+      "new_tests_this_session": 20,
+      "categories_covered": ["authorization (positive+negative)", "JWT verification", "observability"],
+      "categories_not_covered": ["duplicate case", "stale input", "live API timeout", "external API failure", "memory corruption"]
+    },
+    "14_ux_polish": { "status": "FUTURE", "notes": "No frontend exists yet to polish." },
+    "15_scientific_language_hardening": { "status": "VERIFIED", "scope": "This session's own new code and rationale strings only; full pre-existing codebase sweep not attempted." },
+    "16_research_handoff": { "status": "BUILT", "artifact": "docs/product/VARUNA_POST_INTEGRATION_RESEARCH_QUESTIONS.md" }
+  },
+  "test_state": {
+    "baseline_before_session": { "passed": 699, "skipped": 10, "failed": 4 },
+    "new_tests_added": 20,
+    "regressions_found_and_fixed": [
+      {
+        "tests": [
+          "tests/contract/test_operator_case.py::test_existing_case_endpoints_unaffected",
+          "tests/contract/test_operator_case.py::test_operator_view_endpoint_is_read_only_and_additive",
+          "tests/e2e/test_persistent_workflow.py::test_full_workflow_end_to_end"
+        ],
+        "cause": "Phase 5 authorization change made these tests' unauthenticated TestClient calls fail with 401",
+        "fix": "added scoped get_principal dependency override (fixture with teardown / helper-with-cleanup, not module-level, to avoid leaking into other test files sharing the app singleton)",
+        "fix_weakened_authorization": false
+      }
+    ],
+    "new_test_failures_introduced_after_fix": 0,
+    "final_full_suite_result": {
+      "command": "pytest tests/ -q --ignore=tests/scientific",
+      "passed": 716,
+      "skipped": 10,
+      "failed": 1,
+      "note": "tests/scientific excluded from this run; its 3 test_go_nogo_fair_harness failures observed earlier this session are pre-existing (confirmed not caused by any file this session touched) and are unaffected by this exclusion, not fixed by it"
+    },
+    "pre_existing_failures": [
+      {"test": "tests/unit/test_netra_training.py::test_netra_training_loop", "owner": "NETRA training track", "status": "documented pre-existing, not touched"},
+      {"test": "tests/scientific/test_go_nogo_fair_harness.py::test_phi_npz_is_normalised", "status": "newly observed this session, not caused by any file this session touched"},
+      {"test": "tests/scientific/test_go_nogo_fair_harness.py::test_seeded_trial_is_reproducible", "status": "newly observed this session, not caused by any file this session touched"},
+      {"test": "tests/scientific/test_go_nogo_fair_harness.py::test_fairness_checks_are_explicit", "status": "newly observed this session, not caused by any file this session touched"}
+    ]
+  },
+  "safety_verification": {
+    "deleted": 0,
+    "moved": 0,
+    "renamed": 0,
+    "overwritten": 0,
+    "netra_checkpoint_modified": 0,
+    "netra_gold_modified": 0,
+    "mc20_gold_modified": 0,
+    "netra_training_files_modified": 0,
+    "gpu_training_process_observed": false,
+    "secrets_exposed": 0
+  },
+  "recommendation_priority": [
+    "Resolve or formally accept the CaseWorkflow / GoldenCaseWorkflow split before building API/frontend on top of either",
+    "Wire the fixed channel-binding function into build_mc20_event_gold.py and re-freeze MC20 Gold deliberately",
+    "Build request-planning/retry/cache orchestration above the already-real ERA5/CMEMS/AIS adapters",
+    "Scope frontend and benchmark as their own dedicated sessions"
+  ]
+}

@@ -33,6 +33,11 @@ jobs:
       - name: Unit + contract tests
         run: pytest tests/unit tests/contract -q
 
+      # api/regression need no external services (in-memory repos only) and
+      # were previously run by nothing in CI. They belong in the fast job.
+      - name: API + regression tests
+        run: pytest tests/api tests/regression -q
+
   security:
     name: Security
     runs-on: ubuntu-latest

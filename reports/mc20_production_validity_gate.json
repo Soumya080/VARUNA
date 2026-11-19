@@ -1,0 +1,149 @@
+{
+  "generated_at": "2026-08-31T12:35:52.544414+00:00",
+  "phi_id": "phi-mc20_2023-01-15-87e70752",
+  "ais_stage": {
+    "status": "produced",
+    "evidence_mode": "real",
+    "reason": null,
+    "detail": {
+      "requested_status": "temporally_matched",
+      "n_returned": 5,
+      "n_tracks_total": 530,
+      "n_spatially_matched": 425,
+      "n_temporally_matched": 320,
+      "n_temporally_unavailable": 210,
+      "closest_temporally_matched": {
+        "distance_km": 3.2554040397444735,
+        "time_delta_seconds": 1017.1019999980927,
+        "track_id": "368181750_1673740805_1673765975",
+        "mmsi": "368181750",
+        "timestamp": "2023-01-15T00:19:04+00:00"
+      },
+      "t_sar": "2023-01-15T00:02:06.898000+00:00",
+      "window_before_hours": 48.0,
+      "window_after_hours": 6.0,
+      "track_join_status": {
+        "367640910": "temporally_matched",
+        "368181750": "temporally_matched",
+        "367123550": "temporally_matched",
+        "367492110": "temporally_matched",
+        "366847780": "temporally_matched"
+      },
+      "source_id": "ais.marinecadastre.event_gold"
+    }
+  },
+  "attribution": {
+    "decision_state": "latent_source",
+    "n_candidates_screened": 5,
+    "n_candidates_scored": 5,
+    "top_posterior": 0.06752730531851073,
+    "top_gap": 0.0424782156793141,
+    "latent_probability": 0.9074236050422926,
+    "latent_finding": "no_plausible_visible_source",
+    "distinguishability": 0.4588449971369034,
+    "posterior_entropy": 0.20231933150884676,
+    "envelope_mode": "simulated"
+  },
+  "validity_gate": {
+    "state": "degraded",
+    "allows_operational_action": true,
+    "source_trust": "trusted",
+    "blocking_reasons": [],
+    "officer_visible_caveats": [
+      "43% of particles lost to boundaries",
+      "Evidence is SIMULATED \u2014 not a real-world observation"
+    ],
+    "checks": [
+      {
+        "name": "source_trust",
+        "passed": true,
+        "observed": null,
+        "threshold": null,
+        "detail": "trust=trusted",
+        "reason_code": null
+      },
+      {
+        "name": "phi_convergence",
+        "passed": true,
+        "observed": 0.049630794704611764,
+        "threshold": 0.15,
+        "detail": "flag=converged",
+        "reason_code": null
+      },
+      {
+        "name": "phi_entropy",
+        "passed": true,
+        "observed": 0.818675976772759,
+        "threshold": 0.95,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "ensemble_completeness",
+        "passed": true,
+        "observed": 1.0,
+        "threshold": 0.8,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "particle_loss",
+        "passed": false,
+        "observed": 0.4273,
+        "threshold": 0.2,
+        "detail": "",
+        "reason_code": "evidence_insufficient"
+      },
+      {
+        "name": "age_sensitivity",
+        "passed": true,
+        "observed": 0.03701135327709217,
+        "threshold": 0.7,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "forcing_sensitivity",
+        "passed": true,
+        "observed": 0.005128358984903239,
+        "threshold": 0.7,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "diffusivity_sensitivity",
+        "passed": true,
+        "observed": 0.0010723238413676815,
+        "threshold": 0.7,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "posterior_entropy",
+        "passed": true,
+        "observed": 0.20231933150884676,
+        "threshold": 0.9,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "distinguishability",
+        "passed": true,
+        "observed": 0.4588449971369034,
+        "threshold": 0.1,
+        "detail": "",
+        "reason_code": null
+      },
+      {
+        "name": "evidence_mode",
+        "passed": true,
+        "observed": null,
+        "threshold": null,
+        "detail": "mode=simulated",
+        "reason_code": "evidence_simulated"
+      }
+    ],
+    "envelope_mode": "simulated"
+  },
+  "status": "SUCCESS"
+}

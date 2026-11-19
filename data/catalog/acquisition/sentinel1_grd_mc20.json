@@ -1,0 +1,14 @@
+{
+  "product_name": "S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE",
+  "product_uuid": "6fc676ba-b961-5bfc-9211-8076f8f1481c",
+  "source": "Copernicus Data Space Ecosystem",
+  "acquisition_timestamp": "2023-01-15T00:02:06.898000+00:00",
+  "downloaded_at": "2026-08-29T17:34:43.794040+00:00",
+  "downloaded_size_bytes": 1741458044,
+  "expected_size_bytes": 1741458044,
+  "size_matches": true,
+  "sha256": "68f5c1f4a35fc64f92f07ee595036d668ef87582bfeaa69b1b8fe86742857d96",
+  "raw_zip_path": "D:\\ROUTER(DATASETS)\\_downloads\\sentinel1_grd\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE.zip",
+  "extracted_to": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15",
+  "license": "Copernicus Sentinel Data Terms and Conditions (free, open)"
+}

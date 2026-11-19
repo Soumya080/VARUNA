@@ -1,0 +1,18 @@
+{
+  "product_id": "cmems_mod_glo_phy_anfc_0.083deg_PT1H-m",
+  "variables": [
+    "uo",
+    "vo"
+  ],
+  "region": {
+    "min_lon": -91.0,
+    "max_lon": -87.0,
+    "min_lat": 27.0,
+    "max_lat": 31.0
+  },
+  "start_datetime": "2023-01-11T12:00:00",
+  "end_datetime": "2023-01-17T00:00:00",
+  "downloaded_at": "2026-08-29T16:36:07.066725+00:00",
+  "destination": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems_mc20_timeseries\\cmems_mc20_2023-01-11_to_2023-01-17.nc",
+  "reason": "MC20 case, same planning window as ERA5 request"
+}

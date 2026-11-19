@@ -1,0 +1,48 @@
+  ep  1 step    0 loss=0.9409 lr=3.00e-04
+  ep  1 step    5 loss=0.8369 lr=3.00e-04
+  ep  1 step   10 loss=0.7677 lr=3.00e-04
+  ep  1 step   15 loss=0.7388 lr=3.00e-04
+  ep  1 step   20 loss=0.7837 lr=3.00e-04
+{"epoch": 1, "train_loss": 0.7757541728019715, "val_loss": 0.6882757289069039, "val_iou_oil": 0.00639139068151195, "val_dice_oil": 0.012701600472126064, "val_precision_oil": 0.03235214933141883, "val_recall_oil": 0.007901976041997742, "val_f1_oil": 0.012701600472126064, "val_pr_auc": 0.05027886620757396, "lr": 0.00015, "seconds": 16.16611929994542, "peak_vram_gb": 3.285503387451172, "samples_per_s": 12.3715528933821}
+  ep  2 step    0 loss=0.6752 lr=1.50e-04
+  ep  2 step    5 loss=0.7289 lr=1.50e-04
+  ep  2 step   10 loss=0.6621 lr=1.50e-04
+  ep  2 step   15 loss=0.6742 lr=1.50e-04
+  ep  2 step   20 loss=0.6654 lr=1.50e-04
+{"epoch": 2, "train_loss": 0.6819107413291932, "val_loss": 0.7522114430155072, "val_iou_oil": 0.03599136788889176, "val_dice_oil": 0.06948198412547348, "val_precision_oil": 0.03897116030047414, "val_recall_oil": 0.3200574290630514, "val_f1_oil": 0.06948198412547348, "val_pr_auc": 0.04102232228560601, "lr": 0.0, "seconds": 4.77841249993071, "peak_vram_gb": 3.285503387451172, "samples_per_s": 41.85490474145967}
+  ep  1 step    0 loss=0.7299 lr=3.00e-04
+  ep  1 step    5 loss=0.6856 lr=3.00e-04
+  ep  1 step   10 loss=0.6592 lr=3.00e-04
+  ep  1 step   15 loss=0.6483 lr=3.00e-04
+  ep  1 step   20 loss=0.8154 lr=3.00e-04
+{"epoch": 1, "train_loss": 0.6800373363494873, "val_loss": 0.6324886424200875, "val_iou_oil": 0.020646464436126628, "val_dice_oil": 0.04045762201808658, "val_precision_oil": 0.29224080760445065, "val_recall_oil": 0.021733174051708076, "val_f1_oil": 0.04045762201808657, "val_pr_auc": 0.1354734289194382, "lr": 0.00015, "seconds": 8.624572800006717, "peak_vram_gb": 3.285503387451172, "samples_per_s": 23.189554385794533}
+  ep  2 step    0 loss=0.6102 lr=1.50e-04
+  ep  2 step    5 loss=0.6760 lr=1.50e-04
+  ep  2 step   10 loss=0.6037 lr=1.50e-04
+  ep  2 step   15 loss=0.6322 lr=1.50e-04
+  ep  2 step   20 loss=0.6313 lr=1.50e-04
+{"epoch": 2, "train_loss": 0.6314290022850036, "val_loss": 0.594071022101811, "val_iou_oil": 0.08664170092882766, "val_dice_oil": 0.15946691693272771, "val_precision_oil": 0.09802016657596777, "val_recall_oil": 0.42738621044902075, "val_f1_oil": 0.15946691693272771, "val_pr_auc": 0.23764165704024975, "lr": 0.0, "seconds": 4.54159769997932, "peak_vram_gb": 3.285503387451172, "samples_per_s": 44.037365969449624}
+  ep  1 step    0 loss=0.6963 lr=3.00e-04
+  ep  1 step    5 loss=0.6681 lr=3.00e-04
+  ep  1 step   10 loss=0.6270 lr=3.00e-04
+  ep  1 step   15 loss=0.6093 lr=3.00e-04
+  ep  1 step   20 loss=0.7976 lr=3.00e-04
+{"epoch": 1, "train_loss": 0.671561176776886, "val_loss": 0.7234684143747602, "val_iou_oil": 0.012967433428600498, "val_dice_oil": 0.025602863430089755, "val_precision_oil": 0.07671262858393521, "val_recall_oil": 0.015365562289709896, "val_f1_oil": 0.025602863430089755, "val_pr_auc": 0.013821417767304911, "lr": 0.00015, "seconds": 9.693521699984558, "peak_vram_gb": 3.285503387451172, "samples_per_s": 20.63233633657813}
+  ep  2 step    0 loss=0.6058 lr=1.50e-04
+  ep  2 step    5 loss=0.7144 lr=1.50e-04
+  ep  2 step   10 loss=0.6057 lr=1.50e-04
+  ep  2 step   15 loss=0.6499 lr=1.50e-04
+  ep  2 step   20 loss=0.6037 lr=1.50e-04
+{"epoch": 2, "train_loss": 0.6275638914108277, "val_loss": 0.5875278115272522, "val_iou_oil": 0.05650020042657204, "val_dice_oil": 0.10695729239570337, "val_precision_oil": 0.06470723597160379, "val_recall_oil": 0.3081825455103405, "val_f1_oil": 0.10695729239570337, "val_pr_auc": 0.1119062082178928, "lr": 0.0, "seconds": 4.755841700010933, "peak_vram_gb": 3.285503387451172, "samples_per_s": 42.05354438091163}
+  ep  1 step    0 loss=1.2878 lr=3.00e-04
+  ep  1 step    5 loss=1.1180 lr=3.00e-04
+  ep  1 step   10 loss=0.9898 lr=3.00e-04
+  ep  1 step   15 loss=0.8592 lr=3.00e-04
+  ep  1 step   20 loss=0.7986 lr=3.00e-04
+{"epoch": 1, "train_loss": 0.9415266132354736, "val_loss": 0.7856067674500602, "val_iou_oil": 0.05354864987749122, "val_dice_oil": 0.10165387214670717, "val_precision_oil": 0.058876931088352714, "val_recall_oil": 0.3717435858093224, "val_f1_oil": 0.10165387214670717, "val_pr_auc": 0.04722127427818737, "lr": 0.00015, "seconds": 7.310578599921428, "peak_vram_gb": 3.285503387451172, "samples_per_s": 27.3576157162375}
+  ep  2 step    0 loss=0.7683 lr=1.50e-04
+  ep  2 step    5 loss=0.7592 lr=1.50e-04
+  ep  2 step   10 loss=0.7467 lr=1.50e-04
+  ep  2 step   15 loss=0.7412 lr=1.50e-04
+  ep  2 step   20 loss=0.7212 lr=1.50e-04
+{"epoch": 2, "train_loss": 0.747582380771637, "val_loss": 0.7264758263315473, "val_iou_oil": 0.06943086002480807, "val_dice_oil": 0.1298463745906817, "val_precision_oil": 0.07380402680539107, "val_recall_oil": 0.5395427594445601, "val_f1_oil": 0.12984637459068174, "val_pr_auc": 0.06537681545497183, "lr": 0.0, "seconds": 4.660081899957731, "peak_vram_gb": 3.285503387451172, "samples_per_s": 42.91770065281773}

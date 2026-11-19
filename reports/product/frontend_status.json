@@ -1,0 +1,90 @@
+{
+  "task": "STEP 4 - Frontend Track - Unified Operator Case Integration",
+  "date": "2026-09-02",
+  "status": "VARUNA_FRONTEND_INTEGRATED",
+  "frontend_selected": "frontend/VARUNA-frontend_yash",
+  "frontend_duplicate_removed": {
+    "path": "frontend/__MACOSX",
+    "reason": "macOS zip-extraction metadata junk (AppleDouble files), zero real content, confirmed via `file` command",
+    "was_tracked_in_git": false
+  },
+  "backend_addition": {
+    "route": "GET /v1/replay/{fixture_name}",
+    "file": "apps/api/routers/replay.py",
+    "adr": "docs/architecture/ADR-0014-frontend-replay-endpoint.md",
+    "reason": "GET /v1/cases/{case_id}/operator-view is still CaseWorkflow-backed and cannot produce intelligence; no existing route ran GoldenCaseWorkflow at all",
+    "response_model": "OperatorCase (same schema as every other case route, not a parallel contract)",
+    "tests": "tests/api/test_replay_endpoint.py",
+    "test_count": 6,
+    "test_result": "6 passed"
+  },
+  "backend_full_regression": {
+    "command": "pytest tests/ -q --ignore=tests/scientific",
+    "passed": 756,
+    "skipped": 10,
+    "failed": 1,
+    "failure": "test_netra_training_loop (pre-existing, unrelated, documented across every prior session)",
+    "baseline_before_this_task": "750 passed / 10 skipped / 1 pre-existing failure",
+    "regressions": 0
+  },
+  "build": {
+    "node_version_installed": "v24.19.0",
+    "npm_version": "11.17.0",
+    "node_was_preinstalled": false,
+    "npm_install": "362 packages, 0 vulnerabilities",
+    "typecheck": "npx tsc --noEmit - 0 errors",
+    "production_build": "npm run build - success, all 14 routes prerendered"
+  },
+  "preview": {
+    "backend_server": "http://127.0.0.1:8000 (uvicorn, left running)",
+    "frontend_server": "http://localhost:3000 (next dev / Turbopack, left running)",
+    "cors_verified": true,
+    "all_routes_return_200": true,
+    "dev_server_errors": 0,
+    "ssr_loading_boundary_confirmed": true,
+    "human_browser_walkthrough_performed": false,
+    "human_browser_walkthrough_reason": "no browser automation tool available in this environment; verified via static typecheck + production build + live HTTP round-trips + SSR output inspection instead"
+  },
+  "api_integration": {
+    "client": "lib/api.ts",
+    "types": "lib/operator-case-types.ts",
+    "context": "lib/operator-case-context.tsx",
+    "boundary": "components/operator-case-boundary.tsx",
+    "fixture_rendered": "CASE-VALID",
+    "engine_mode_rendered": "replay",
+    "evidence_mode_rendered": "real (per section)"
+  },
+  "sections": {
+    "case_overview": { "status": "wired", "component": "case-summary.tsx" },
+    "detection": { "status": "wired_via_pipeline_timeline", "component": "analytical-pipeline.tsx" },
+    "evidence_health": { "status": "wired", "component": "evidence-health.tsx" },
+    "chhaya": { "status": "wired_new", "component": "intelligence-panels.tsx (ChhayaPanel)" },
+    "nyaya_attribution": { "status": "wired_via_case_summary_and_pipeline", "component": "case-summary.tsx, analytical-pipeline.tsx" },
+    "uncertainty": { "status": "wired_new", "component": "intelligence-panels.tsx (UncertaintyPanel)" },
+    "smriti": { "status": "wired_new", "component": "intelligence-panels.tsx (SmritiPanel)" },
+    "decision_trace_next_best_action": { "status": "wired_new", "component": "intelligence-panels.tsx (DecisionTracePanel)" },
+    "forecast_pravaah": { "status": "wired_via_pipeline_timeline", "component": "analytical-pipeline.tsx" },
+    "validity": { "status": "wired", "component": "case-summary.tsx" },
+    "recommendation": { "status": "wired", "component": "case-intelligence.tsx (RecommendedActionPanel)" },
+    "mission": { "status": "partially_wired", "component": "mission-status.tsx", "note": "real mission fields shown; authorization button honestly disabled, not wired to a mutation" },
+    "alerts": { "status": "not_wired", "note": "OperatorCase.alerts is available from the API but not rendered anywhere in the UI this task" },
+    "praman_provenance": { "status": "wired_new", "component": "intelligence-panels.tsx (PramanPanel)" },
+    "case_timeline": { "status": "wired_via_pipeline", "component": "analytical-pipeline.tsx", "note": "reuses the existing pipeline-stage UI, now fed real per-section status/evidence_mode" }
+  },
+  "tests": {
+    "backend_new": 6,
+    "frontend_new": 6,
+    "frontend_framework_added": "vitest (minimal, dev-only dependency)",
+    "frontend_test_command": "npm run test"
+  },
+  "known_gaps": [
+    "13 of 14 frontend pages remain on mock data (cases, detection, evidence-chain, intelligence, missions, alerts, assets, reports, vessel-attribution, source-reconstruction, assignment-mission, map/AIS visualization) - explicitly out of scope per Phase 2's 'do not build every page first'",
+    "Alerts are not rendered anywhere despite being available in the API response",
+    "Mission authorization is display-only; the action button is disabled with an honest reason rather than wired to a real POST /v1/missions/{id}/approve call, which would require a login/JWT flow",
+    "Map/AIS visualization left on mock data; CASE-VALID's real AIS section is legitimately empty (0 tracks), so wiring it would look identical to 'not implemented' without adding value",
+    "No human has visually opened the app in an actual browser during this session; dev servers are left running for that final step",
+    "Evidence Ledger's contradiction/support graph is not visualized, only the flat audit-trail list"
+  ],
+  "design_preserved": true,
+  "no_scientific_values_fabricated": true
+}

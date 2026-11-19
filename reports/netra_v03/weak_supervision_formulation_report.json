@@ -1,0 +1,162 @@
+{
+  "task": "netra_v03_weak_supervision_formulation",
+  "date": "2026-08-31",
+  "final_decision": "MIL_VALID_AND_PILOT_READY",
+  "hardware_correction": {
+    "earlier_claim": "no GPU on this machine",
+    "status": "WRONG -- measured against system python, not ./.venv",
+    "measured": {
+      "cuda_available": true,
+      "gpu": "NVIDIA GeForce RTX 3060",
+      "vram_gb": 12.88,
+      "peak_vram_this_config_gb": 2.0
+    }
+  },
+  "blocker_resolved": {
+    "id": "B2_domain_label_confound",
+    "before": "P(positive|ESSD)=0 -> loss minimisable by learning ESSD-domain=background",
+    "after_measured": {
+      "essd_weak_oil_box": {
+        "L_MIL": 0.1744,
+        "in_box_grad_pushing_oil_up_fraction": 0.1,
+        "mean_in_box_grad": -1.221e-05
+      },
+      "essd_negative": {
+        "L_MIL": 0.0,
+        "mean_grad": 2.088e-06
+      },
+      "zenodo_strong": {
+        "L_strong": 0.9607,
+        "true_positive_px_grad_correct_fraction": 1.0
+      }
+    },
+    "verdict": "ELIMINATED -- ESSD now contributes both positive and negative signal"
+  },
+  "pooling_comparison": {
+    "sizes_tested": [
+      144,
+      3200,
+      27019,
+      248320
+    ],
+    "cells": "[pure_noise / one_hot_pixel / real_object]",
+    "hard_max": "0.100/0.990/0.900 at all sizes -- REJECTED, one pixel beats a real object",
+    "lse_r1": "5.02->12.47 with size, noise-vs-object gap 0.06 -- REJECTED",
+    "noisy_or": "0.999-1.000 on PURE NOISE at all sizes -- REJECTED, saturates",
+    "gmean_r8": "one-hot 0.21-0.53 size-dependent -- viable but weaker",
+    "topk_10pct": "0.095/0.095/0.499 -- SELECTED, one-hot indistinguishable from noise, object 5x higher, size-stable"
+  },
+  "chosen_formulation": {
+    "loss": "L_total = 1.0*L_strong + 1.0*L_weak_negative + 1.0*L_MIL",
+    "mil": "-log(topk_mean(p_oil inside box))",
+    "pooling": "topk_mean",
+    "topk_frac": 0.1,
+    "topk_min": 16,
+    "ignore_index": 255,
+    "weights_all_unit": true,
+    "weight_justification": "measured L_strong=0.9385 L_weak_negative=0.9460 L_MIL=0.2032 (ratio 0.22) -- same order, no tuning, never selected via MC20/PartIII/holdout"
+  },
+  "sampling_ratio": {
+    "chosen": 0.1,
+    "measured": {
+      "5pct": {
+        "weak_per_batch": 0.4,
+        "weak_repeats_per_strong_epoch": 8.6,
+        "issue": "most batches have no weak sample"
+      },
+      "10pct": {
+        "weak_per_batch": 0.8,
+        "weak_repeats_per_strong_epoch": 18.3,
+        "issue": null
+      },
+      "20pct": {
+        "weak_per_batch": 1.6,
+        "weak_repeats_per_strong_epoch": 41.1,
+        "issue": "heavy repetition"
+      },
+      "25pct": {
+        "weak_per_batch": 2.0,
+        "weak_repeats_per_strong_epoch": 54.8,
+        "issue": "memorization risk"
+      }
+    },
+    "no_file_duplication": true,
+    "deterministic": true
+  },
+  "gradient_norms": {
+    "strong_only": 3.71,
+    "weak_only": 18.63,
+    "mixed": 12.86,
+    "mitigation": "grad_clip_norm=5.0 (conservative guard, not tuned)"
+  },
+  "batch_audit": {
+    "A_strong_only": {
+      "L_str": 0.9599,
+      "L_wneg": 0.0,
+      "L_MIL": 0.0,
+      "L_tot": 0.9599,
+      "pos_px": 19664,
+      "ign_px": 0
+    },
+    "B_weak_only": {
+      "L_str": 0.0,
+      "L_wneg": 0.9372,
+      "L_MIL": 0.2259,
+      "L_tot": 1.1631,
+      "pos_px": 0,
+      "ign_px": 23200,
+      "boxes": 3
+    },
+    "C_mixed": {
+      "L_str": 0.9124,
+      "L_wneg": 0.9298,
+      "L_MIL": 0.1751,
+      "L_tot": 2.0173,
+      "pos_px": 14008,
+      "ign_px": 12876,
+      "boxes": 1
+    }
+  },
+  "overfit_controls": {
+    "A_strong": {
+      "loss_start": 0.45722,
+      "loss_end": 0.01761
+    },
+    "BC_weak_no_location_given": {
+      "mil_start": 0.0866,
+      "mil_end": 0.0,
+      "p_oil_true_object": 0.9996,
+      "p_oil_in_box_not_object": 0.7489,
+      "p_oil_outside_box": 0.0104,
+      "verdict": "MIL localized the object without being told where; did not force whole box positive"
+    }
+  },
+  "tests": {
+    "mil_loss": 15,
+    "weak_supervision_mechanics": 5,
+    "gold_v03_loader": 12,
+    "total_passing": 32
+  },
+  "second_source_need": "stronger pixel-level masks; pilot CAN proceed without them",
+  "remaining_risks": [
+    "only 8 weak scenes / 213 tiles",
+    "topk_frac=0.10 is a declared modeling assumption (measured in-box plausibly-oil ~37.7%)",
+    "val proximity-contaminated -> fixed budget, no best-val model",
+    "weak-batch gradient 5x asymmetry (clipped)",
+    "pilot cannot establish accuracy improvement"
+  ],
+  "exact_command": "./.venv/Scripts/python.exe scripts/netra_v03/07_train_v03_pilot.py --config configs/lab/netra_v03_domain_expansion.yaml --out artifacts/experiments/netra_v03/pilot_01/",
+  "safety": {
+    "deleted": 0,
+    "moved": 0,
+    "renamed": 0,
+    "overwritten": 0,
+    "v0_2_checkpoint_modified": 0,
+    "v0_2_gold_modified": 0,
+    "part3_modified": 0,
+    "mc20_modified": 0,
+    "official_test_modified": 0,
+    "calm_grd_holdout_modified": 0,
+    "checkpoint_sha256": "9f38c690d0ef1629bdc7a59b76dbe054d45245cfccb4ba5b26f242f1d2e2cd66"
+  }
+}

@@ -1,0 +1,40 @@
+﻿{
+  "experiment_id": "go_nogo_v2",
+  "git_commit": "e8a6186335f1f4b1ed3350d64b60661a3677d2f8",
+  "timestamp": "2026-08-24T20:38:00+05:30",
+  "number_of_cases": 50,
+  "seed": "42 + i (per case)",
+  "candidate_count": "unknown",
+  "age_settings": {
+    "true_age_hours_range": [12.0, 72.0],
+    "age_prior_std": 24.0,
+    "deterministic_age": "12.0 + (seed % 60)"
+  },
+  "forcing_settings": {
+    "wind_drift_range": [0.02, 0.04],
+    "diffusivity_range": [5.0, 50.0],
+    "current_noise_range": [0.80, 1.20],
+    "current_angle_noise_max_deg": 15.0
+  },
+  "AIS_settings": "unknown",
+  "baseline_definitions": [
+    "naive_distance_baseline"
+  ],
+  "metrics": {
+    "total_cases": 50,
+    "overall_accuracy": 0.2,
+    "latent_accuracy": 1.0,
+    "known_accuracy": 0.0,
+    "decisions": {
+      "latent_source": 50
+    },
+    "gate_states": {
+      "valid": 42,
+      "degraded": 8
+    },
+    "avg_entropy": 0.004839272187597495,
+    "avg_distinguishability": 0.7320434973587227,
+    "baseline_accuracy": 0.16
+  },
+  "code_config_version": "v2"
+}

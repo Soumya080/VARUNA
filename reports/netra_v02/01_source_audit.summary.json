@@ -1,0 +1,14 @@
+{
+  "n_scenes": 2570,
+  "verdicts": {
+    "PASS": 2566,
+    "QUARANTINE": 4
+  },
+  "elapsed_s": 787.4,
+  "scenes_per_s": 3.264,
+  "sources": [
+    "zenodo_part1",
+    "zenodo_part2_lookalike",
+    "zenodo_part2_no_oil"
+  ]
+}

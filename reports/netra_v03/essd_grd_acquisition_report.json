@@ -1,0 +1,97 @@
+{
+  "experiment_id": "essd_grd_acquisition_v03_resumed",
+  "date": "2026-08-31",
+  "final_decision": "ESSD_GRD_USEFUL_BUT_SECOND_SOURCE_REQUIRED",
+  "phase4_acquisition": {
+    "status": "COMPLETE",
+    "scenes_downloaded": 25,
+    "scenes_verified": 25,
+    "total_bytes": 43795595439,
+    "total_gb": 43.8,
+    "auth_note": "CDSE token expires in 1800s; script fixed to refresh per-scene after 12/25 initial run hit 401s",
+    "log_file": "data/raw/netra_v03_sources/essd_grd/provenance/scene_acquisition_log.json"
+  },
+  "phase5_polarization": {
+    "method": "filename (official ESA naming) + brightness sanity check on real calibrated dB",
+    "vv_brighter_than_vh_fraction": 1.0,
+    "n_scenes_checked": 25,
+    "needs_channel_binding_correction": false
+  },
+  "phase6_era5": {
+    "source": "real CDS API pull, reanalysis-era5-single-levels",
+    "file": "data/raw/netra_v03_sources/essd_grd/era5_eastern_med_2019.nc",
+    "bytes": 27337055,
+    "dates_covered": 23,
+    "threshold_policy": {
+      "low_wind_max_ms": 5.0,
+      "high_wind_min_ms": 10.0,
+      "basis": "Beaufort-derived open-water bins, documented dataset-analysis convention"
+    }
+  },
+  "phase7_regime_crosstab": {
+    "low-wind__oil": 12,
+    "medium-wind__oil": 3,
+    "low-wind__negative": 9,
+    "medium-wind__negative": 1
+  },
+  "phase8_v02_comparison": {
+    "n_scenes": 25,
+    "vv_brighter_fraction": 1.0,
+    "vv_mean_of_means_db": -20.15066761016846,
+    "vh_mean_of_means_db": -25.74148780822754,
+    "vv_in_v02_range_count": 25,
+    "vh_in_v02_range_count": 25,
+    "v02_clip_reference": {
+      "VV": [
+        -42.475,
+        -13.825
+      ],
+      "VH": [
+        -33.425,
+        -7.525
+      ]
+    }
+  },
+  "phase9_label_policy": {
+    "oil_negative_preserved": true,
+    "caveat": "ESSD no-oil set combines lookalike + benign phenomena via K-means clusters; not independently re-split per row this pass"
+  },
+  "phase10_14_leakage": {
+    "geographic_overlap_with_mc20": "NONE (measured, disjoint bboxes: ESSD 27-36E/29-36.4N vs MC20 -91/-88E,27.9-29.9N)",
+    "content_hash_vs_zenodo": "NOT_EXHAUSTIVELY_CHECKED -- format mismatch makes collision implausible but this is inference not measurement",
+    "part3_touched": false,
+    "mc20_touched": false
+  },
+  "phase11_calm_holdout": {
+    "assessment": "SUFFICIENT_CANDIDATES",
+    "candidate_scene_count": 21,
+    "built_this_pass": false
+  },
+  "phase16_readiness_gate": {
+    "acquisition_qualified": true,
+    "physical_channels_verified": true,
+    "labels_present_distinct": true,
+    "labels_geolocated_to_raw_scene_coords": false,
+    "environmental_metadata_recovered": true,
+    "regime_coverage_quantified": true,
+    "train_val_holdout_split_defined": false,
+    "leakage_checks_exhaustive": false,
+    "normalization_policy_defined": false,
+    "provenance_complete_for_acquisition": true,
+    "gold_v0_3_ready": false,
+    "specific_blocker": "PANGAEA patch bounding boxes are in 640x640 packaged-patch space, not yet re-projected into raw full-scene GRD line/pixel coordinates via geolocationGridPoints"
+  },
+  "training": "NOT_ATTEMPTED_NOT_AUTHORIZED",
+  "safety": {
+    "deleted": 0,
+    "moved": 0,
+    "renamed": 0,
+    "overwritten": 0,
+    "checkpoint_modified": 0,
+    "v0_2_gold_modified": 0,
+    "part3_modified": 0,
+    "mc20_modified": 0,
+    "official_test_modified": 0
+  },
+  "next_exact_action": "geolocate PANGAEA patch/object bounding boxes into each scenes raw pixel/line coordinate system; then decide whether a second geographically-distinct low-wind source is acquired before Gold-v0.3 construction, or proceed with ESSD/PANGAEA alone for a first controlled experiment"
+}

@@ -1,0 +1,37 @@
+{
+  "spatial": {
+    "sar_footprint": {
+      "min_lon": -91.1010118219466,
+      "min_lat": 27.95329274647808,
+      "max_lon": -88.17327691711878,
+      "max_lat": 29.87673357027931
+    },
+    "sar_ais": {
+      "n_spatially_matched_tracks": 425,
+      "n_total_tracks": 530
+    },
+    "sar_era5_contains_anchor": true,
+    "sar_cmems_contains_anchor": true,
+    "four_way_non_empty": true
+  },
+  "temporal": {
+    "t_sar": "2023-01-15T00:02:06.898000+00:00",
+    "ais_closest_by_pure_distance": {
+      "distance_km": 0.059863023196680576,
+      "time_delta_seconds": 82872.10199999809,
+      "track_id": "367640910_1673740800_1673827154",
+      "mmsi": "367640910",
+      "timestamp": "2023-01-15T23:03:19+00:00"
+    },
+    "ais_closest_temporally_matched": {
+      "distance_km": 3.2554040397444735,
+      "time_delta_seconds": 1017.1019999980927,
+      "track_id": "368181750_1673740805_1673765975",
+      "mmsi": "368181750",
+      "timestamp": "2023-01-15T00:19:04+00:00"
+    },
+    "ais_closest_note": "closest_by_pure_distance is the nearest AIS point regardless of time -- informational only. closest_temporally_matched is the nearest point that is ALSO within the AIS join window -- this is the scientifically relevant figure, and matches the prior data-track report's finding (MMSI 368181750, 3.26km, +16m57s).",
+    "era5_contains_t_sar": true,
+    "cmems_contains_t_sar": true
+  }
+}

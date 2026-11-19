@@ -1,0 +1,27 @@
+{
+  "sar": {
+    "product_uuid": "6fc676ba-b961-5bfc-9211-8076f8f1481c",
+    "zip_sha256": "68f5c1f4a35fc64f92f07ee595036d668ef87582bfeaa69b1b8fe86742857d96",
+    "raw_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15\\S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE"
+  },
+  "ais": {
+    "raw_source_reference": {
+      "bronze_tracks_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\bronze\\ais\\mc20_2023-01-15_tracks.json",
+      "bronze_summary_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\bronze\\ais\\mc20_2023-01-15_summary.json",
+      "raw_csv_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\ais\\2023-01-15\\AIS_2023_01_15.csv",
+      "note": "referenced, not copied -- see README for why"
+    }
+  },
+  "era5": {
+    "cube_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\events\\mc20_v0_1\\forcing\\era5_cube.json",
+    "file_checksum": "8db79ceb5b3aa417d688a0d75e01bd6e5f2f0d9119d6280d1beed5c1d8d8e399",
+    "raw_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\era5_mc20\\era5_mc20_2023-01-11_to_2023-01-17.nc"
+  },
+  "cmems": {
+    "cube_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\events\\mc20_v0_1\\forcing\\cmems_cube.json",
+    "file_checksum": "06163c96bf97b8fd2c34fb7b18720c3219d3bd1824f428dfb56ce24a5b0b9130",
+    "raw_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems_mc20_timeseries\\cmems_mc20_2023-01-11_to_2023-01-17.nc"
+  },
+  "processing_git_commit": "cf0e21307afe519094c04eea35bddeba96c77702",
+  "raw_data_immutability": "all raw sources referenced by path+checksum; none copied except where noted; none modified"
+}

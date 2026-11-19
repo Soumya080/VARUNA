@@ -1,0 +1,105 @@
+{
+  "generated_at": "2026-08-29T11:17:22.646021+00:00",
+  "required_datasets": {
+    "Zenodo Part I": {
+      "dataset_id": "zenodo_part1",
+      "state": "PRESENT BUT INCOMPLETE",
+      "size_bytes": 56187241650,
+      "file_count": 2400,
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\extracted\\part1",
+      "varuna_engine": "NETRA",
+      "notes": "Verified by direct rasterio read: 2-band float32, EPSG:4326, real bounds. Prior dedup pass discarded ~69% via a bbox-overlap bug (not true duplicates) \u2014 see docs/datasets/NETRA_GOLD_V0_1.md. NETRA Gold rebuild is a separate, already-owned workstream; not touched by this reconciliation pass."
+    },
+    "Zenodo Part II": {
+      "dataset_id": "zenodo_part2",
+      "state": "PRESENT BUT INCOMPLETE",
+      "size_bytes": 92493046728,
+      "file_count": 3425,
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\extracted\\part2",
+      "varuna_engine": "NETRA",
+      "notes": "Verified: masks are all-zero (no lookalike class labels present, only folder-level lookalike/no_oil split). Not usable for a 3-class scheme without a real lookalike mask source."
+    },
+    "Zenodo Part III": {
+      "dataset_id": null,
+      "state": "MISSING",
+      "notes": "Never downloaded; no local path exists."
+    },
+    "ESSD": {
+      "dataset_id": "essd",
+      "state": "MISSING",
+      "size_bytes": 0,
+      "file_count": 0,
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\essd",
+      "varuna_engine": "NETRA",
+      "notes": "Absent. Needed for cross-dataset generalization claims, not for a first baseline."
+    },
+    "xView3": {
+      "dataset_id": "xview3",
+      "state": "MISSING",
+      "size_bytes": 0,
+      "file_count": 0,
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\xview3",
+      "varuna_engine": "CHHAYA",
+      "notes": "Absent. Only relevant if docs/adr/CHHAYA-ARCHITECTURE-DECISION.md selects option A (xView3 SAR detector) \u2014 currently recommends option C (keep the existing AIS-coverage-gap heuristic)."
+    },
+    "AIS": {
+      "dataset_id": "ais",
+      "state": "READY",
+      "size_bytes": 868779805,
+      "file_count": 1,
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\ais",
+      "varuna_engine": "NYAYA",
+      "notes": "Acquired 2026-08-29. One national daily file, Gulf-of-Mexico region extracted at the bronze stage (see data/bronze/ais/). Anchored to zenodo_p1_00073 spatially only \u2014 the anchor case has no real timestamp, so temporal_join_status is 'unavailable' for any real join against it. See docs/datasets/AIS_ACQUISITION_RECORD.md."
+    },
+    "ERA5": {
+      "dataset_id": "era5",
+      "state": "PRESENT BUT INCOMPLETE",
+      "size_bytes": 2130980256,
+      "file_count": 3,
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\era5",
+      "varuna_engine": "PRATIVARTAN",
+      "notes": "Verified via cfgrib: u10/v10 present, hourly, continuous 2010-2026. Spans 3 files with 3 different bboxes ((5-20N,70-85E), (6-20N,70-85E), (8-20N,70-88E)) \u2014 treat as spatial_coverage_status=partial until reconciled to their intersection (see ForcingCube.spatial_coverage_status)."
+    },
+    "CMEMS": {
+      "dataset_id": "cmems",
+      "state": "INSUFFICIENT",
+      "size_bytes": 564424542,
+      "file_count": 2,
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems",
+      "varuna_engine": "PRATIVARTAN,PRAVAAH",
+      "notes": "Verified via xarray: both files have time=1 (single snapshot). time_series_status=INSUFFICIENT \u2014 cannot drive advection. Snapshots retained; a real time-series request is required before either engine can use CMEMS operationally."
+    },
+    "Bhoonidhi": {
+      "dataset_id": "bhoonidhi",
+      "state": "MISSING",
+      "size_bytes": 0,
+      "file_count": 0,
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\bhoonidhi",
+      "varuna_engine": "NETRA",
+      "notes": "Absent. Relevant to an Indian-waters deployment claim; not on the NETRA baseline critical path."
+    },
+    "NISAR": {
+      "dataset_id": "nisar",
+      "state": "MISSING",
+      "size_bytes": 0,
+      "file_count": 0,
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\nisar",
+      "varuna_engine": "NETRA",
+      "notes": "Absent. Mission not yet producing public data at volume relevant here."
+    },
+    "RISAT": {
+      "dataset_id": "risat",
+      "state": "MISSING",
+      "size_bytes": 0,
+      "file_count": 0,
+      "physical_path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\risat",
+      "varuna_engine": "NETRA",
+      "notes": "Absent."
+    },
+    "Sentinel-1 GRD": {
+      "dataset_id": null,
+      "state": "MISSING",
+      "notes": "Only Level-0 RAW is present (dataset_id=asf_sentinel1_raw, 251 files, 387.9GB) \u2014 GRD (the product every downstream consumer assumes) has not been acquired."
+    }
+  }
+}

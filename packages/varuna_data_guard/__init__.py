@@ -1,1 +1,2 @@
-"""VARUNA GRID v2 — data_guard. See LLM_IMPLEMENTATION_GUIDE.md for the module contract."""
+"""VARUNA GRID — Data Guard."""
+from varuna_data_guard.guard import evaluate_data_guard, GuardVerdict, GuardResult

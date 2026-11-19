@@ -1,0 +1,100 @@
+{
+  "task": "Integration Track STEP 6 - Alert Orchestrator + Operational Response Loop",
+  "date": "2026-09-02",
+  "status": "ALERT_OPERATIONAL_VERIFIED",
+  "diagnosis_doc": "docs/product/ALERT_OPERATIONAL_DIAGNOSTIC.md",
+  "diagnosis_summary": {
+    "mission_authorization_enforcement": "already backend-authoritative and correct (pre-existing)",
+    "mission_audit_trail": "BROKEN before this task - discarded per-request; FIXED via MissionService singleton",
+    "alert_lifecycle_entity": "MISSING before this task - built this task",
+    "alert_generation_wiring": "only validity.evaluated event type is wired into the pipeline; 3 other recognized event types remain dead code paths",
+    "operator_case_alerts_section": "already correct and honest, read-only, pre-existing"
+  },
+  "files_changed": [
+    "packages/varuna_alerts/lifecycle.py (new)",
+    "packages/varuna_alerts/lifecycle_store.py (new)",
+    "packages/varuna_alerts/lifecycle_service.py (new)",
+    "packages/varuna_infra/rbac.py (3 new permissions: acknowledge_alert, escalate_alert, resolve_alert)",
+    "packages/varuna_domain/golden_case_engine.py (alert_lifecycle param, _sync_alerts_to_lifecycle)",
+    "apps/api/dependencies.py (get_alert_lifecycle_service; fixed get_mission_service singleton/audit-discard bug)",
+    "apps/api/routers/alerts.py (case-scoped list, detail, acknowledge/escalate/resolve)",
+    "apps/api/routers/missions.py (GET /{id}/audit)",
+    "apps/api/main.py (registered new alerts.cases_router)",
+    "frontend/VARUNA-frontend_yash/lib/api.ts (alert lifecycle + mission approve/audit client functions)",
+    "frontend/VARUNA-frontend_yash/app/alerts/page.tsx (real data, replacing hardcoded mock)",
+    "frontend/VARUNA-frontend_yash/app/missions/page.tsx (real data, replacing hardcoded mock)",
+    "frontend/VARUNA-frontend_yash/components/mission-status.tsx (Request Authorization now genuinely calls the backend)",
+    "tests/unit/test_alert_lifecycle.py (new, 10 tests)",
+    "tests/api/test_alert_lifecycle_endpoint.py (new, 6 tests)"
+  ],
+  "alert_lifecycle": {
+    "states": ["created", "acknowledged", "escalated", "resolved"],
+    "legal_transitions": {
+      "created": ["acknowledged", "escalated"],
+      "acknowledged": ["escalated", "resolved"],
+      "escalated": ["resolved"],
+      "resolved": []
+    },
+    "correlation": "keyed by case_id:event_type; repeated sync updates the existing record rather than duplicating",
+    "authorization": "reuses varuna_infra.authorization.authorize() exactly as MissionService.approve_and_assign() does; denial recorded in audit and leaves alert state unchanged"
+  },
+  "rbac_additions": {
+    "ACKNOWLEDGE_ALERT": ["admin", "duty_officer", "analyst"],
+    "ESCALATE_ALERT": ["admin", "duty_officer"],
+    "RESOLVE_ALERT": ["admin", "duty_officer"],
+    "system_principal_holds_none_of_these": true
+  },
+  "api_additions": [
+    "GET /v1/cases/{case_id}/alerts",
+    "GET /v1/alerts/{alert_id}",
+    "POST /v1/alerts/{alert_id}/acknowledge",
+    "POST /v1/alerts/{alert_id}/escalate",
+    "POST /v1/alerts/{alert_id}/resolve",
+    "GET /v1/missions/{mission_id}/audit"
+  ],
+  "mission_authorization_bug_fixed": {
+    "bug": "get_mission_service() constructed a new MissionService (and therefore a fresh, empty AuditLog) per call, discarding every authorization decision immediately",
+    "fix": "singleton MissionService with a persistent AuditLog, same pattern get_golden_case_workflow() already used for its repos",
+    "verified_live": true
+  },
+  "live_verification": {
+    "case_valid_alert_created": true,
+    "case_valid_alert_count": 1,
+    "case_ood_alert_count": 0,
+    "unauthenticated_acknowledge_returns_401": true,
+    "unauthenticated_mission_approve_returns_401": true,
+    "backend_restarted_to_load_changes": true,
+    "frontend_dev_server_responding": true,
+    "interactive_browser_click_through": "not performed - no browser automation tool available in this environment"
+  },
+  "tests": {
+    "new_unit_file": "tests/unit/test_alert_lifecycle.py",
+    "new_unit_tests": 10,
+    "new_api_file": "tests/api/test_alert_lifecycle_endpoint.py",
+    "new_api_tests": 6,
+    "frontend_typecheck": "0 errors",
+    "frontend_build": "success, 14/14 routes",
+    "frontend_tests": "11 passed (unchanged - no new frontend unit tests added; new pages verified via live HTTP)"
+  },
+  "backend_full_regression": {
+    "command": "pytest tests/ -q --ignore=tests/scientific",
+    "passed": 780,
+    "skipped": 10,
+    "failed": 1,
+    "failure": "test_netra_training_loop (pre-existing, unrelated)",
+    "baseline_before_this_task": "766 passed / 10 skipped / 1 pre-existing failure",
+    "regressions": 0
+  },
+  "not_built_per_instruction": [
+    "SMTP/SMS/WhatsApp/CAP external channels",
+    "Real login/token-issuing endpoint (out of scope; documented gap)",
+    "PRAMAN registration of mission authorization audit (mission audit answered via new GET /v1/missions/{id}/audit endpoint instead)",
+    "Wiring the 3 additional recognized material event types (attribution.generated, mission.assigned, landfall.predicted) into pipeline stages"
+  ],
+  "remaining_gaps": [
+    "No real authentication session exists in this deployment (demo_mode=false, no login endpoint) - every lifecycle/mission action from the frontend genuinely 401s until one exists; this is the correct honest state, not a bug",
+    "OperatorCase.mission (replay fixture) and MissionService's live store are two distinct records for the same conceptual mission - not merged, documented on the frontend page",
+    "Only validity.evaluated triggers a real alert in the pipeline today",
+    "Interactive browser click-through not performed - HTTP-level verification substituted"
+  ]
+}

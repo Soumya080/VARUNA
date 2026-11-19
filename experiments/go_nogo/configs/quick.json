@@ -1,0 +1,10 @@
+{
+  "ais_uncertainties": ["clean", "gaps"],
+  "forcing_perturbations": ["moderate"],
+  "n_backward_particles": 160,
+  "n_ensemble_members": 8,
+  "n_forward_particles": 250,
+  "slick_ages_hours": [6.0, 24.0],
+  "traffic_densities": [5, 20],
+  "trials_per_cell": 2
+}

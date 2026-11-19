@@ -1,0 +1,13 @@
+{
+  "event_id": "mc20_2023-01-15",
+  "case_name": "MC20 / Taylor Energy",
+  "dataset_version": "mc20_v0_1",
+  "anchor": {
+    "lat": 28.936,
+    "lon": -88.97
+  },
+  "t_sar": "2023-01-15T00:02:06.898000+00:00",
+  "creation_timestamp": "2026-08-29T18:58:16.082849+00:00",
+  "processing_git_commit": "cf0e21307afe519094c04eea35bddeba96c77702",
+  "purpose": "inference and E2E validation -- NOT a training dataset, no oil labels"
+}

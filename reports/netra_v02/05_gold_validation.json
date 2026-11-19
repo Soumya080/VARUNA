@@ -1,0 +1,57 @@
+{
+  "dataset_version": "NETRA-GOLD-v0.2",
+  "n_manifested_tiles": 41040,
+  "n_missing": 0,
+  "n_deep_checked": 8961,
+  "n_failures": 0,
+  "failures": [],
+  "value_range_observed": {
+    "img_min": 0.0,
+    "img_max": 1.0
+  },
+  "split_agreement": true,
+  "unmanifested_files_in_gold_tree": 0,
+  "unmanifested_examples": [],
+  "unmanifested_note": "Files present on disk but absent from the manifest are never loaded: NetraGoldDataset iterates manifest entries only. They are reported, not removed.",
+  "per_split": {
+    "test": {
+      "tiles": 2432,
+      "scenes": 152,
+      "positive_tiles": 437,
+      "empty_tiles": 1995,
+      "oil_pixel_frac": 0.011102257590544852,
+      "fully_nodata_tiles": 9,
+      "sources": {
+        "zenodo_part1": 1232,
+        "zenodo_part2_lookalike": 480,
+        "zenodo_part2_no_oil": 720
+      }
+    },
+    "train": {
+      "tiles": 34992,
+      "scenes": 2187,
+      "positive_tiles": 6043,
+      "empty_tiles": 28949,
+      "oil_pixel_frac": 0.014162038524891068,
+      "fully_nodata_tiles": 326,
+      "sources": {
+        "zenodo_part1": 16032,
+        "zenodo_part2_lookalike": 9728,
+        "zenodo_part2_no_oil": 9232
+      }
+    },
+    "val": {
+      "tiles": 3616,
+      "scenes": 226,
+      "positive_tiles": 757,
+      "empty_tiles": 2859,
+      "oil_pixel_frac": 0.013395100568248107,
+      "fully_nodata_tiles": 48,
+      "sources": {
+        "zenodo_part1": 1920,
+        "zenodo_part2_lookalike": 688,
+        "zenodo_part2_no_oil": 1008
+      }
+    }
+  }
+}

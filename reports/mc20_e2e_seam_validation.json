@@ -1,0 +1,93 @@
+{
+  "generated_at": "2026-08-29T20:27:15.520169+00:00",
+  "case": "MC20 / Taylor Energy (mc20_v0_1)",
+  "overall_status": "READY",
+  "seams": [
+    {
+      "seam_id": "1",
+      "name": "manifest loading",
+      "status": "READY",
+      "detail": "event_id=mc20_2023-01-15, all 4 modalities present, dataset_version=mc20_v0_1",
+      "evidence_mode": null
+    },
+    {
+      "seam_id": "2",
+      "name": "real ERA5 cube -> CubeBackedWindField",
+      "status": "READY",
+      "detail": "cube=era5-mc20-era5_mc20_2023-01-11_to_2023-01-17, time_series_status=sufficient, u_grid.shape=(168, 17, 17), sample velocity_at=(-0.30396469017765787, 3.4988660018949376) m/s",
+      "evidence_mode": "real"
+    },
+    {
+      "seam_id": "3",
+      "name": "real CMEMS cube -> CubeBackedCurrentField",
+      "status": "READY",
+      "detail": "cube=cmems-mc20-cmems_mc20_2023-01-11_to_2023-01-17, time_series_status=sufficient, u_grid.shape=(133, 49, 49) (depth squeezed), sample velocity_at=(0.12264502193211772, 0.004139607009225353) m/s",
+      "evidence_mode": "real"
+    },
+    {
+      "seam_id": "4",
+      "name": "both fields -> PRATIVARTAN forcing interface",
+      "status": "READY",
+      "detail": "n_ensemble_completed=4/4, obs_time_hours=-25968.0",
+      "evidence_mode": "simulated"
+    },
+    {
+      "seam_id": "5",
+      "name": "PRATIVARTAN output -> PhiField",
+      "status": "READY",
+      "detail": "phi_id=phi-mc20_2023-01-15-78446d89, convergence_flag=not_converged, ensemble_completeness=1.00, envelope.mode=simulated",
+      "evidence_mode": "simulated"
+    },
+    {
+      "seam_id": "6",
+      "name": "PhiField -> NYAYA input contract",
+      "status": "READY",
+      "detail": "n_tracks=2 (real AIS, bounded), decision_state=latent_source, envelope.mode=simulated (monotonic: REAL AIS did not upgrade the already-SIMULATED Phi lineage)",
+      "evidence_mode": "simulated"
+    },
+    {
+      "seam_id": "7",
+      "name": "NYAYA output -> ValidityGate input",
+      "status": "READY",
+      "detail": "gate_state=restricted, allows_operational_action=False, failing_checks=['phi_not_converged', 'evidence_insufficient', 'phi_diagnostics_unavailable', 'attribution_not_distinguishable']",
+      "evidence_mode": "simulated"
+    },
+    {
+      "seam_id": "8",
+      "name": "ValidityGate -> ABHIYAN-compatible decision object",
+      "status": "READY",
+      "detail": "gate_state=restricted -> allows_operational_action=False, n_taskings=0 (correctly suppressed per gate state), out_env.mode=simulated",
+      "evidence_mode": "simulated"
+    },
+    {
+      "seam_id": "9",
+      "name": "PRAVAAH provider -> real current field -> forecast object",
+      "status": "READY",
+      "detail": "forecast_id=fcast-cube-mc20-seam-slick-0, trajectory_path=C:\\Users\\tripti\\AppData\\Local\\Temp\\varuna_pravaah_cube\\pravaah_cube_mc20-seam-slick-0.npz, n_landfalls=1",
+      "evidence_mode": "real"
+    },
+    {
+      "seam_id": "10",
+      "name": "EvidenceMode propagation across every hop",
+      "status": "READY",
+      "detail": "modes={'forcing_envelope (ERA5+CMEMS real)': 'real', 'slick_envelope (bounded placeholder)': 'simulated', 'reconstruction input (derived)': 'simulated', 'phi.envelope': 'simulated', 'attribution.envelope': 'simulated', 'gate_result.envelope': 'simulated'}; monotonic_worsening_preserved=True (REAL forcing + SIMULATED placeholder slick correctly downgrades every downstream hop to SIMULATED, never fabricated back to REAL)",
+      "evidence_mode": "mixed (real forcing inputs, simulated overall lineage)"
+    }
+  ],
+  "files_changed": [
+    "packages/varuna_source_adapters/forcing_readers.py"
+  ],
+  "files_created": [
+    "scripts/mc20_e2e_seam_validation.py",
+    "reports/mc20_e2e_seam_validation.json",
+    "reports/mc20_e2e_seam_validation.md"
+  ],
+  "files_deleted": 0,
+  "files_moved": 0,
+  "files_overwritten": 0,
+  "notes": [
+    "Small bounded fixtures: n_particles=20, n_ensemble=4, 2-3 real AIS tracks streamed from the 276MB bronze file, single SAR-footprint point cluster.",
+    "No NETRA inference, no production Phi sensitivity sweep, no giant ensembles, no GPU workloads were run.",
+    "The slick geometry is a bounded synthetic placeholder (labelled EvidenceMode.SIMULATED) standing in for a not-yet-available real NETRA detection -- never reported as REAL."
+  ]
+}

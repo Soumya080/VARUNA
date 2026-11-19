@@ -1,0 +1,181 @@
+{
+  "schema_version": "v1",
+  "case_id": "mc20_2023-01-15",
+  "generated_at": "2026-08-31T12:54:43.034853Z",
+  "system_status": {
+    "case_status": "created",
+    "scientific_status": "experimental",
+    "error": null
+  },
+  "observation": {
+    "status": "produced",
+    "reason": null,
+    "evidence_mode": null,
+    "value": {
+      "n_slick_points": 0,
+      "n_tracks": 5,
+      "obs_time_hours": -25967.964750555555,
+      "bbox": null
+    }
+  },
+  "detection": {
+    "status": "not_yet_produced",
+    "reason": "NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+    "evidence_mode": null,
+    "value": null
+  },
+  "origin": {
+    "status": "not_yet_produced",
+    "reason": "CaseWorkflow.reconstruct() has not run for this case.",
+    "evidence_mode": null,
+    "value": null
+  },
+  "ais": {
+    "status": "produced",
+    "reason": null,
+    "evidence_mode": "real",
+    "value": [
+      {
+        "mmsi": "367640910",
+        "vessel_name": "MASON G",
+        "vessel_type": "passenger",
+        "n_points": 630,
+        "start_time": "2023-01-15T00:00:00Z",
+        "end_time": "2023-01-15T23:59:14Z",
+        "total_gap_minutes": 0.0,
+        "max_gap_minutes": 0.0,
+        "transponder_active": true
+      },
+      {
+        "mmsi": "368181750",
+        "vessel_name": "HELEN",
+        "vessel_type": "tug",
+        "n_points": 165,
+        "start_time": "2023-01-15T00:00:05Z",
+        "end_time": "2023-01-15T06:59:35Z",
+        "total_gap_minutes": 0.0,
+        "max_gap_minutes": 0.0,
+        "transponder_active": true
+      },
+      {
+        "mmsi": "367123550",
+        "vessel_name": "BRIANA MARIE",
+        "vessel_type": "other",
+        "n_points": 1188,
+        "start_time": "2023-01-15T00:00:02Z",
+        "end_time": "2023-01-15T23:59:02Z",
+        "total_gap_minutes": 0.0,
+        "max_gap_minutes": 0.0,
+        "transponder_active": true
+      },
+      {
+        "mmsi": "367492110",
+        "vessel_name": "ODYSSEA TITAN",
+        "vessel_type": "other",
+        "n_points": 1043,
+        "start_time": "2023-01-15T00:03:16Z",
+        "end_time": "2023-01-15T23:59:05Z",
+        "total_gap_minutes": 0.0,
+        "max_gap_minutes": 0.0,
+        "transponder_active": true
+      },
+      {
+        "mmsi": "366847780",
+        "vessel_name": "PACIFIC DAWN",
+        "vessel_type": "tug",
+        "n_points": 645,
+        "start_time": "2023-01-15T02:49:44Z",
+        "end_time": "2023-01-15T23:07:46Z",
+        "total_gap_minutes": 0.0,
+        "max_gap_minutes": 0.0,
+        "transponder_active": true
+      }
+    ]
+  },
+  "attribution": {
+    "status": "not_yet_produced",
+    "reason": "CaseWorkflow.attribute() has not run for this case.",
+    "evidence_mode": null,
+    "value": null
+  },
+  "validity": {
+    "status": "not_yet_produced",
+    "reason": "ValidityService.evaluate() has not run for this case.",
+    "evidence_mode": null,
+    "value": null
+  },
+  "forecast": {
+    "status": "not_yet_produced",
+    "reason": "NO_SLICK_TO_FORECAST: forward drift needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+    "evidence_mode": null,
+    "value": null
+  },
+  "decision": {
+    "status": "not_yet_produced",
+    "reason": "UPSTREAM_VALIDITY_UNAVAILABLE: UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+    "evidence_mode": null,
+    "value": null
+  },
+  "mission": {
+    "status": "not_yet_produced",
+    "reason": "NO_TASKING_TO_PROPOSE: a mission requires an ABHIYAN tasking. Decision stage says: UPSTREAM_VALIDITY_UNAVAILABLE: UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+    "evidence_mode": null,
+    "value": null
+  },
+  "alerts": {
+    "status": "not_yet_produced",
+    "reason": "UPSTREAM_VALIDITY_UNAVAILABLE: UPSTREAM_PHI_RECONSTRUCTION_UNAVAILABLE: NO_SLICK_GEOMETRY: backward reconstruction needs a detected slick. Detection stage says: NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+    "evidence_mode": null,
+    "value": null
+  },
+  "recommendation": "unavailable",
+  "evidence": {
+    "components": [
+      {
+        "component": "sar",
+        "status": "not_yet_produced",
+        "score": null,
+        "reason": "NO_SLICK_DETECTED: the model ran on 9 tile(s) and returned no detection above threshold. This is a valid scientific outcome, not an error.",
+        "evidence_mode": null,
+        "observed_at": null
+      },
+      {
+        "component": "ais",
+        "status": "produced",
+        "score": null,
+        "reason": "No AIS completeness metric is computed by the current backend.",
+        "evidence_mode": "real",
+        "observed_at": null
+      },
+      {
+        "component": "model_consistency",
+        "status": "not_yet_produced",
+        "score": null,
+        "reason": "No cross-model consistency check is implemented in the current backend.",
+        "evidence_mode": null,
+        "observed_at": null
+      },
+      {
+        "component": "forcing",
+        "status": "not_yet_produced",
+        "score": null,
+        "reason": "CaseWorkflow.reconstruct() has not run for this case.",
+        "evidence_mode": null,
+        "observed_at": null
+      }
+    ]
+  },
+  "provenance": {
+    "case_id": "mc20_2023-01-15",
+    "artifact_ids": [],
+    "source_ids": [
+      "ais.marinecadastre.event_gold"
+    ],
+    "model_versions": {
+      "netra_detection": "netra-v0.2-baseline"
+    },
+    "processing_versions": {},
+    "manifest_artifact_id": null,
+    "generated_at": "2026-08-31T12:54:43.034853Z"
+  }
+}

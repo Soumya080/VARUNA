@@ -12,11 +12,13 @@ Conventions:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from varuna_contracts.evidence import EvidenceEnvelope
 
 __all__ = [
     "AISGap",
@@ -49,7 +51,7 @@ __all__ = [
 
 
 def _utcnow() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class _Base(BaseModel):
@@ -187,7 +189,7 @@ class SlickDetection(_Base):
     def _tz_aware(cls, v: datetime) -> datetime:
         if v.tzinfo is None:
             raise ValueError("observation_time must be timezone-aware UTC")
-        return v.astimezone(UTC)
+        return v.astimezone(timezone.utc)
 
 
 # ───────────────────────── AIS (M6) ─────────────────────────
@@ -397,6 +399,15 @@ class LandfallPrediction(_Base):
 
 
 class ForwardForecast(_Base):
+    """
+    ADR-0009: carries `envelope` (evidence mode, provenance, source, validity
+    state, case linkage) the same way PhiField/AttributionResultV2/
+    ValidityGateResult already do -- required, no default, so every
+    PravaahProvider implementation must supply real provenance rather than
+    silently dropping the `envelope` parameter its own protocol already
+    receives. `horizon_hours` already carries the time horizon Track 2's
+    Task 7 asks to be recorded.
+    """
     forecast_id: str
     slick_id: str
     horizon_hours: float = Field(..., gt=0)
@@ -404,6 +415,7 @@ class ForwardForecast(_Base):
     affected_fishing_zones: list[str] = Field(default_factory=list)
     trajectory_path: str                             # .npz of forward particle positions
     computed_at: datetime = Field(default_factory=_utcnow)
+    envelope: EvidenceEnvelope
 
 
 # ───────────────────────── ABHIYAN (07) ─────────────────────────

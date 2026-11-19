@@ -1,15 +1,21 @@
 # VARUNA — Complete Project Context Document
-## SIH 2026 · Problem Statement SIH26143 · Master Brief v1.0
+## SIH 2026 · Problem Statement SIH26143 · Master Brief v2.0
 
 ---
 
 ## 0. HOW TO USE THIS DOCUMENT
 
-This is a **complete, self-contained context dump** for the VARUNA project. Anyone — a human teammate or an LLM — should be able to read only this file and understand the entire plan well enough to start working, without any prior conversation.
+This is a **complete, self-contained context dump** for the VARUNA project. Anyone — a human teammate or an LLM — should be able to read only this file and understand the entire project well enough to start working, without any prior conversation.
 
-**If you are an LLM reading this:** treat every section as established project context. The decisions here were made after a full screening of all 172 SIH 2026 software problem statements, a prior-art and patent sweep, and a verified data audit. Do not re-litigate settled decisions unless new evidence is presented. Sections marked **[HONESTY RULE]** are non-negotiable constraints on what we are allowed to claim — respect them strictly.
+**If you are an LLM reading this:** treat every section as established project context. Sections 1–19 are the ORIGINAL planning brief (written 2026-08-23, before implementation began) and remain accurate as domain/architecture/problem-statement context — do not re-litigate them unless new evidence is presented. **Section 20 onward is the CURRENT, real, implementation-status account as of 2026-09-04** and supersedes any status claim made in sections 1–19 (e.g. "implementation not started" is no longer true — read Section 20 first if you want to know where the project actually stands). Sections marked **[HONESTY RULE]** are non-negotiable constraints on what we are allowed to claim — respect them strictly; they have been tested against real defects found and fixed during implementation, not just written in the abstract.
 
-**Status:** Design complete. Implementation not started. Next action is the Week-1 go/no-go experiment in Section 17.
+**Status (current, see Section 20 for full detail):** Implemented and running. Backend (FastAPI, `apps/api` + 20 `packages/varuna_*`) and frontend (Next.js, `frontend/VARUNA-frontend_yash`) both build clean and boot locally. 1094/1095 backend tests passing (1 known transient Windows file-lock flake). Frontend `tsc --noEmit` and `vitest run` both clean. A full correctness audit (B1/B2 blockers + 11 major defects, M1–M11) has been completed and fixed, documented row-by-row in `docs/product/HONESTY_LEDGER.md`. The one thing NOT yet done: the attribution/RDPA benchmark (Section 13/17) has not been re-run with the fairness fixes its own audit calls for — see Section 20.5.
+
+**Living documents this file defers to** (read these for anything more current than this file, always cross-check dates):
+- `docs/product/HONESTY_LEDGER.md` — the row-by-row REAL/SIMULATED/RECONSTRUCTION/NOT_CONFIGURED status of every user-visible surface in the product. The single most-current file in the repo.
+- `EVALUATION.md` — the authoritative, current evaluation protocol (supersedes Section 13 below in detail, not in intent).
+- `RUN_ON_ANOTHER_DEVICE.md` — verified clean-clone setup instructions and test counts.
+- `reports/chhaya_v2/CHHAYA_V2_BENCHMARK_REPORT.md`, `docs/research/NETRA_TRAINING_MASTER_REPORT.md`, `reports/netra_v03/NETRA_V03_B1_FINAL_EVALUATION.md` — real, measured model results.
 
 ---
 
@@ -278,21 +284,21 @@ Remove the map, the dashboard and the branding, and what remains is: *ensemble r
 
 ## 9. THE EIGHT SUBSYSTEMS
 
-| # | Name | Function | What it does | Build cost |
-|---|---|---|---|---|
-| 01 | **PRAHARI** | Persistent EEZ Watch | Continuously ingests every Sentinel-1 pass over the Indian EEZ, tiles, detects, triages. A standing watch, not "upload an image." Answers "does it scale?" | Low — scheduler over Copernicus API |
-| 02 | **NETRA** | Slick Detection & Look-alike Rejection | U-Net over VV+VH with ERA5 wind as an extra input channel. Outputs mask, class (oil/look-alike), confidence. | Medium — train before arrival |
-| 03 | **PRATIVARTAN** ★ | Reverse-Drift Origin Engine | OpenDrift ensemble backwards under perturbed forcing → Φ(x,y,t). The most visually arresting element of the demo. | Medium — OpenDrift does the physics |
-| 04 | **NYAYA** ★ | Attribution & Dark-Source Hypothesis | Path-integral scoring of AIS tracks against Φ, weighted by behavioural priors, competed against the latent hypothesis. Calibrated output, or *inconclusive*. | Medium — mostly maths, not ML |
-| 05 | **CHHAYA** | Dark Vessel Resolver | xView3 pretrained SAR ship detector over the same scene, cross-referenced with AIS. Gives the latent hypothesis a face. | Low — open model, open weights |
-| 06 | **PRAVAAH** | Impact & Landfall Forecast | Same drift engine, positive timestep. Projects 24–72 h onto the coast: which beach, which fishing ground, how many hours until arrival. | Very low — one extra OpenDrift call |
-| 07 | **ABHIYAN** ★ | Response Asset Tasking | Given Φ, suspects, available assets (Dornier, OPV, station boats), endurance and sea state — computes which asset, which search box, what pattern, to maximise probability of confirmation per hour flown. Genuine optimal-search-allocation (same family as US Coast Guard SAROPS). | Low for greedy/LP version |
-| 08 | **SMRITI** | Offender Intelligence & Hotspot Memory | Stores every case with its Φ and outcome. Repeat-offender graph, pollution-corridor heatmap, pre-emptive vessel risk scores / watchlist. | Low — PostGIS queries |
+| # | Name | Function | What it does | Build cost | **Real status (2026-09-04)** |
+|---|---|---|---|---|---|
+| 01 | **PRAHARI** | Persistent EEZ Watch | Continuously ingests every Sentinel-1 pass over the Indian EEZ, tiles, detects, triages. A standing watch, not "upload an image." Answers "does it scale?" | Low — scheduler over Copernicus API | `varuna_domain.prahari` — real code path, but its `MockPrahariProvider` is the only provider that exists; **no live Copernicus watch is wired**. Honestly reports `is_running: false`. |
+| 02 | **NETRA** | Slick Detection & Look-alike Rejection | U-Net over VV+VH with ERA5 wind as an extra input channel. Outputs mask, class (oil/look-alike), confidence. | Medium — train before arrival | `varuna_netra` — **REAL, trained, deployed.** v0.2 is the only deployed checkpoint: official IoU **0.6458**, PR-AUC **0.8513** on its own held-out split (see Section 20.4). A v0.3-B1 domain-expansion pilot regressed badly and was correctly rejected, not shipped. |
+| 03 | **PRATIVARTAN** ★ | Reverse-Drift Origin Engine | OpenDrift ensemble backwards under perturbed forcing → Φ(x,y,t). The most visually arresting element of the demo. | Medium — OpenDrift does the physics | `varuna_prativartan` — **REAL**, backward ensemble computes real `PhiField` (diagnostics, sensitivity, spatial modes) on every case. Visualized as a real SVG in the frontend. |
+| 04 | **NYAYA** ★ | Attribution & Dark-Source Hypothesis | Path-integral scoring of AIS tracks against Φ, weighted by behavioural priors, competed against the latent hypothesis. Calibrated output, or *inconclusive*. | Medium — mostly maths, not ML | `varuna_nyaya` — **REAL engine**, but the north-star attribution benchmark (Section 13) has never been legitimately run — see Section 20.5. Demo fixtures now honestly report `INCONCLUSIVE` rather than a fabricated score (fixed this session, was previously a real defect). |
+| 05 | **CHHAYA** | Dark Vessel Resolver | xView3 pretrained SAR ship detector over the same scene, cross-referenced with AIS. Gives the latent hypothesis a face. | Low — open model, open weights | Three generations under one name (see Section 20.3): CHHAYA-H (declared-prior hypothesis engine, REAL) and CHHAYA-V (classical CA-CFAR over real Sentinel-1, REAL, now physically capable of firing after this session's raw-GRD re-derivation) are live. xView3 itself was investigated in depth and correctly NOT wired — blocked on a bathymetry input channel VARUNA doesn't ingest (Section 20.3). A third, LSTM trajectory-predictor generation is an admitted dead stub, marked `NOT_IMPLEMENTED`. |
+| 06 | **PRAVAAH** | Impact & Landfall Forecast | Same drift engine, positive timestep. Projects 24–72 h onto the coast: which beach, which fishing ground, how many hours until arrival. | Very low — one extra OpenDrift call | `varuna_pravaah` — **REAL**, forward forecast + landfall prediction computed per case; rendered on the real map. |
+| 07 | **ABHIYAN** ★ | Response Asset Tasking | Given Φ, suspects, available assets (Dornier, OPV, station boats), endurance and sea state — computes which asset, which search box, what pattern, to maximise probability of confirmation per hour flown. Genuine optimal-search-allocation (same family as US Coast Guard SAROPS). | Low for greedy/LP version | `varuna_abhiyan` — **REAL**, computes a real `AssetTasking` (search box, pattern, PoD, rationale) per mission; was computed and discarded before ADR-0015, now stored on `MissionRecord.tasking` and drawn on the map. |
+| 08 | **SMRITI** | Offender Intelligence & Hotspot Memory | Stores every case with its Φ and outcome. Repeat-offender graph, pollution-corridor heatmap, pre-emptive vessel risk scores / watchlist. | Low — PostGIS queries | `varuna_smriti` — **REAL**, JSONL-backed (not PostGIS — infra simplification), similar-case retrieval + operator feedback loop both live and rendered. |
 
 ### 9.1 Two thin supporting layers
 
-- **PRAMAN** — Evidence pack. One-click MARPOL Annex I case file: scene IDs, model versions, forcing versions, Φ snapshot, posterior, chain of custody, checksums. *Answers "could this stand up in court?"*
-- **SETU** — Dissemination. Routes alerts to ICG station, DG Shipping, State Pollution Control Board, and multilingual SMS/app push to registered fishermen in the projected impact zone. *Costs an afternoon; changes the emotional register of the entire demo.*
+- **PRAMAN** — Evidence pack. One-click MARPOL Annex I case file: scene IDs, model versions, forcing versions, Φ snapshot, posterior, chain of custody, checksums. *Answers "could this stand up in court?"* — `varuna_praman`: **REAL**, a genuine PDF report is generated per case from real evidence at request time; no report history is persisted (by design, not a gap — see the `/reports` page in Section 20).
+- **SETU** — Dissemination. Routes alerts to ICG station, DG Shipping, State Pollution Control Board, and multilingual SMS/app push to registered fishermen in the projected impact zone. *Costs an afternoon; changes the emotional register of the entire demo.* — this maps to `varuna_alerts`: **REAL routing/dedup/materiality logic**, real dashboard + browser-push delivery; SMTP email is real and configured for testing but should be reported `NOT_CONFIGURED` for any deployment beyond this dev session (the app password used is a personal one, flagged for revocation); SMS is genuinely `NOT_CONFIGURED` (no provider).
 
 ---
 
@@ -462,6 +468,13 @@ The pipeline is a fixed, auditable sequence: detect → backtrack → score → 
 ---
 
 ## 13. EVALUATION PLAN
+
+> **This section is the ORIGINAL plan, still directionally correct. `EVALUATION.md` at the
+> repo root is the current, authoritative, more detailed version — it additionally records
+> that the harness described below was built, run, found INVALID by its own audit (100%
+> top-1 was an artifact of 5 concrete unfairness bugs, not a real result), and rebuilt fairly
+> (12% top-1 / 44% top-3 under full realism at 24h/20 vessels — below the "Strong go" gate).
+> See Section 20.5 for the current honest status of this benchmark.**
 
 ### 13.1 The simulation harness (the backbone)
 
@@ -652,6 +665,19 @@ Synthetic currents → synthetic release → N×M backward ensemble → K synthe
 
 **If the answer is no, the entire thesis is wrong and you pivot while it is cheap.**
 
+> **RESULT (as of 2026-09-04):** this experiment was run. The first version reported **100%
+> top-1 at 24h/20 vessels** — but a self-audit found that number was entirely an artifact of
+> 5 unfairness bugs in the harness (innocent vessels weren't real competitors, the baseline
+> couldn't structurally win, the latent term was a mathematical constant carrying zero
+> information, the inverse problem was trivial, and true slick age leaked into the model).
+> Rebuilt fairly, relaxing one assumption at a time: **80% → 68% → 24% → 12% top-1** as each
+> real-world difficulty was added back in (44% top-3 in the final, most-realistic condition).
+> 12%/44% falls in EVALUATION.md's "Conditional" gate (15–25%/40–60%), just below it — not
+> the "Reframe" floor, not yet a "Go". **This fair result has not been re-run since the
+> rebuild** (compute is not the blocker — see Section 20.5) and no number from this
+> experiment should be quoted publicly until it has been re-verified against the full
+> `EVALUATION.md` §1 checklist.
+
 ### 17.3 Risk register
 
 | Risk | Severity | Mitigation |
@@ -706,27 +732,125 @@ These are non-negotiable. Violating them is the fastest way to lose credibility 
 
 ---
 
-## 20. CURRENT STATUS AND NEXT ACTIONS
+## 20. CURRENT STATUS (2026-09-04) — supersedes the "not started" status above
 
-**Status:** Design complete. Prior art verified. Data audited. Implementation not started.
+**One-line summary:** implementation is real and running end-to-end, locally verified (backend + frontend both boot, both test suites pass, TypeScript compiles clean). The scientific perception model (NETRA) has a real, honestly-reported measured result. The attribution/RDPA benchmark that is the PS's actual differentiator has NOT been legitimately measured yet — the harness was audited, found invalid, conceptually rebuilt, but not re-executed and re-verified. That is the single most important gap between "a working demo" and "a benchmarked claim," and it is a re-run, not new engineering.
 
-### Do these five things first, in this order:
+### 20.1 What actually exists, top to bottom
 
-1. **Run the discriminability sweep** (Section 17.2) — pure simulation, one person, one week. Does top-1 accuracy hold at 24 h with 20 vessels? Everything else is contingent on that curve.
-2. **Start the NETRA training run** on Zenodo Parts I–III + ESSD look-alikes. It must be finished long before travel.
-3. **Get the frontend person rendering a Φ heatmap and animated particles over a map.** Half the demo, and it always takes longer than expected.
-4. **Build the hero demo case end to end on cached data** — one scene, one slick, one right answer — and freeze it.
-5. **Storyboard the six moments and rehearse the judge-controls handover** until it is boring.
+- **Backend**: FastAPI (`apps/api`) over 20 real packages under `packages/varuna_*` (contracts, domain, data_eng, netra, prativartan, nyaya, chhaya, pravaah, abhiyan, smriti, praman, alerts, missions, assets, evidence, agentic, infra, integration, geospatial, data_guard). In-memory repositories by default (Postgres/MinIO both real code paths, both `NOT_CONFIGURED` in this environment — `USE_POSTGRES=false`, `USE_MINIO=false`).
+- **Frontend**: Next.js 16 + React 19 (`frontend/VARUNA-frontend_yash`) — the real, current UI. (`apps/web/` was a dead Vite scaffold; deleted this session.)
+- **Two live case pipelines**: a legacy `CaseWorkflow` (direct `/ingest`→`/reconstruct`→`/attribute` POST flow) and the canonical `GoldenCaseWorkflow` (the one the frontend actually drives — real E2E pipeline for REAL/SIMULATED runs, and a deterministic `replay_fixtures.py` path for demo cases). Both are real; a `CaseResolver` (new this session) unifies them for every case-scoped route so they can never again silently disagree.
+- **11 replay/demo fixtures**: 6 original MC20-anchored cases (`CASE-VALID`, `CASE-RESTRICTED`, `CASE-OOD`, `CASE-UNAVAILABLE`, `CASE-SIMULATED`, `CASE-BLOCKED`) plus 5 Indian-Ocean incident reconstructions (`IND-CASE-01`…`05`, added the prior session — real historical vessel identities e.g. BW Maple/Chennai 2017, MSC Chitra/Mumbai 2010, illustrative/reconstructed numeric parameters, explicitly labelled as such).
+- **Real external validation data locally present**: one real Sentinel-1 GRD SAFE product (MC20/Taylor Energy field, Gulf of Mexico, 1.7GB), real AIS/CMEMS/ERA5 forcing for that event, real NETRA gold tiles (v0.2: ~41k tiles; v0.3: ~2k tiles), all already on disk — no download needed to re-run those evaluations.
+- **True external held-out test sets are NOT downloaded**: Zenodo Part III and the ESSD look-alike set are both `missing_not_downloaded` per `data/catalog/locked_evaluation_manifest.json` — the final, PS-relevant generalization claim cannot be made until these are acquired. This is a data-acquisition gap, not a compute or engineering gap.
 
-### Parallel administrative actions
-- Apply for the Krestenitis dataset (institutional email, project abstract, supervisor sponsorship)
-- Obtain the Marine Pollution Bulletin 2024 ship-tracing paper via college library
+### 20.2 The correctness audit (this session + the one before it)
 
-### Closing note
+A full audit found 2 blockers and 11 major defects, all now fixed and locked with regression tests:
 
-The technology is not the risk. **Every team that loses SIH loses on rehearsal, caching and a demo that would not run.** The system design here is genuinely strong — protect it with preparation.
+- **B1**: case list/detail disagreement — clicking any case in the demo 404'd. Root cause: 3 different case stores, no shared resolver. Fixed with a new `CaseResolver`.
+- **B2**: dashboard summary read the wrong store and compared an enum wrong, reporting a hardcoded zero for alerts sent.
+- **M1/M2**: a real vessel name (BW Maple) was attached to a *fabricated* attribution score with an impossible all-zero prior. Fixed: the computed attribution is now honestly `INCONCLUSIVE`; the real vessel identity moved to a structurally separate, unscored `historical_reconstruction` field that a validator forbids from ever attaching to REAL-mode output.
+- **M3**: Φ's internal epoch-relative time coordinate (legitimately negative for a historical case) was shown to operators labelled as elapsed hours.
+- **M4**: the data-quality guard never ran on the golden/replay pipeline at all — only on a legacy path nothing in the real demo uses. Now wired in, non-blocking, recorded as evidence.
+- **M5** (demo-fatal): a real HIGH-severity alert read *"forecast predicts landfall at Not applicable — offshore platform source"* — a sentinel "no landfall" string was being joined into a real alert. Fixed at the fixture source plus a structural guard.
+- **M6**: every hypothesis factor was stamped with the whole case's evidence, not its own — fixed, now a hard prerequisite that made the Phase 10 evidence-DAG/hypothesis-waterfall visualizations possible.
+- **M7–M10**: go/no-go harness construction bug, a NETRA trainer test that never actually exercised training, a personal email committed as a tracked default alert recipient, and `.env` never being loaded at all (so `JWT_SECRET_KEY` was silently always the dev-insecure default with no startup check) — all fixed.
+- **M11**: CHHAYA's CFAR detector was being fed the wrong SAR polarization channel due to a positional-index bug — fixed by indexing by name everywhere.
+- Plus real bugs found *during* this session's own fixes that weren't on the original audit list: a ~100GB temp-directory leak in the NETRA synthetic-dataset test helper; several frontend/backend field-name mismatches (`obs_time_hours`→`phi_time_coordinate_hours`+`observation_time`, `MissionRecordValue.approved_by` vs the real `human_approved_by`, an entirely invented `FactorContribution`/`SourceHypothesisValue` TypeScript shape) that had zero live consumers until this session's own new UI components exercised them for the first time.
+
+Full row-by-row detail (36+ items, each with REAL/SIMULATED/RECONSTRUCTION/NOT_CONFIGURED/FIXED status): **`docs/product/HONESTY_LEDGER.md`**.
+
+### 20.3 CHHAYA in detail — three generations, one name
+
+- **CHHAYA-H** (`packages/varuna_chhaya/hypothesis_engine.py`): a declared-likelihood-ratio Bayesian engine over per-case evidence (AIS proximity, morphology, region, wind, recurrence, Φ convergence). Explicitly **not** a trained model — `HypothesisMethod.DECLARED_LIKELIHOOD_RATIO` is stamped on every output. Real, live, feeds `OperatorCase.intelligence.hypotheses`.
+- **CHHAYA-V** (`packages/varuna_chhaya/v2/`): per-tile vessel evidence over real Sentinel-1 SAR. Classical CA-CFAR detector, chosen deliberately over a blocked neural candidate (below) — training-free, real, runs on calibrated VH amplitude. This session: re-derived a **raw σ⁰ (calibrated dB) tile product** from the original GRD product, bypassing the NETRA-segmentation normalization step that had structurally capped CFAR's dynamic range — CFAR now fires on **all 9/9 MC20 tiles** (was physically incapable of firing on most tiles before). Whether those detections are real vessels vs. bright platform structures is unverified and explicitly flagged as out of this fix's scope — a truthful zero was and remains an acceptable outcome per the project's own house rule against retuning thresholds to manufacture a detection.
+- **xView3 pretrained detector** (`packages/varuna_chhaya/v2/detectors/xview3_frcnn.py`): investigated in real depth — weights downloaded and checksummed, architecture confirmed by direct state-dict inspection against the reference implementation. **Correctly not wired in**: the model structurally requires a 3rd input channel (bathymetry), shipped per-scene in the xView3 dataset convention, which VARUNA does not ingest anywhere. Reports `is_available() -> False`, raises rather than approximating. Full writeup: `reports/chhaya_v2/CHHAYA_V2_BENCHMARK_REPORT.md`.
+- **Dead LSTM trajectory-predictor** (`packages/varuna_chhaya/{dataset,model,training}/`, `inference.py`): an admitted hardcoded stub, not on any served path, now clearly marked `NOT_IMPLEMENTED` in its own module docstring.
+
+### 20.4 NETRA — the one model with a real, measured, deployed result
+
+| Checkpoint | Status | Official test metrics |
+|---|---|---|
+| **v0.2** (deployed) | **THE only deployed model** | IoU **0.6458**, PR-AUC **0.8513**, Dice/F1 ≈0.76–0.78, Precision 0.6834, Recall 0.8598, frozen threshold 0.806 — measured on its own official test split (`reports/netra_v02/07_official_test_eval.json`), **not** the true external Zenodo Part III / ESSD sets (not downloaded — see 20.1). |
+| v0.3-B1 (domain-expansion pilot) | **Trained, evaluated, correctly rejected — not deployed** | On the same CALM-GRD-HOLDOUT split: IoU 0.0199 (−84% vs v0.2), Recall 0.0200 (−85% vs v0.2). 16.4h real training run on a single RTX 3060 (see Section 20.6), converged numerically but collapsed representationally — the model learned to predict almost no foreground at all rather than learning low-wind detection. Full failure analysis: `reports/netra_v03/NETRA_V03_B1_FINAL_EVALUATION.md`. |
+
+This is the one number in the whole project you can currently cite in a sentence with a straight face: *"our deployed oil-slick segmentation model measures 0.65 IoU / 0.85 PR-AUC on its own held-out test split."* Caveat that must travel with it every time: this is the model's **own** test split, not the independent external benchmark the PS implies, because that external data isn't downloaded yet.
+
+### 20.5 The benchmark that matters most is the one not yet re-run
+
+The PS's actual differentiator — attribution accuracy (Section 13's north-star KPI) — went through: build → self-audit found it invalid (100% top-1 was entirely artifact) → conceptual rebuild fixing all 5 identified unfairness bugs → a single fair sweep reported **12% top-1 / 44% top-3** at 24h/20 vessels (see Section 17.2's result box). That sweep has **not been re-executed since the rebuild**, has not been checked against `EVALUATION.md` §1's own validity checklist, and no number from it should be quoted publicly yet. See Section 21 below for exactly what running it now would take and why compute is not what's blocking it.
+
+### 20.6 Verified local compute (measured, not estimated — `COMPUTE_SPEC.md` predates any real run and should be treated as superseded by this line)
+
+Single machine: **NVIDIA RTX 3060 (12.9GB VRAM)**, 20 CPU cores. This is exactly `COMPUTE_SPEC.md`'s "RECOMMENDED" tier, confirmed by an actual 16.4-hour NETRA training run completing on it (Section 20.4). Per `COMPUTE_SPEC.md`'s own (still-plausible) workload profile, the attribution/PRATIVARTAN ensemble is **CPU-bound, embarrassingly parallel**, not GPU-bound — the 20-core CPU is the relevant resource for Section 20.5's benchmark, not the GPU.
+
+### 20.7 Verification state of the frontend rework
+
+A large storytelling/UX pass (dead-space fix, real mission FSM graph, a 5-axis Verification Ledger replacing a nonexistent "VERIFIED" status, evidence-lineage DAG, hypothesis waterfall, all 6 previously-mocked pages converted to real data, nav restructure) was completed and, as of this session, **compiled and executed for the first time**: `tsc --noEmit` exits 0, `vitest run` passes 15/15, both dev servers boot and serve real data. It had previously been reviewed only by manual reading (no node/npm available in the tool-use environment for most of the session) — that verification gap is now closed.
 
 ---
 
-*Document version 1.0 · SIH 2026 · SIH26143 · VARUNA GRID*
-*All external facts verified against primary sources at time of writing. Items that could not be verified are explicitly flagged in the text.*
+## 21. WHAT TO DO NEXT, GIVEN REAL COMPUTE AND REAL DATA CONSTRAINTS
+
+### 21.1 What compute actually limits vs. what data acquisition limits
+
+**Not compute-limited** (an RTX 3060 + 20 cores is genuinely enough for all of these, today):
+- Re-running the fair go/no-go attribution sweep (Section 20.5) — pure CPU, `experiments/go_nogo/`, historically fast (the original invalid sweep and its fair rebuild both ran in minutes, per `EVALUATION.md`'s own reported trial counts).
+- Re-confirming NETRA v0.2's official-test numbers (Section 20.4) — inference-only, no training, on gold tiles already on disk.
+- Extending the CHHAYA σ⁰ suitability table (`reports/chhaya_v2/CHHAYA_SIGMA0_SUITABILITY_REPORT.md`) to more thresholds or a coarser/finer sweep — pure numpy over 9 already-built tiles.
+- A larger Monte Carlo trial count on the SAME axes already swept (e.g. 100 trials/cell instead of 25, where `EVALUATION.md` asks for it for a published CI) — still CPU-bound and parallel over ensemble members.
+
+**Data-acquisition-limited, not compute-limited:**
+- The true external generalization claim (NETRA against Zenodo Part III / ESSD) — both datasets are `missing_not_downloaded`. This needs an actual download (institutional access / Zenodo record, per `docs/datasets/EXTERNAL_EVALUATION_DATA.md`), not more GPU time.
+- More real MC20-style SAR scenes for CHHAYA-V — only one real Sentinel-1 SAFE product exists locally; the 9-tile σ⁰ result is real but small-N.
+- Real AIS data for India-specific validation — the PS itself concedes this may be unavailable and permits synthetic data for demonstration; VARUNA's Indian-Ocean fixtures are illustrative reconstructions for exactly this reason, clearly labelled.
+
+**Engineering-limited, not compute-limited (do this before spending compute on it):**
+- The attribution benchmark (Section 20.5) needs its fair-rebuild code path re-verified against `EVALUATION.md` §1's checklist (hard negatives swept as a parameter, guilty/innocent same broadcast envelope, faithful Cerulean baseline, non-constant latent term, structurally different forward/backward fields, true age not leaked, seeds recorded) before the *existing* 12%/44% number — let alone a new run — can be trusted or published. This is a code-review/test-writing task (`test_latent_not_constant.py` and siblings implied by the checklist), not a training run.
+
+### 21.2 What a real, honestly-claimable benchmark report looks like right now
+
+Given the above, here is what can honestly go in a judge-facing or paper-facing claim **today**, and what cannot:
+
+**Claimable today, with the stated caveat attached every time:**
+- NETRA v0.2: IoU 0.6458 / PR-AUC 0.8513 **on its own held-out split** (not an independent external benchmark).
+- CHHAYA-V CFAR: **physically capable of firing** on real, calibrated Sentinel-1 σ⁰ imagery (9/9 tiles), where the NETRA-normalized product it previously ran on was structurally incapable on most tiles. Frame as a capability fix, not a detection-accuracy claim — no ground truth exists for these 9 tiles.
+- The system runs a real, complete, evidence-chain-audited pipeline end to end on 11 deterministic demo cases, with every non-computed number honestly labelled (RECONSTRUCTION/NOT_CONFIGURED/SIMULATED) rather than presented as measured.
+- The go/no-go audit process itself is a legitimate scientific-rigor claim: *"we found our own benchmark was invalid before publishing it, and can show exactly why."* `EVALUATION.md` Section 0 is presentable as-is — a judge who reads it will trust the rest of the numbers more, not less.
+
+**Not claimable today, and would need the work in 21.1 first:**
+- Any attribution top-1/top-3 accuracy number (12%/44% is unverified against the harness's own validity checklist — don't quote it until it passes).
+- Any generalization claim beyond NETRA's own held-out split (Zenodo Part III / ESSD not downloaded).
+- Any vessel-detection precision/recall claim from CHHAYA-V's CFAR run (no ground truth on the 9 real tiles).
+- Any real-time/operational-scale performance claim (PRAHARI's live watch is unwired; nothing has been measured against a live Sentinel-1 feed).
+
+### 21.3 If more time exists before a judge sees this
+
+In priority order, given the constraints above:
+1. Re-verify the fair go/no-go rebuild against `EVALUATION.md` §1's checklist and re-run it — this closes the single largest gap between "working demo" and "benchmarked system," and needs no new data or better hardware.
+2. Acquire Zenodo Part III (the held-out split defined by the dataset's own authors) — turns NETRA's number from "our own split" into a real external claim.
+3. If time remains: ESSD look-alike false-positive rate, reported separately, per `EVALUATION.md` §7 — the number most likely to distinguish this system from a naive detector.
+
+---
+
+## 22. INDEX OF LIVING DOCUMENTS (read these, not just this file)
+
+| Doc | What it's the source of truth for |
+|---|---|
+| `docs/product/HONESTY_LEDGER.md` | Every user-visible surface, row by row, current status |
+| `EVALUATION.md` | The full evaluation protocol, metrics, axes, gates, and the go/no-go audit findings |
+| `RUN_ON_ANOTHER_DEVICE.md` | Clean-clone setup, verified test counts |
+| `reports/chhaya_v2/CHHAYA_V2_BENCHMARK_REPORT.md` | Pretrained-detector investigation (xView3), why CA-CFAR was chosen |
+| `reports/chhaya_v2/CHHAYA_SIGMA0_SUITABILITY_REPORT.md` | Real per-tile CFAR capability numbers (this session) |
+| `docs/research/NETRA_TRAINING_MASTER_REPORT.md` | Full NETRA model history and metrics across versions |
+| `reports/netra_v03/NETRA_V03_B1_FINAL_EVALUATION.md` | The rejected v0.3-B1 pilot, full failure analysis |
+| `docs/adr/` | Every architectural decision record, including the newest (ADR-0016, why "VERIFIED" is a 5-axis ledger not one status) |
+| `FAILURE_THREAT_MATRIX.md` | The threat model each robustness test in `EVALUATION.md` §9 is derived from |
+| `data/catalog/locked_evaluation_manifest.json` | Which external held-out sets exist locally (currently: neither) |
+
+---
+
+*Document version 2.0 · SIH 2026 · SIH26143 · VARUNA GRID*
+*Sections 1–19: original planning brief, verified against primary sources at time of writing (2026-08-23). Sections 20–22: current implementation status, verified against the live, running system and its real test/build output at time of writing (2026-09-04). Where the two disagree, sections 20–22 are current.*

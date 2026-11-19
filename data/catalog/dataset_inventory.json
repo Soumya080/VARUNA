@@ -1,0 +1,173 @@
+{
+  "generated_at": "2026-08-29T09:12:57.029859+00:00",
+  "datasets": {
+    "zenodo_part1": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\extracted\\part1",
+      "exists": true,
+      "n_files": 2400,
+      "total_bytes": 56187241650,
+      "status": "present",
+      "caveats": []
+    },
+    "zenodo_part2": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\extracted\\part2",
+      "exists": true,
+      "n_files": 3425,
+      "total_bytes": 92493046728,
+      "status": "present",
+      "caveats": []
+    },
+    "zenodo_downloads": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\zenodo\\downloads",
+      "exists": true,
+      "n_files": 6,
+      "total_bytes": 86645099170,
+      "status": "present",
+      "caveats": []
+    },
+    "era5": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\era5",
+      "exists": true,
+      "n_files": 3,
+      "total_bytes": 2130980256,
+      "status": "present",
+      "caveats": [
+        "3 GRIB1 files span 3 different spatial bboxes; treat as spatial_coverage_status=partial until reconciled to their intersection.",
+        "cfgrib/eccodes not confirmed installed in the active environment at catalog-build time."
+      ]
+    },
+    "cmems": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems",
+      "exists": true,
+      "n_files": 2,
+      "total_bytes": 564424542,
+      "status": "present",
+      "caveats": [
+        "Both NetCDF files have time=1 (single timestep). time_series_status=insufficient \u2014 cannot drive advection."
+      ]
+    },
+    "ais": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\ais",
+      "exists": true,
+      "n_files": 1,
+      "total_bytes": 868779805,
+      "status": "present",
+      "caveats": [
+        "Single day (2023-01-15), Gulf of Mexico region within a national file. Anchor case (zenodo_p1_00073) has no real timestamp, so temporal_join_status will be 'unavailable' for any real join against it \u2014 see docs/datasets/AIS_ACQUISITION_RECORD.md."
+      ]
+    },
+    "essd": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\essd",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "xview3": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\xview3",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "bhoonidhi": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\bhoonidhi",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "nisar": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\nisar",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "risat": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\risat",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "sentinel1_repo": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "asf_sentinel1_raw": {
+      "path": "D:\\ROUTER(DATASETS)\\ASF",
+      "exists": true,
+      "n_files": 251,
+      "total_bytes": 387862306750,
+      "status": "present",
+      "caveats": [
+        "Sentinel-1 Level-0 RAW (unfocused). Requires SAR focusing (SNAP/IPF) before use as imagery \u2014 not GRD. Do not treat as ready NETRA input."
+      ]
+    },
+    "oil_external": {
+      "path": "D:\\ROUTER(DATASETS)\\Oil",
+      "exists": true,
+      "n_files": 0,
+      "total_bytes": 0,
+      "status": "missing",
+      "caveats": []
+    },
+    "netra_gold_v0_1": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\gold\\netra",
+      "exists": true,
+      "n_files": 12144,
+      "total_bytes": 14233360384,
+      "status": "present",
+      "caveats": []
+    },
+    "cmems_mc20_timeseries": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\cmems_mc20_timeseries",
+      "exists": true,
+      "n_files": 1,
+      "total_bytes": 2580836,
+      "status": "present",
+      "caveats": [
+        "REAL multi-timestep time series (133 hourly steps, 2023-01-11T12:00 to 2023-01-17T00:00), NOT a single-timestep snapshot -- unlike the pre-existing cmems entry.",
+        "Region: lat[27,31] lon[-91,-87], contains the MC20 anchor point (28.936N, -88.970W) and T_SAR (2023-01-15T00:02:06.898Z).",
+        "Acquired via scripts/acquire_mc20_cmems.py; product cmems_mod_glo_phy_anfc_0.083deg_PT1H-m, variables uo/vo."
+      ]
+    },
+    "era5_mc20": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\era5_mc20",
+      "exists": true,
+      "n_files": 1,
+      "total_bytes": 263213,
+      "status": "present",
+      "caveats": [
+        "REAL multi-timestep time series (168 hourly steps, 2023-01-11T00:00 to 2023-01-17T23:00), region lat[27,31] lon[-91,-87].",
+        "Contains the MC20 anchor point (28.936N, -88.970W) and T_SAR (2023-01-15T00:02:06.898Z), verified by direct coordinate/time check.",
+        "Acquired via scripts/acquire_mc20_era5.py; variables u10/v10; no NaN.",
+        "xarray hangs indefinitely opening this file (engine-detection issue) -- use netCDF4 directly, see scripts/check_mc20_readiness.py::_real_era5_facts()."
+      ]
+    },
+    "sentinel1_grd_mc20": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\data\\raw\\sentinel1_grd\\mc20_2023-01-15",
+      "exists": true,
+      "n_files": 26,
+      "total_bytes": 1741446990,
+      "status": "present",
+      "caveats": [
+        "REAL Sentinel-1 IW GRD SAFE product, S1A_IW_GRDH_1SDV_20230115T000206_20230115T000231_046787_059BFF_44F2.SAFE, UUID 6fc676ba-b961-5bfc-9211-8076f8f1481c.",
+        "Full 1,741,458,044 bytes, size and SHA-256 verified against the downloaded zip (data/catalog/acquisition/sentinel1_grd_mc20.json).",
+        "Real annotation geolocationGrid azimuthTime (2023-01-15T00:02:06.898342) independently confirms T_SAR used throughout MC20 reports.",
+        "Calibration pipeline (sentinel1_grd_calibration.py) validated against this real product -- see reports/mc20_sar_calibration_validation.json.",
+        "Thermal noise removal, terrain correction, speckle filtering NOT implemented -- documented, not silently omitted."
+      ]
+    }
+  }
+}

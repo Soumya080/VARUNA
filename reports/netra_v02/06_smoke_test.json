@@ -1,0 +1,455 @@
+{
+  "results": {
+    "DATA": true,
+    "DATALOADER": true,
+    "GPU": true,
+    "FORWARD": true,
+    "LOSS": true,
+    "BACKWARD": true,
+    "WEIGHTS_CHANGED": true,
+    "METRICS_DYNAMIC": true,
+    "CHECKPOINT": true,
+    "RELOAD": true
+  },
+  "long_training_authorized": true,
+  "scientific_status": "EXPERIMENTAL / UNVALIDATED",
+  "evidence": {
+    "data": {
+      "manifest_hash": "89d3cf69d7131964f30879506a6ec0cd07cf01a5900deef89a9c6c24697ff8c4",
+      "train_tiles": 200,
+      "val_tiles": 50,
+      "dataset_version": "NETRA-GOLD-v0.2",
+      "split": "train",
+      "n_tiles": 200,
+      "n_scenes": 191,
+      "n_positive_tiles": 26,
+      "n_empty_tiles": 174,
+      "oil_pixel_frac": 0.012692909240722656,
+      "tiles_by_source": {
+        "zenodo_part1": 87,
+        "zenodo_part2_lookalike": 57,
+        "zenodo_part2_no_oil": 56
+      }
+    },
+    "shapes": {
+      "image": [
+        8,
+        2,
+        512,
+        512
+      ],
+      "mask": [
+        8,
+        512,
+        512
+      ]
+    },
+    "training": {
+      "epoch_losses": [
+        0.9415266132354736,
+        0.747582380771637
+      ],
+      "history": [
+        {
+          "epoch": 1,
+          "train_loss": 0.9415266132354736,
+          "val_loss": 0.7856067674500602,
+          "val_iou_oil": 0.05354864987749122,
+          "val_dice_oil": 0.10165387214670717,
+          "val_precision_oil": 0.058876931088352714,
+          "val_recall_oil": 0.3717435858093224,
+          "val_f1_oil": 0.10165387214670717,
+          "val_pr_auc": 0.04722127427818737,
+          "lr": 0.00015,
+          "seconds": 7.310578599921428,
+          "peak_vram_gb": 3.285503387451172,
+          "samples_per_s": 27.3576157162375
+        },
+        {
+          "epoch": 2,
+          "train_loss": 0.747582380771637,
+          "val_loss": 0.7264758263315473,
+          "val_iou_oil": 0.06943086002480807,
+          "val_dice_oil": 0.1298463745906817,
+          "val_precision_oil": 0.07380402680539107,
+          "val_recall_oil": 0.5395427594445601,
+          "val_f1_oil": 0.12984637459068174,
+          "val_pr_auc": 0.06537681545497183,
+          "lr": 0.0,
+          "seconds": 4.660081899957731,
+          "peak_vram_gb": 3.285503387451172,
+          "samples_per_s": 42.91770065281773
+        }
+      ],
+      "fingerprint_before": "bc63a068040e3ffb9ea9863672cbeb647d1e321064cae4f30084a932897d82e9",
+      "fingerprint_after": "89a986a85b0e12540b7ede353085ca436a7e01c23deb65d7ae6f375f6573beb4",
+      "weights_changed": true,
+      "peak_vram_gb": 3.285503387451172,
+      "seconds": 23.036437999922782
+    },
+    "metrics": {
+      "trained": {
+        "split": "val",
+        "threshold": 0.5,
+        "n_tiles": 50,
+        "n_pixels": 13107200,
+        "overall": {
+          "iou_oil": 0.06943086002480807,
+          "dice_oil": 0.1298463745906817,
+          "precision_oil": 0.07380402680539107,
+          "recall_oil": 0.5395427594445601,
+          "f1_oil": 0.12984637459068174,
+          "pixel_accuracy": 0.8993203735351563,
+          "fp_pixel_rate": 0.095599871687683,
+          "tp": 98459,
+          "fp": 1235601,
+          "fn": 84027,
+          "tn": 11689113,
+          "n_tiles": 50
+        },
+        "by_population": {
+          "positive_tiles": {
+            "iou_oil": 0.38070767648412157,
+            "dice_oil": 0.551467458272656,
+            "precision_oil": 0.5639311774745982,
+            "recall_oil": 0.5395427594445601,
+            "f1_oil": 0.5514674582726559,
+            "pixel_accuracy": 0.932114495171441,
+            "fp_pixel_rate": 0.03497549165981413,
+            "tp": 98459,
+            "fp": 76135,
+            "fn": 84027,
+            "tn": 2100675,
+            "n_tiles": 9
+          },
+          "empty_tiles": {
+            "iou_oil": 0.0,
+            "dice_oil": 0.0,
+            "precision_oil": 0.0,
+            "recall_oil": 0.0,
+            "f1_oil": 0.0,
+            "pixel_accuracy": 0.8921216639076791,
+            "fp_pixel_rate": 0.10787833609232088,
+            "tp": 0,
+            "fp": 1159466,
+            "fn": 0,
+            "tn": 9588438,
+            "n_tiles": 41
+          }
+        },
+        "by_source": {
+          "zenodo_part1": {
+            "iou_oil": 0.12006199485896292,
+            "dice_oil": 0.2143845526587678,
+            "precision_oil": 0.13376836344714493,
+            "recall_oil": 0.5395427594445601,
+            "f1_oil": 0.2143845526587678,
+            "pixel_accuracy": 0.8748763691295277,
+            "fp_pixel_rate": 0.11416621394020286,
+            "tp": 98459,
+            "fp": 637582,
+            "fn": 84027,
+            "tn": 4947100,
+            "n_tiles": 22
+          },
+          "zenodo_part2_lookalike": {
+            "iou_oil": 0.0,
+            "dice_oil": 0.0,
+            "precision_oil": 0.0,
+            "recall_oil": 0.0,
+            "f1_oil": 0.0,
+            "pixel_accuracy": 0.9349069595336914,
+            "fp_pixel_rate": 0.0650930404663086,
+            "tp": 0,
+            "fp": 273020,
+            "fn": 0,
+            "tn": 3921284,
+            "n_tiles": 16
+          },
+          "zenodo_part2_no_oil": {
+            "iou_oil": 0.0,
+            "dice_oil": 0.0,
+            "precision_oil": 0.0,
+            "recall_oil": 0.0,
+            "f1_oil": 0.0,
+            "pixel_accuracy": 0.8966856002807617,
+            "fp_pixel_rate": 0.10331439971923828,
+            "tp": 0,
+            "fp": 324999,
+            "fn": 0,
+            "tn": 2820729,
+            "n_tiles": 12
+          }
+        },
+        "confusion_matrix": [
+          [
+            11689113,
+            1235601
+          ],
+          [
+            84027,
+            98459
+          ]
+        ],
+        "pr_auc": 0.06537681545497183,
+        "best_f1": 0.13159671188037497,
+        "best_f1_threshold": 0.48484848484848486,
+        "loss": NaN
+      },
+      "fresh_random": {
+        "split": "val",
+        "threshold": 0.5,
+        "n_tiles": 50,
+        "n_pixels": 13107200,
+        "overall": {
+          "iou_oil": 0.007678249047183899,
+          "dice_oil": 0.015239485529124228,
+          "precision_oil": 0.00890315625473032,
+          "recall_oil": 0.052858849445984894,
+          "f1_oil": 0.015239485529124226,
+          "pixel_accuracy": 0.9048896789550781,
+          "fp_pixel_rate": 0.08308036835476591,
+          "tp": 9646,
+          "fp": 1073790,
+          "fn": 172840,
+          "tn": 11850924,
+          "n_tiles": 50
+        },
+        "by_population": {
+          "positive_tiles": {
+            "iou_oil": 0.031092759313161397,
+            "dice_oil": 0.06031030483401536,
+            "precision_oil": 0.07020736136484391,
+            "recall_oil": 0.052858849445984894,
+            "f1_oil": 0.06031030483401536,
+            "pixel_accuracy": 0.8725946214463975,
+            "fp_pixel_rate": 0.05868541581488508,
+            "tp": 9646,
+            "fp": 127747,
+            "fn": 172840,
+            "tn": 2049063,
+            "n_tiles": 9
+          },
+          "empty_tiles": {
+            "iou_oil": 0.0,
+            "dice_oil": 0.0,
+            "precision_oil": 0.0,
+            "recall_oil": 0.0,
+            "f1_oil": 0.0,
+            "pixel_accuracy": 0.9119788379203982,
+            "fp_pixel_rate": 0.08802116207960176,
+            "tp": 0,
+            "fp": 946043,
+            "fn": 0,
+            "tn": 9801861,
+            "n_tiles": 41
+          }
+        },
+        "by_source": {
+          "zenodo_part1": {
+            "iou_oil": 0.012380316759504068,
+            "dice_oil": 0.02445783774052785,
+            "precision_oil": 0.01590961570179779,
+            "recall_oil": 0.052858849445984894,
+            "f1_oil": 0.02445783774052785,
+            "pixel_accuracy": 0.8665733337402344,
+            "fp_pixel_rate": 0.10683759612454209,
+            "tp": 9646,
+            "fp": 596654,
+            "fn": 172840,
+            "tn": 4988028,
+            "n_tiles": 22
+          },
+          "zenodo_part2_lookalike": {
+            "iou_oil": 0.0,
+            "dice_oil": 0.0,
+            "precision_oil": 0.0,
+            "recall_oil": 0.0,
+            "f1_oil": 0.0,
+            "pixel_accuracy": 0.9399077892303467,
+            "fp_pixel_rate": 0.06009221076965332,
+            "tp": 0,
+            "fp": 252045,
+            "fn": 0,
+            "tn": 3942259,
+            "n_tiles": 16
+          },
+          "zenodo_part2_no_oil": {
+            "iou_oil": 0.0,
+            "dice_oil": 0.0,
+            "precision_oil": 0.0,
+            "recall_oil": 0.0,
+            "f1_oil": 0.0,
+            "pixel_accuracy": 0.9284454981486002,
+            "fp_pixel_rate": 0.07155450185139973,
+            "tp": 0,
+            "fp": 225091,
+            "fn": 0,
+            "tn": 2920637,
+            "n_tiles": 12
+          }
+        },
+        "confusion_matrix": [
+          [
+            11850924,
+            1073790
+          ],
+          [
+            172840,
+            9646
+          ]
+        ],
+        "pr_auc": 0.013506018046834002,
+        "best_f1": 0.0286798283277215,
+        "best_f1_threshold": 0.004887585532746823,
+        "loss": NaN
+      },
+      "forced_all_oil": {
+        "split": "val",
+        "threshold": 0.5,
+        "n_tiles": 50,
+        "n_pixels": 13107200,
+        "overall": {
+          "iou_oil": 0.013922576904296874,
+          "dice_oil": 0.027462800851728173,
+          "precision_oil": 0.013922576904296874,
+          "recall_oil": 1.0,
+          "f1_oil": 0.027462800851728177,
+          "pixel_accuracy": 0.013922576904296874,
+          "fp_pixel_rate": 1.0,
+          "tp": 182486,
+          "fp": 12924714,
+          "fn": 0,
+          "tn": 0,
+          "n_tiles": 50
+        },
+        "by_population": {
+          "positive_tiles": {
+            "iou_oil": 0.07734764946831597,
+            "dice_oil": 0.14358902533734208,
+            "precision_oil": 0.07734764946831597,
+            "recall_oil": 1.0,
+            "f1_oil": 0.14358902533734205,
+            "pixel_accuracy": 0.07734764946831597,
+            "fp_pixel_rate": 1.0,
+            "tp": 182486,
+            "fp": 2176810,
+            "fn": 0,
+            "tn": 0,
+            "n_tiles": 9
+          },
+          "empty_tiles": {
+            "iou_oil": 0.0,
+            "dice_oil": 0.0,
+            "precision_oil": 0.0,
+            "recall_oil": 0.0,
+            "f1_oil": 0.0,
+            "pixel_accuracy": 0.0,
+            "fp_pixel_rate": 1.0,
+            "tp": 0,
+            "fp": 10747904,
+            "fn": 0,
+            "tn": 0,
+            "n_tiles": 41
+          }
+        },
+        "by_source": {
+          "zenodo_part1": {
+            "iou_oil": 0.03164222023703835,
+            "dice_oil": 0.06134339912875606,
+            "precision_oil": 0.03164222023703835,
+            "recall_oil": 1.0,
+            "f1_oil": 0.06134339912875606,
+            "pixel_accuracy": 0.03164222023703835,
+            "fp_pixel_rate": 1.0,
+            "tp": 182486,
+            "fp": 5584682,
+            "fn": 0,
+            "tn": 0,
+            "n_tiles": 22
+          },
+          "zenodo_part2_lookalike": {
+            "iou_oil": 0.0,
+            "dice_oil": 0.0,
+            "precision_oil": 0.0,
+            "recall_oil": 0.0,
+            "f1_oil": 0.0,
+            "pixel_accuracy": 0.0,
+            "fp_pixel_rate": 1.0,
+            "tp": 0,
+            "fp": 4194304,
+            "fn": 0,
+            "tn": 0,
+            "n_tiles": 16
+          },
+          "zenodo_part2_no_oil": {
+            "iou_oil": 0.0,
+            "dice_oil": 0.0,
+            "precision_oil": 0.0,
+            "recall_oil": 0.0,
+            "f1_oil": 0.0,
+            "pixel_accuracy": 0.0,
+            "fp_pixel_rate": 1.0,
+            "tp": 0,
+            "fp": 3145728,
+            "fn": 0,
+            "tn": 0,
+            "n_tiles": 12
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            12924714
+          ],
+          [
+            0,
+            182486
+          ]
+        ],
+        "pr_auc": 0.0,
+        "best_f1": 0.027465956721318584,
+        "best_f1_threshold": 1.0,
+        "loss": NaN
+      }
+    },
+    "checkpoint": {
+      "path": "D:\\ROUTER(DATASETS)\\VARUNA\\artifacts\\checkpoints\\netra_v0_2_smoke\\netra_v02_smoke_best.pt",
+      "size_mb": 293.503588,
+      "epoch": 2,
+      "best_metric": 0.06943086002480807,
+      "dataset_version": "NETRA-GOLD-v0.2",
+      "manifest_hash": "89d3cf69d7131964f30879506a6ec0cd07cf01a5900deef89a9c6c24697ff8c4",
+      "normalization_version": "netra-norm-v0.2-nodata-excluded",
+      "keys_present": {
+        "model_state_dict": true,
+        "optimizer_state_dict": true,
+        "scheduler_state_dict": true,
+        "scaler_state_dict": true,
+        "epoch": true,
+        "best_metric": true,
+        "config": true,
+        "dataset_version": true,
+        "manifest_hash": true,
+        "normalization_version": true,
+        "seed": true
+      }
+    },
+    "reload": {
+      "output_shape": [
+        8,
+        2,
+        512,
+        512
+      ],
+      "fingerprint": "89a986a85b0e12540b7ede353085ca436a7e01c23deb65d7ae6f375f6573beb4"
+    },
+    "gpu": {
+      "name": "NVIDIA GeForce RTX 3060",
+      "peak_vram_gb": 3.285503387451172,
+      "peak_reserved_gb": 3.533203125,
+      "train_seconds": 23.036437999922782,
+      "tiles_per_s": 17.363795566022002
+    }
+  }
+}
